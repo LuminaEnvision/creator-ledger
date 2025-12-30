@@ -1,6 +1,5 @@
 import Papa from 'papaparse';
 import { jsPDF } from 'jspdf';
-import autoTable from 'jspdf-autotable';
 
 // Define the shape of the data we are exporting
 interface ExportEntry {
@@ -100,7 +99,7 @@ export const exportToPDF = async (data: ExportEntry[], filename: string = 'ledge
             entry.stats ? `Views: ${((entry.stats.views || 0) / 1000).toFixed(1)}K | Likes: ${((entry.stats.likes || 0) / 1000).toFixed(1)}K` : null
         ].filter(Boolean);
 
-        details.forEach((detail, idx) => {
+        details.forEach((detail) => {
             if (detail) {
                 doc.text(detail, margin, yPosition);
                 yPosition += 6;
@@ -129,7 +128,7 @@ export const exportToPDF = async (data: ExportEntry[], filename: string = 'ledge
                 const img = new Image();
                 img.crossOrigin = 'anonymous';
                 
-                await new Promise((resolve, reject) => {
+                await new Promise((resolve) => {
                     img.onload = () => {
                         try {
                             const imgWidth = Math.min(60, contentWidth);

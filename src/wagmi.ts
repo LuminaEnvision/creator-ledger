@@ -7,5 +7,4 @@ export const config = getDefaultConfig({
     projectId: import.meta.env.VITE_WALLETCONNECT_PROJECT_ID || 'YOUR_PROJECT_ID',
     chains: [baseSepolia, base, mainnet, polygon, optimism, arbitrum, celo, celoSepolia], // Base Sepolia first (default)
     ssr: false, // Because we are using Vite (SPA)
-    initialChain: baseSepolia, // Set Base Sepolia as initial chain
 });

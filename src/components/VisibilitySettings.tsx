@@ -21,7 +21,7 @@ interface VisibilitySettingsProps {
 }
 
 export const VisibilitySettingsComponent: React.FC<VisibilitySettingsProps> = ({
-    entry,
+    entry: _entry,
     allEntries,
     settings,
     onChange
@@ -120,21 +120,21 @@ export const VisibilitySettingsComponent: React.FC<VisibilitySettingsProps> = ({
                     Select individual posts to hide from shared views.
                 </p>
                 <div className="space-y-2 max-h-48 overflow-y-auto">
-                    {allEntries.slice(0, 20).map(e => (
-                        <label key={e.id} className="flex items-center gap-2 cursor-pointer hover:bg-secondary/50 p-2 rounded">
+                    {allEntries.slice(0, 20).map(entry => (
+                        <label key={entry.id} className="flex items-center gap-2 cursor-pointer hover:bg-secondary/50 p-2 rounded">
                             <input
                                 type="checkbox"
-                                checked={localSettings.hiddenPosts.includes(e.id)}
-                                onChange={(e) => {
-                                    const newPosts = e.target.checked
-                                        ? [...localSettings.hiddenPosts, e.id]
-                                        : localSettings.hiddenPosts.filter(id => id !== e.id);
+                                checked={localSettings.hiddenPosts.includes(entry.id)}
+                                onChange={(event) => {
+                                    const newPosts = event.target.checked
+                                        ? [...localSettings.hiddenPosts, entry.id]
+                                        : localSettings.hiddenPosts.filter(id => id !== entry.id);
                                     updateSettings({ hiddenPosts: newPosts });
                                 }}
                                 className="w-4 h-4 rounded border-border text-primary focus:ring-primary"
                             />
                             <span className="text-sm truncate flex-1">
-                                {e.title || e.url.substring(0, 50)}
+                                {entry.title || entry.url.substring(0, 50)}
                             </span>
                         </label>
                     ))}
