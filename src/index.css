@@ -1,0 +1,316 @@
+@import "tailwindcss";
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&display=swap');
+
+@theme {
+    --font-sans: 'Inter', ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+    --radius-lg: 0.5rem;
+    --radius-md: calc(0.5rem - 2px);
+    --radius-sm: calc(0.5rem - 4px);
+
+    --color-background: hsl(var(--background));
+    --color-foreground: hsl(var(--foreground));
+    --color-card: hsl(var(--card));
+    --color-card-foreground: hsl(var(--card-foreground));
+    --color-popover: hsl(var(--popover));
+    --color-popover-foreground: hsl(var(--popover-foreground));
+    --color-primary: hsl(var(--primary));
+    --color-primary-foreground: hsl(var(--primary-foreground));
+    --color-secondary: hsl(var(--secondary));
+    --color-secondary-foreground: hsl(var(--secondary-foreground));
+    --color-muted: hsl(var(--muted));
+    --color-muted-foreground: hsl(var(--muted-foreground));
+    --color-accent: hsl(var(--accent));
+    --color-accent-foreground: hsl(var(--accent-foreground));
+    --color-destructive: hsl(var(--destructive));
+    --color-destructive-foreground: hsl(var(--destructive-foreground));
+    --color-border: hsl(var(--border));
+    --color-input: hsl(var(--input));
+    --color-ring: hsl(var(--ring));
+}
+
+:root {
+    /* Sophisticated, muted palette */
+    --background: 240 10% 98%;
+    --foreground: 240 10% 4%;
+    --card: 0 0% 100%;
+    --card-foreground: 240 10% 4%;
+    --popover: 0 0% 100%;
+    --popover-foreground: 240 10% 4%;
+    --primary: 250 85% 60%;
+    --primary-foreground: 0 0% 100%;
+    --secondary: 240 5% 96%;
+    --secondary-foreground: 240 10% 4%;
+    --muted: 240 5% 96%;
+    --muted-foreground: 240 5% 40%;
+    --accent: 265 80% 60%;
+    --accent-foreground: 0 0% 100%;
+    --destructive: 0 84% 60%;
+    --destructive-foreground: 0 0% 100%;
+    --border: 240 6% 90%;
+    --input: 240 6% 90%;
+    --ring: 250 85% 60%;
+    --radius: 0.75rem;
+
+    /* Soft, subtle gradients for light mode */
+    --gradient-1: 250 80% 95%;
+    --gradient-2: 220 80% 95%;
+    --gradient-3: 190 80% 95%;
+}
+
+.dark {
+    /* Deep Midnight colors */
+    --background: 240 10% 4%;
+    --foreground: 0 0% 98%;
+    --card: 240 10% 6%;
+    --card-foreground: 0 0% 98%;
+    --popover: 240 10% 6%;
+    --popover-foreground: 0 0% 98%;
+    --primary: 250 85% 65%;
+    --primary-foreground: 0 0% 100%;
+    --secondary: 240 10% 12%;
+    --secondary-foreground: 0 0% 98%;
+    --muted: 240 10% 12%;
+    --muted-foreground: 240 5% 65%;
+    --accent: 280 80% 65%;
+    --accent-foreground: 0 0% 100%;
+    --destructive: 0 62% 50%;
+    --destructive-foreground: 0 0% 100%;
+    --border: 240 10% 15%;
+    --input: 240 10% 15%;
+    --ring: 250 85% 65%;
+
+    /* Deep, muted glows for dark mode */
+    --gradient-1: 260 50% 15%;
+    --gradient-2: 220 50% 12%;
+    --gradient-3: 200 50% 10%;
+}
+
+/* Sophisticated Dark Background */
+body {
+    background-color: hsl(var(--background));
+    color: hsl(var(--foreground));
+    position: relative;
+    overflow-x: hidden;
+    min-height: 100vh;
+}
+
+/* Subtle, Deep Atmosphere */
+body::before {
+    content: '';
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background:
+        radial-gradient(circle at 10% 10%, hsl(var(--gradient-1) / 0.15) 0%, transparent 40%),
+        radial-gradient(circle at 90% 90%, hsl(var(--gradient-2) / 0.15) 0%, transparent 40%),
+        radial-gradient(circle at 50% 50%, hsl(var(--gradient-3) / 0.1) 0%, transparent 60%);
+    pointer-events: none;
+    z-index: 0;
+    animation: pulseGlow 20s ease-in-out infinite alternate;
+}
+
+@keyframes pulseGlow {
+    0% {
+        opacity: 0.6;
+        transform: scale(1);
+    }
+
+    100% {
+        opacity: 1;
+        transform: scale(1.05);
+    }
+}
+
+/* Floating geometric shapes */
+body::after {
+    content: '';
+    position: fixed;
+    top: -50%;
+    left: -50%;
+    width: 200%;
+    height: 200%;
+    background-image:
+        radial-gradient(circle, hsla(262, 83%, 58%, 0.05) 1px, transparent 1px),
+        radial-gradient(circle, hsla(220, 90%, 56%, 0.05) 1px, transparent 1px);
+    background-size: 50px 50px, 80px 80px;
+    background-position: 0 0, 40px 40px;
+    animation: floatDots 30s linear infinite;
+    pointer-events: none;
+    z-index: 0;
+}
+
+@keyframes gradientShift {
+
+    0%,
+    100% {
+        background-position: 0% 50%;
+    }
+
+    50% {
+        background-position: 100% 50%;
+    }
+}
+
+@keyframes floatPattern {
+
+    0%,
+    100% {
+        transform: translate(0, 0) scale(1);
+        opacity: 1;
+    }
+
+    50% {
+        transform: translate(30px, -30px) scale(1.1);
+        opacity: 0.8;
+    }
+}
+
+@keyframes floatDots {
+    0% {
+        transform: translate(0, 0) rotate(0deg);
+    }
+
+    100% {
+        transform: translate(50px, 50px) rotate(360deg);
+    }
+}
+
+/* Glassmorphism effect for cards */
+.glass-card {
+    background: hsla(var(--card), 0.7);
+    backdrop-filter: blur(20px);
+    border: 1px solid hsla(var(--border), 0.3);
+    box-shadow:
+        0 8px 32px 0 rgba(0, 0, 0, 0.1),
+        inset 0 1px 0 0 rgba(255, 255, 255, 0.1);
+}
+
+/* Enhanced button styles */
+.btn-primary {
+    background: linear-gradient(135deg, hsl(var(--primary)) 0%, hsl(var(--accent)) 100%);
+    color: hsl(var(--primary-foreground));
+    border: none;
+    padding: 0.75rem 1.5rem;
+    border-radius: var(--radius);
+    font-weight: 600;
+    cursor: pointer;
+    transition: all 0.3s ease;
+    box-shadow: 0 4px 15px hsla(var(--primary), 0.4);
+    position: relative;
+    overflow: hidden;
+}
+
+.btn-primary::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: -100%;
+    width: 100%;
+    height: 100%;
+    background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.3), transparent);
+    transition: left 0.5s ease;
+}
+
+.btn-primary:hover::before {
+    left: 100%;
+}
+
+.btn-primary:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 6px 20px hsla(var(--primary), 0.5);
+}
+
+.btn-primary:active {
+    transform: translateY(0);
+}
+
+/* Icon animations */
+.icon-hover {
+    transition: all 0.3s ease;
+}
+
+.icon-hover:hover {
+    transform: scale(1.1) rotate(5deg);
+}
+
+/* Smooth transitions for all interactive elements */
+* {
+    position: relative;
+    z-index: 1;
+}
+
+a,
+button {
+    transition: all 0.2s ease;
+}
+
+/* Shimmer effect for loading states */
+@keyframes shimmer {
+    0% {
+        background-position: -1000px 0;
+    }
+
+    100% {
+        background-position: 1000px 0;
+    }
+}
+
+.shimmer {
+    background: linear-gradient(90deg,
+            hsla(var(--muted), 0.5) 0%,
+            hsla(var(--muted), 0.8) 50%,
+            hsla(var(--muted), 0.5) 100%);
+    background-size: 1000px 100%;
+    animation: shimmer 2s infinite;
+}
+
+/* Premium Background - Enhanced gradient for Pro users */
+.premium-bg {
+    position: relative;
+}
+
+.premium-bg::before {
+    content: '';
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background:
+        radial-gradient(circle at 20% 20%, hsla(250, 85%, 65%, 0.12) 0%, transparent 50%),
+        radial-gradient(circle at 80% 80%, hsla(280, 80%, 65%, 0.12) 0%, transparent 50%),
+        radial-gradient(circle at 50% 50%, hsla(265, 80%, 60%, 0.08) 0%, transparent 60%);
+    pointer-events: none;
+    z-index: 0;
+    animation: premiumGlow 15s ease-in-out infinite alternate;
+}
+
+.premium-bg::after {
+    content: '';
+    position: fixed;
+    top: -50%;
+    left: -50%;
+    width: 200%;
+    height: 200%;
+    background-image:
+        radial-gradient(circle, hsla(250, 85%, 65%, 0.08) 1px, transparent 1px),
+        radial-gradient(circle, hsla(280, 80%, 65%, 0.08) 1px, transparent 1px);
+    background-size: 60px 60px, 90px 90px;
+    background-position: 0 0, 45px 45px;
+    animation: floatDots 25s linear infinite;
+    pointer-events: none;
+    z-index: 0;
+}
+
+@keyframes premiumGlow {
+    0% {
+        opacity: 0.8;
+        transform: scale(1);
+    }
+    100% {
+        opacity: 1;
+        transform: scale(1.08);
+    }
+}

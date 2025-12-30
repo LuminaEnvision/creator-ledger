@@ -1,0 +1,16 @@
+{
+    "accountAssociation": {
+        "header": "eyJmaWQiOjEsInR5cGUiOiJjdXN0b2R5Iiwia2V5IjoiMHgwIn0",
+        "payload": "eyJkb21haW4iOiJjcmVhdG9yLWxlZGdlci52ZXJjZWwuYXBwIn0",
+        "signature": "0x0"
+    },
+    "frame": {
+        "version": "1",
+        "name": "Creator Ledger",
+        "homeUrl": "https://creator-ledger.vercel.app",
+        "iconUrl": "https://creator-ledger.vercel.app/icon.png",
+        "splashImageUrl": "https://creator-ledger.vercel.app/splash.png",
+        "splashBackgroundColor": "#0F172A",
+        "webhookUrl": "https://creator-ledger.vercel.app/api/webhook"
+    }
+}

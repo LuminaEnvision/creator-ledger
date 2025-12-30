@@ -1,0 +1,265 @@
+import React, { useState, useEffect } from 'react';
+import { supabase } from '../lib/supabase';
+import type { LedgerEntry } from '../types';
+
+interface PortfolioCollection {
+    id: string;
+    name: string;
+    entryIds: string[];
+    createdAt: string;
+}
+
+interface PortfolioCollectionsProps {
+    entries: LedgerEntry[];
+    walletAddress: string;
+}
+
+export const PortfolioCollections: React.FC<PortfolioCollectionsProps> = ({
+    entries,
+    walletAddress
+}) => {
+    const [collections, setCollections] = useState<PortfolioCollection[]>([]);
+    const [isModalOpen, setIsModalOpen] = useState(false);
+    const [editingCollection, setEditingCollection] = useState<PortfolioCollection | null>(null);
+    const [collectionName, setCollectionName] = useState('');
+    const [selectedEntryIds, setSelectedEntryIds] = useState<Set<string>>(new Set());
+
+    useEffect(() => {
+        fetchCollections();
+    }, [walletAddress]);
+
+    const fetchCollections = async () => {
+        try {
+            // Store collections in localStorage for now (can be moved to Supabase later)
+            const stored = localStorage.getItem(`collections_${walletAddress}`);
+            if (stored) {
+                setCollections(JSON.parse(stored));
+            }
+        } catch (error) {
+            console.error('Error fetching collections:', error);
+        }
+    };
+
+    const saveCollections = (newCollections: PortfolioCollection[]) => {
+        localStorage.setItem(`collections_${walletAddress}`, JSON.stringify(newCollections));
+        setCollections(newCollections);
+    };
+
+    const handleCreateCollection = () => {
+        setCollectionName('');
+        setSelectedEntryIds(new Set());
+        setEditingCollection(null);
+        setIsModalOpen(true);
+    };
+
+    const handleEditCollection = (collection: PortfolioCollection) => {
+        setCollectionName(collection.name);
+        setSelectedEntryIds(new Set(collection.entryIds));
+        setEditingCollection(collection);
+        setIsModalOpen(true);
+    };
+
+    const handleSaveCollection = () => {
+        if (!collectionName.trim()) {
+            alert('Please enter a collection name');
+            return;
+        }
+
+        const newCollection: PortfolioCollection = {
+            id: editingCollection?.id || `collection_${Date.now()}`,
+            name: collectionName.trim(),
+            entryIds: Array.from(selectedEntryIds),
+            createdAt: editingCollection?.createdAt || new Date().toISOString()
+        };
+
+        if (editingCollection) {
+            const updated = collections.map(c => c.id === editingCollection.id ? newCollection : c);
+            saveCollections(updated);
+        } else {
+            saveCollections([...collections, newCollection]);
+        }
+
+        setIsModalOpen(false);
+        setCollectionName('');
+        setSelectedEntryIds(new Set());
+        setEditingCollection(null);
+    };
+
+    const handleDeleteCollection = (id: string) => {
+        if (confirm('Are you sure you want to delete this collection?')) {
+            saveCollections(collections.filter(c => c.id !== id));
+        }
+    };
+
+    const generateShareLink = (collection: PortfolioCollection) => {
+        const baseUrl = `${window.location.origin}/u/${walletAddress}`;
+        const filterParam = collection.entryIds.join(',');
+        return `${baseUrl}?filter=${filterParam}`;
+    };
+
+    const copyShareLink = (collection: PortfolioCollection) => {
+        const link = generateShareLink(collection);
+        navigator.clipboard.writeText(link);
+        alert('Shareable link copied to clipboard!');
+    };
+
+    return (
+        <div className="space-y-4">
+            <div className="flex items-center justify-between">
+                <div>
+                    <h4 className="text-sm font-bold uppercase tracking-wider text-primary mb-1">Portfolio Collections</h4>
+                    <p className="text-xs text-muted-foreground">Create filtered views to share with different audiences</p>
+                </div>
+                <button
+                    onClick={handleCreateCollection}
+                    className="px-4 py-2 rounded-lg bg-primary text-white text-xs font-bold hover:bg-primary/80 transition-all"
+                >
+                    + New Collection
+                </button>
+            </div>
+
+            {collections.length === 0 ? (
+                <div className="p-6 rounded-xl border-2 border-dashed border-border bg-muted/20 text-center">
+                    <p className="text-sm text-muted-foreground mb-3">No collections yet</p>
+                    <p className="text-xs text-muted-foreground">Create a collection to share filtered portfolios with different audiences</p>
+                </div>
+            ) : (
+                <div className="space-y-2">
+                    {collections.map((collection) => {
+                        const filteredEntries = entries.filter(e => collection.entryIds.includes(e.id));
+                        return (
+                            <div key={collection.id} className="p-4 rounded-xl glass-card border border-border/50">
+                                <div className="flex items-start justify-between mb-3">
+                                    <div className="flex-1">
+                                        <h5 className="font-bold text-sm mb-1">{collection.name}</h5>
+                                        <p className="text-xs text-muted-foreground">
+                                            {filteredEntries.length} {filteredEntries.length === 1 ? 'entry' : 'entries'}
+                                        </p>
+                                    </div>
+                                    <div className="flex gap-2">
+                                        <button
+                                            onClick={() => copyShareLink(collection)}
+                                            className="px-3 py-1.5 rounded-lg bg-primary/10 hover:bg-primary/20 text-primary text-xs font-bold transition-all"
+                                            title="Copy shareable link"
+                                        >
+                                            Copy Link
+                                        </button>
+                                        <button
+                                            onClick={() => handleEditCollection(collection)}
+                                            className="px-3 py-1.5 rounded-lg glass-card hover:bg-accent/20 text-xs font-bold transition-all"
+                                        >
+                                            Edit
+                                        </button>
+                                        <button
+                                            onClick={() => handleDeleteCollection(collection.id)}
+                                            className="px-3 py-1.5 rounded-lg glass-card hover:bg-red-500/20 text-red-500 text-xs font-bold transition-all"
+                                        >
+                                            Delete
+                                        </button>
+                                    </div>
+                                </div>
+                                <div className="flex items-center gap-2 text-xs text-muted-foreground">
+                                    <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8.684 13.342C8.886 12.938 9 12.482 9 12c0-.482-.114-.938-.316-1.342m0 2.684a3 3 0 110-2.684m0 2.684l6.632 3.316m-6.632-6l6.632-3.316m0 0a3 3 0 105.367-2.684 3 3 0 00-5.367 2.684zm0 9.316a3 3 0 105.368 2.684 3 3 0 00-5.368-2.684z" />
+                                    </svg>
+                                    <span className="font-mono text-[10px] truncate max-w-xs">
+                                        {generateShareLink(collection)}
+                                    </span>
+                                </div>
+                            </div>
+                        );
+                    })}
+                </div>
+            )}
+
+            {/* Collection Editor Modal */}
+            {isModalOpen && (
+                <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm">
+                    <div className="glass-card rounded-2xl p-6 max-w-2xl w-full max-h-[90vh] overflow-y-auto">
+                        <div className="flex items-center justify-between mb-4">
+                            <h3 className="text-lg font-bold">
+                                {editingCollection ? 'Edit Collection' : 'Create Collection'}
+                            </h3>
+                            <button
+                                onClick={() => setIsModalOpen(false)}
+                                className="p-2 rounded-lg hover:bg-accent/20 transition-all"
+                            >
+                                <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                                </svg>
+                            </button>
+                        </div>
+
+                        <div className="space-y-4">
+                            <div>
+                                <label className="block text-sm font-semibold mb-2">Collection Name</label>
+                                <input
+                                    type="text"
+                                    value={collectionName}
+                                    onChange={(e) => setCollectionName(e.target.value)}
+                                    placeholder="e.g., For Funders, For Employers, Tech Portfolio"
+                                    className="w-full px-4 py-2 rounded-xl glass-card text-foreground focus:outline-none focus:ring-2 focus:ring-primary/50"
+                                />
+                            </div>
+
+                            <div>
+                                <label className="block text-sm font-semibold mb-2">
+                                    Select Entries ({selectedEntryIds.size} selected)
+                                </label>
+                                <div className="max-h-64 overflow-y-auto space-y-2 p-3 rounded-xl border border-border bg-muted/20">
+                                    {entries.filter(e => e.verification_status === 'Verified').map((entry) => (
+                                        <label
+                                            key={entry.id}
+                                            className="flex items-start gap-3 p-3 rounded-lg hover:bg-accent/10 cursor-pointer border border-transparent hover:border-primary/20 transition-all"
+                                        >
+                                            <input
+                                                type="checkbox"
+                                                checked={selectedEntryIds.has(entry.id)}
+                                                onChange={(e) => {
+                                                    const newSet = new Set(selectedEntryIds);
+                                                    if (e.target.checked) {
+                                                        newSet.add(entry.id);
+                                                    } else {
+                                                        newSet.delete(entry.id);
+                                                    }
+                                                    setSelectedEntryIds(newSet);
+                                                }}
+                                                className="mt-1 w-4 h-4 rounded border-border text-primary focus:ring-primary"
+                                            />
+                                            <div className="flex-1 min-w-0">
+                                                <p className="text-sm font-semibold truncate">{entry.title || entry.url}</p>
+                                                <p className="text-xs text-muted-foreground">{entry.platform}</p>
+                                            </div>
+                                        </label>
+                                    ))}
+                                </div>
+                                {entries.filter(e => e.verification_status === 'Verified').length === 0 && (
+                                    <p className="text-xs text-muted-foreground text-center py-4">
+                                        No verified entries available. Verify entries first to add them to collections.
+                                    </p>
+                                )}
+                            </div>
+
+                            <div className="flex gap-3 justify-end pt-4 border-t border-border">
+                                <button
+                                    onClick={() => setIsModalOpen(false)}
+                                    className="px-4 py-2 rounded-lg glass-card hover:bg-accent/20 text-sm font-bold transition-all"
+                                >
+                                    Cancel
+                                </button>
+                                <button
+                                    onClick={handleSaveCollection}
+                                    disabled={!collectionName.trim() || selectedEntryIds.size === 0}
+                                    className="px-4 py-2 rounded-lg bg-primary text-white text-sm font-bold hover:bg-primary/80 transition-all disabled:opacity-50 disabled:cursor-not-allowed"
+                                >
+                                    {editingCollection ? 'Update' : 'Create'} Collection
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            )}
+        </div>
+    );
+};
+
