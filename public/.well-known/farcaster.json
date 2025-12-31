@@ -1,29 +1,29 @@
 {
   "accountAssociation": {
     "header": "eyJmaWQiOjEsInR5cGUiOiJjdXN0b2R5Iiwia2V5IjoiMHgwIn0",
-    "payload": "eyJkb21haW4iOiJjcmVhdG9yLWxlZGdlci52ZXJjZWwuYXBwIn0",
+    "payload": "eyJkb21haW4iOiJjcmVhdG9yLWxlZGdlci1maXZlLnZlcmNlbC5hcHAifQ",
     "signature": "0x0"
   },
   "miniapp": {
     "version": "1",
     "name": "Creator Ledger",
-    "homeUrl": "https://creator-ledger.vercel.app",
-    "iconUrl": "https://creator-ledger.vercel.app/assets/logo.png",
-    "splashImageUrl": "https://creator-ledger.vercel.app/assets/logo.png",
+    "homeUrl": "https://creator-ledger-five.vercel.app",
+    "iconUrl": "https://creator-ledger-five.vercel.app/assets/logo.png",
+    "splashImageUrl": "https://creator-ledger-five.vercel.app/assets/logo.png",
     "splashBackgroundColor": "#0F172A",
-    "webhookUrl": "https://creator-ledger.vercel.app/api/webhook",
+    "webhookUrl": "https://creator-ledger-five.vercel.app/api/webhook",
     "subtitle": "Verify and showcase your content",
     "description": "A decentralized platform for creators to verify, track, and showcase their content across platforms with on-chain proof via NFTs.",
     "screenshotUrls": [
-      "https://creator-ledger.vercel.app/assets/logo.png"
+      "https://creator-ledger-five.vercel.app/assets/logo.png"
     ],
     "primaryCategory": "social",
     "tags": ["creator", "content", "verification", "nft", "portfolio"],
-    "heroImageUrl": "https://creator-ledger.vercel.app/assets/logo.png",
+    "heroImageUrl": "https://creator-ledger-five.vercel.app/assets/logo.png",
     "tagline": "Your verified content portfolio",
     "ogTitle": "Creator Ledger - Verified Content Portfolio",
     "ogDescription": "Verify and showcase your content with on-chain proof",
-    "ogImageUrl": "https://creator-ledger.vercel.app/assets/logo.png",
+    "ogImageUrl": "https://creator-ledger-five.vercel.app/assets/logo.png",
     "noindex": false
   }
 }
