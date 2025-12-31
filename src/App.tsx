@@ -11,7 +11,7 @@ import { TermsOfService } from './pages/TermsOfService';
 import { FooterMenu } from './components/FooterMenu';
 
 import { useEffect } from 'react';
-import sdk from '@farcaster/frame-sdk';
+import { sdk } from '@farcaster/miniapp-sdk';
 
 function App() {
   useEffect(() => {
