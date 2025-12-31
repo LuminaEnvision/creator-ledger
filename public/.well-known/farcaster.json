@@ -8,22 +8,24 @@
     "version": "1",
     "name": "Creator Ledger",
     "homeUrl": "https://creator-ledger-five.vercel.app",
-    "iconUrl": "https://creator-ledger-five.vercel.app/assets/logo.png",
-    "splashImageUrl": "https://creator-ledger-five.vercel.app/assets/logo.png",
+    "iconUrl": "https://ipfs.io/ipfs/bafkreieiakz6fwi2uoukg3wzrcwiszaacccgk72baw34g2blbmjl5fw34i?filename=CLIcon.png",
+    "splashImageUrl": "https://ipfs.io/ipfs/bafybeidwed4qzew5llyqgdkr335wbraa25u4tx2pzlcxmp673eim5rpjkm?filename=CLSplash.png",
     "splashBackgroundColor": "#0F172A",
     "webhookUrl": "https://creator-ledger-five.vercel.app/api/webhook",
     "subtitle": "Verify and showcase your content",
     "description": "A decentralized platform for creators to verify, track, and showcase their content across platforms with on-chain proof via NFTs.",
     "screenshotUrls": [
-      "https://creator-ledger-five.vercel.app/assets/logo.png"
+      "https://ipfs.io/ipfs/bafybeiha52qhteoq6spmh4pg2pgykhif275fxkevbdwjwuheirggd4r56u?filename=CLScreenshot1.png",
+      "https://ipfs.io/ipfs/bafybeiby37krzkxsfeerapcznmbrzfpctegxaz7btzu2khfwyb5sn6vrke?filename=CLScreenshot2.png",
+      "https://ipfs.io/ipfs/bafybeiexatzpmuzc3trnaoraqnpgt7rrpopwuotooqkjeh73v47vh4piyy?filename=CLScreenshot3.png"
     ],
     "primaryCategory": "social",
     "tags": ["creator", "content", "verification", "nft", "portfolio"],
-    "heroImageUrl": "https://creator-ledger-five.vercel.app/assets/logo.png",
+    "heroImageUrl": "https://ipfs.io/ipfs/bafybeiebdvbieshgdwu7jnwirsfeip36thz3brmutbujyy66742jlko2wm?filename=CLOg.png",
     "tagline": "Your verified content portfolio",
     "ogTitle": "Creator Ledger - Verified Content Portfolio",
     "ogDescription": "Verify and showcase your content with on-chain proof",
-    "ogImageUrl": "https://creator-ledger-five.vercel.app/assets/logo.png",
+    "ogImageUrl": "https://ipfs.io/ipfs/bafybeiebdvbieshgdwu7jnwirsfeip36thz3brmutbujyy66742jlko2wm?filename=CLOg.png",
     "noindex": false
   }
 }
