@@ -58,6 +58,27 @@ Anyone can verify this signature using:
 - When the claim was made
 - The claim is authentic (not forged)
 
+## Improvements to Address Limitations
+
+### 1. **Duplicate Content Prevention**
+- ✅ **Content Hash System**: Each URL is hashed to create a unique fingerprint
+- ✅ **Same Wallet Protection**: Prevents the same wallet from claiming the same content twice
+- ✅ **URL Normalization**: Removes tracking parameters and normalizes URLs to detect duplicates
+
+### 2. **Enhanced Verification**
+- ✅ **Direct Verification Links**: Click "Verify Signature" to get a shareable verification link
+- ✅ **Client-Side Verification**: Built-in verification page that validates signatures instantly
+- ✅ **Etherscan Integration**: Direct link to verify.etherscan.io for external verification
+
+### 3. **Future: On-Chain Storage** (Coming Soon)
+We're exploring storing content hashes on-chain via transactions to:
+- Create immutable timestamps on the blockchain
+- Prevent duplicate claims across all wallets (not just same wallet)
+- Provide transaction hashes for even stronger proof
+- Enable cross-platform duplicate detection
+
+**Note**: On-chain storage would require a small transaction fee (~0.0001-0.0005 ETH) but provides stronger guarantees.
+
 ## The Verification Process
 
 1. **Copy the signature** from the modal
@@ -74,11 +95,22 @@ This proves the signature is authentic and was created by the wallet owner.
 - **Format**: Hexadecimal string
 - **Verification**: Public key cryptography (anyone can verify, only the private key holder can sign)
 
+## Current Features
+
+✅ **Implemented:**
+- Direct verification links with pre-filled data
+- Client-side signature verification page
+- Content hash system to prevent duplicate claims (same wallet)
+- URL normalization to detect similar content
+- Shareable verification URLs
+
 ## Future Enhancements
 
-We're working on:
-- On-chain storage of signatures (even more verifiable)
-- Direct verification links
-- Batch verification for multiple entries
-- Integration with BaseScan for direct transaction links
+We're exploring:
+- **On-chain storage via transactions**: Store content hashes on-chain for stronger proof (requires small fee ~0.0001-0.0005 ETH)
+- **Cross-wallet duplicate detection**: Prevent any wallet from claiming content already claimed by another
+- **Timestamp verification**: Compare claim timestamp with content publication date
+- **Content fingerprinting**: Hash actual content (not just URL) to detect reposts/duplicates
+- **Batch verification**: Verify multiple entries at once
+- **Integration with BaseScan**: Direct transaction links when on-chain storage is implemented
 

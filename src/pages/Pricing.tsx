@@ -371,7 +371,7 @@ export const Pricing: React.FC = () => {
                     Level Up Your <span className="text-primary italic">Presence</span>
                 </h1>
                 <p className="text-slate-400 text-lg max-w-2xl mx-auto font-medium">
-                    Secure your digital legacy with on-chain verification and advanced analytics.
+                    Secure your digital legacy with on-chain verification.
                     Monthly subscription keeps your Pro status active.
                 </p>
             </div>
@@ -406,7 +406,6 @@ export const Pricing: React.FC = () => {
                     subscriptionEndDate={subscriptionEnd}
                     features={[
                         "Cryptographic On-Chain Proof",
-                        "Real-time Engagement Analytics",
                         "Verified View Tracking",
                         "Custom Profile Themes",
                         "Priority Admin Review",

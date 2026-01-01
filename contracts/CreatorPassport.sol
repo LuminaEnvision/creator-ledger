@@ -22,6 +22,21 @@ contract CreatorPassport is ERC721, Ownable {
     // Operations fee address (treasury) for free users
     address public constant OPERATIONS_ADDRESS = 0x7eB8F203167dF3bC14D59536E671528dd97FB72a;
     uint256 public constant OPERATIONS_FEE = 0.00025 ether; // 0.00025 ETH
+    
+    // Content hash registration fee
+    uint256 public constant CONTENT_REGISTRATION_FEE = 0.0001 ether; // 0.0001 ETH
+    
+    // Content hash storage
+    struct ContentRecord {
+        address registrant;
+        uint256 timestamp;
+        string url;
+    }
+    
+    mapping(bytes32 => ContentRecord) public contentHashes;
+    mapping(bytes32 => bool) public isContentHashRegistered;
+    
+    event ContentHashRegistered(bytes32 indexed contentHash, address indexed registrant, string url);
 
     // Modifier to restrict functions to admins only
     modifier onlyAdmin() {
@@ -198,5 +213,46 @@ contract CreatorPassport is ERC721, Ownable {
         );
 
         return string(abi.encodePacked("data:application/json;base64,", json));
+    }
+
+    // Register content hash on-chain for stronger proof
+    // This creates an immutable record that prevents duplicate claims across all wallets
+    function registerContentHash(
+        bytes32 contentHash,
+        string memory url
+    ) public payable {
+        require(msg.value >= CONTENT_REGISTRATION_FEE, "Insufficient fee payment");
+        require(!isContentHashRegistered[contentHash], "Content hash already registered");
+        
+        // Forward fee to operations address
+        (bool sent, ) = payable(OPERATIONS_ADDRESS).call{value: msg.value}("");
+        require(sent, "Failed to send registration fee");
+        
+        // Store content hash record
+        contentHashes[contentHash] = ContentRecord({
+            registrant: msg.sender,
+            timestamp: block.timestamp,
+            url: url
+        });
+        
+        isContentHashRegistered[contentHash] = true;
+        
+        emit ContentHashRegistered(contentHash, msg.sender, url);
+    }
+
+    // Check if content hash is already registered
+    function isContentRegistered(bytes32 contentHash) public view returns (bool) {
+        return isContentHashRegistered[contentHash];
+    }
+
+    // Get content record details
+    function getContentRecord(bytes32 contentHash) public view returns (
+        address registrant,
+        uint256 timestamp,
+        string memory url
+    ) {
+        require(isContentHashRegistered[contentHash], "Content hash not registered");
+        ContentRecord memory record = contentHashes[contentHash];
+        return (record.registrant, record.timestamp, record.url);
     }
 }

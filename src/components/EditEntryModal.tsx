@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { useAuth } from '../context/AuthContext';
 import { supabase } from '../lib/supabase';
 import { HashtagInput } from './HashtagInput';
+import { Modal } from './Modal';
 import type { LedgerEntry } from '../types';
 
 interface EditEntryModalProps {
@@ -83,23 +84,13 @@ export const EditEntryModal: React.FC<EditEntryModalProps> = ({
         }
     };
 
-    if (!isOpen) return null;
-
     return (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm">
-            <div className="glass-card w-full max-w-2xl rounded-2xl p-6 max-h-[90vh] overflow-y-auto">
-                <div className="flex items-center justify-between mb-6">
-                    <h2 className="text-2xl font-bold">Edit Entry</h2>
-                    <button
-                        onClick={onClose}
-                        className="p-2 rounded-lg hover:bg-secondary transition-colors"
-                        aria-label="Close"
-                    >
-                        <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-                        </svg>
-                    </button>
-                </div>
+        <Modal
+            isOpen={isOpen}
+            onClose={onClose}
+            title="Edit Entry"
+            size="lg"
+        >
 
                 <form onSubmit={handleSubmit} className="space-y-6">
                     {/* URL (read-only) */}
@@ -197,8 +188,7 @@ export const EditEntryModal: React.FC<EditEntryModalProps> = ({
                         </button>
                     </div>
                 </form>
-            </div>
-        </div>
+        </Modal>
     );
 };
 

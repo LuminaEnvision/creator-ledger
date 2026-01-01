@@ -15,11 +15,6 @@ interface ExportEntry {
     image_url?: string;
     custom_image_url?: string;
     site_name?: string;
-    stats?: {
-        views?: number;
-        likes?: number;
-        shares?: number;
-    };
 }
 
 export const exportToCSV = (data: ExportEntry[], filename: string = 'ledger-export.csv') => {
@@ -96,7 +91,6 @@ export const exportToPDF = async (data: ExportEntry[], filename: string = 'ledge
             `Date: ${new Date(entry.timestamp).toLocaleDateString()}`,
             `Status: ${entry.verification_status}`,
             entry.campaign_tag ? `Tags: ${entry.campaign_tag}` : null,
-            entry.stats ? `Views: ${((entry.stats.views || 0) / 1000).toFixed(1)}K | Likes: ${((entry.stats.likes || 0) / 1000).toFixed(1)}K` : null
         ].filter(Boolean);
 
         details.forEach((detail) => {

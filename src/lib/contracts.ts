@@ -1,4 +1,4 @@
-export const PASSPORT_CONTRACT_ADDRESS = '0x1fAcFB89d852C7de7F58466200600c36dFaCb685';
+export const PASSPORT_CONTRACT_ADDRESS = '0xDea3162E7160aAd8f83C85814c9b9B5f16d7217c';
 
 export const PASSPORT_ABI = [
     {
@@ -173,5 +173,96 @@ export const PASSPORT_ABI = [
         ],
         "stateMutability": "view",
         "type": "function"
+    },
+    {
+        "inputs": [
+            {
+                "internalType": "bytes32",
+                "name": "contentHash",
+                "type": "bytes32"
+            },
+            {
+                "internalType": "string",
+                "name": "url",
+                "type": "string"
+            }
+        ],
+        "name": "registerContentHash",
+        "outputs": [],
+        "stateMutability": "payable",
+        "type": "function"
+    },
+    {
+        "inputs": [
+            {
+                "internalType": "bytes32",
+                "name": "contentHash",
+                "type": "bytes32"
+            }
+        ],
+        "name": "isContentRegistered",
+        "outputs": [
+            {
+                "internalType": "bool",
+                "name": "",
+                "type": "bool"
+            }
+        ],
+        "stateMutability": "view",
+        "type": "function"
+    },
+    {
+        "inputs": [
+            {
+                "internalType": "bytes32",
+                "name": "contentHash",
+                "type": "bytes32"
+            }
+        ],
+        "name": "getContentRecord",
+        "outputs": [
+            {
+                "internalType": "address",
+                "name": "registrant",
+                "type": "address"
+            },
+            {
+                "internalType": "uint256",
+                "name": "timestamp",
+                "type": "uint256"
+            },
+            {
+                "internalType": "string",
+                "name": "url",
+                "type": "string"
+            }
+        ],
+        "stateMutability": "view",
+        "type": "function"
+    },
+    {
+        "anonymous": false,
+        "inputs": [
+            {
+                "indexed": true,
+                "internalType": "bytes32",
+                "name": "contentHash",
+                "type": "bytes32"
+            },
+            {
+                "indexed": true,
+                "internalType": "address",
+                "name": "registrant",
+                "type": "address"
+            },
+            {
+                "indexed": false,
+                "internalType": "string",
+                "name": "url",
+                "type": "string"
+            }
+        ],
+        "name": "ContentHashRegistered",
+        "type": "event"
     }
 ] as const;

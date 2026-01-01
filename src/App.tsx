@@ -9,6 +9,7 @@ import { AdminDashboard } from './pages/AdminDashboard';
 import { Pricing } from './pages/Pricing';
 import { PublicProfile } from './pages/PublicProfile';
 import { TermsOfService } from './pages/TermsOfService';
+import { VerifySignature } from './pages/VerifySignature';
 import { FooterMenu } from './components/FooterMenu';
 
 import { useEffect } from 'react';
@@ -33,7 +34,10 @@ function App() {
                       <div className="w-10 h-10 rounded-xl overflow-hidden shadow-lg group-hover:scale-110 transition-transform bg-black flex items-center justify-center">
                         <img src="/assets/logo.png" alt="CL Logo" className="w-full h-full object-cover" />
                       </div>
-                      <span className="text-xl font-black bg-gradient-to-r from-primary to-accent bg-clip-text text-transparent hidden sm:inline tracking-tight">CREATOR LEDGER</span>
+                      <span className="text-xl font-black hidden sm:inline tracking-tight">
+                        <span className="text-slate-800 dark:bg-gradient-to-r dark:from-primary dark:to-accent dark:bg-clip-text dark:text-transparent">CREATOR</span>
+                        <span className="bg-gradient-to-r from-primary to-accent bg-clip-text text-transparent"> LEDGER</span>
+                      </span>
                     </Link>
                   </div>
                   <div className="flex items-center gap-3">
@@ -50,6 +54,7 @@ function App() {
                 <Route path="/pricing" element={<Pricing />} />
                 <Route path="/admin" element={<AdminDashboard />} />
                 <Route path="/terms" element={<TermsOfService />} />
+                <Route path="/verify" element={<VerifySignature />} />
                 <Route path="/u/:address" element={<PublicProfile />} />
               </Routes>
             </main>

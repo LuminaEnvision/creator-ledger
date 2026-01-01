@@ -1,4 +1,5 @@
 import React, { useEffect } from 'react';
+import { createPortal } from 'react-dom';
 
 interface ModalProps {
     isOpen: boolean;
@@ -40,8 +41,6 @@ export const Modal: React.FC<ModalProps> = ({
         return () => document.removeEventListener('keydown', handleEscape);
     }, [isOpen, onClose]);
 
-    if (!isOpen) return null;
-
     const sizeClasses = {
         sm: 'max-w-md',
         md: 'max-w-lg',
@@ -49,21 +48,24 @@ export const Modal: React.FC<ModalProps> = ({
         xl: 'max-w-4xl'
     };
 
-    return (
+    if (!isOpen) return null;
+
+    const modalContent = (
         <div
-            className="fixed inset-0 z-50 flex items-center justify-center p-4"
+            className="fixed inset-0 z-[9999] flex items-center justify-center p-4"
             onClick={onClose}
+            style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0 }}
         >
             {/* Backdrop */}
             <div className="absolute inset-0 bg-black/70 backdrop-blur-sm" />
 
             {/* Modal */}
             <div
-                className={`relative ${sizeClasses[size]} w-full glass-card rounded-2xl shadow-2xl border border-border transform transition-all duration-200 scale-100`}
+                className={`relative ${sizeClasses[size]} w-full glass-card rounded-2xl shadow-2xl border border-border transform transition-all duration-200 scale-100 max-h-[90vh] overflow-y-auto`}
                 onClick={(e) => e.stopPropagation()}
             >
                 {/* Header */}
-                <div className="flex items-center justify-between p-6 border-b border-border">
+                <div className="flex items-center justify-between p-6 border-b border-border sticky top-0 bg-background/95 backdrop-blur-sm z-10">
                     <h2 className="text-xl font-black text-foreground tracking-tight">{title}</h2>
                     {showCloseButton && (
                         <button
@@ -84,5 +86,8 @@ export const Modal: React.FC<ModalProps> = ({
             </div>
         </div>
     );
+
+    // Use portal to render at document body level
+    return createPortal(modalContent, document.body);
 };
 

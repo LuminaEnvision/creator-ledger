@@ -21,8 +21,31 @@ export const EntryList: React.FC<EntryListProps> = ({
     onEntryUpdated
 }) => {
     const [editingEntry, setEditingEntry] = useState<LedgerEntry | null>(null);
-    const [signatureModal, setSignatureModal] = useState<{ isOpen: boolean; signature: string }>({ isOpen: false, signature: '' });
+    const [signatureModal, setSignatureModal] = useState<{ 
+        isOpen: boolean; 
+        signature: string; 
+        walletAddress: string;
+        message: string;
+        entryId?: string;
+    }>({ 
+        isOpen: false, 
+        signature: '',
+        walletAddress: '',
+        message: ''
+    });
+    const [currentPage, setCurrentPage] = useState(1);
     const { showToast } = useToast();
+    
+    const entriesPerPage = 9;
+    const totalPages = Math.ceil(entries.length / entriesPerPage);
+    const startIndex = (currentPage - 1) * entriesPerPage;
+    const endIndex = startIndex + entriesPerPage;
+    const currentEntries = entries.slice(startIndex, endIndex);
+    
+    // Reset to page 1 when entries change
+    React.useEffect(() => {
+        setCurrentPage(1);
+    }, [entries.length]);
     if (isLoading && entries.length === 0) {
         return (
             <div className="flex items-center justify-center py-12">
@@ -45,7 +68,7 @@ export const EntryList: React.FC<EntryListProps> = ({
     return (
         <>
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-            {entries.map((entry) => (
+            {currentEntries.map((entry) => (
                 <div key={entry.id} className="glass-card group flex flex-col rounded-2xl overflow-hidden transition-all hover:scale-[1.02] hover:shadow-2xl">
                     {/* Visual Preview Header */}
                     <div className="relative aspect-video bg-muted overflow-hidden">
@@ -97,7 +120,7 @@ export const EntryList: React.FC<EntryListProps> = ({
                                     </div>
                                 ) : (
                                     <div
-                                        onClick={() => showToast("Upgrade to Pro to unlock real-time analytics, engagement tracking, and performance benchmarking.", 'info', 5000)}
+                                        onClick={() => showToast("Upgrade to Pro to unlock premium features.", 'info', 5000)}
                                         className="flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-primary/20 backdrop-blur-lg border border-primary/30 text-white/90 shadow-lg group/locked cursor-pointer hover:bg-primary/30 transition-all"
                                     >
                                         <svg className="w-3.5 h-3.5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -108,7 +131,7 @@ export const EntryList: React.FC<EntryListProps> = ({
 
                                         <div className="absolute top-full right-0 mt-2 w-48 p-3 rounded-xl bg-card border border-border text-[10px] text-primary opacity-0 group-hover/locked:opacity-100 transition-all pointer-events-none shadow-2xl translate-y-2 group-hover/locked:translate-y-0 z-50">
                                             <p className="font-bold text-primary mb-1">PREMIUM FEATURE</p>
-                                            Click to see how on-chain stats can help you land brand deals.
+                                            Click to view on-chain verification.
                                         </div>
                                     </div>
                                 )
@@ -145,42 +168,6 @@ export const EntryList: React.FC<EntryListProps> = ({
                             )}
                         </div>
 
-                        {/* Integrated Analytics Section */}
-                        <div className="my-4">
-                            {isPremium ? (
-                                <div className="grid grid-cols-3 gap-2 p-3 rounded-2xl bg-primary/5 border border-primary/10 shadow-inner">
-                                    <div className="flex flex-col items-center">
-                                        <span className="text-[8px] font-black uppercase tracking-tighter text-primary/60">Views</span>
-                                        <span className="text-sm font-extrabold text-foreground tracking-tighter">
-                                            {((entry.stats?.views || 0) / 1000).toFixed(1)}K
-                                        </span>
-                                    </div>
-                                    <div className="flex flex-col items-center border-x border-primary/10">
-                                        <span className="text-[8px] font-black uppercase tracking-tighter text-primary/60">Likes</span>
-                                        <span className="text-sm font-extrabold text-foreground tracking-tighter">
-                                            {((entry.stats?.likes || 0) / 1000).toFixed(1)}K
-                                        </span>
-                                    </div>
-                                    <div className="flex flex-col items-center">
-                                        <span className="text-[8px] font-black uppercase tracking-tighter text-primary/60">Engage</span>
-                                        <span className="text-sm font-extrabold text-foreground tracking-tighter">
-                                            {(((entry.stats?.likes || 0) / (entry.stats?.views || 1)) * 100).toFixed(1)}%
-                                        </span>
-                                    </div>
-                                </div>
-                            ) : (
-                                <div
-                                    onClick={() => showToast("Upgrade to Pro for verified analytics. Brands are 3x more likely to work with creators who have verified social proof.", 'info', 5000)}
-                                    className="p-3 rounded-2xl bg-secondary/50 border border-border border-dashed flex items-center justify-center gap-2 group/stats cursor-pointer hover:bg-secondary/80 transition-all"
-                                >
-                                    <svg className="w-3.5 h-3.5 text-muted-foreground/50" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z" />
-                                    </svg>
-                                    <span className="text-[10px] font-bold text-muted-foreground/60 uppercase tracking-widest">Locked Analytics</span>
-                                    <div className="w-4 h-4 rounded-full bg-muted-foreground/10 flex items-center justify-center text-[10px] ml-1 text-muted-foreground/40 font-bold border border-muted-foreground/20">?</div>
-                                </div>
-                            )}
-                        </div>
 
 
                         <div className="mt-auto pt-4 border-t border-border/50 space-y-3">
@@ -221,7 +208,15 @@ export const EntryList: React.FC<EntryListProps> = ({
                                 {entry.signature && (
                                     <button
                                         onClick={() => {
-                                            setSignatureModal({ isOpen: true, signature: entry.signature! });
+                                            // Reconstruct the message that was signed
+                                            const message = `Creator Ledger Verification\n\nI, ${entry.wallet_address}, affirm ownership/creation of the content at:\n${entry.url}\n\nTimestamp: ${entry.timestamp}\nHash: ${entry.payload_hash}`;
+                                            setSignatureModal({ 
+                                                isOpen: true, 
+                                                signature: entry.signature!,
+                                                walletAddress: entry.wallet_address,
+                                                message: message,
+                                                entryId: entry.id
+                                            });
                                         }}
                                         className="flex items-center gap-1.5 text-[10px] text-muted-foreground hover:text-primary transition-colors group/sig"
                                         title="View cryptographic proof"
@@ -278,6 +273,42 @@ export const EntryList: React.FC<EntryListProps> = ({
                 </div>
             ))}
         </div>
+        
+        {/* Pagination Controls */}
+        {totalPages > 1 && (
+            <div className="flex items-center justify-center gap-2 mt-8">
+                <button
+                    onClick={() => setCurrentPage(prev => Math.max(1, prev - 1))}
+                    disabled={currentPage === 1}
+                    className="px-4 py-2 rounded-xl bg-secondary hover:bg-secondary/80 disabled:opacity-50 disabled:cursor-not-allowed transition-all font-semibold text-sm"
+                >
+                    Previous
+                </button>
+                <div className="flex items-center gap-2">
+                    {Array.from({ length: totalPages }, (_, i) => i + 1).map((page) => (
+                        <button
+                            key={page}
+                            onClick={() => setCurrentPage(page)}
+                            className={`px-4 py-2 rounded-xl font-bold text-sm transition-all ${
+                                currentPage === page
+                                    ? 'bg-primary text-white shadow-lg'
+                                    : 'bg-secondary hover:bg-secondary/80 text-foreground'
+                            }`}
+                        >
+                            {page}
+                        </button>
+                    ))}
+                </div>
+                <button
+                    onClick={() => setCurrentPage(prev => Math.min(totalPages, prev + 1))}
+                    disabled={currentPage === totalPages}
+                    className="px-4 py-2 rounded-xl bg-secondary hover:bg-secondary/80 disabled:opacity-50 disabled:cursor-not-allowed transition-all font-semibold text-sm"
+                >
+                    Next
+                </button>
+            </div>
+        )}
+        
         {editingEntry && (
             <EditEntryModal
                 entry={editingEntry}
@@ -291,8 +322,11 @@ export const EntryList: React.FC<EntryListProps> = ({
         )}
         <SignatureVerificationModal
             isOpen={signatureModal.isOpen}
-            onClose={() => setSignatureModal({ isOpen: false, signature: '' })}
+            onClose={() => setSignatureModal({ isOpen: false, signature: '', walletAddress: '', message: '' })}
             signature={signatureModal.signature}
+            walletAddress={signatureModal.walletAddress}
+            message={signatureModal.message}
+            entryId={signatureModal.entryId}
         />
     </>
     );

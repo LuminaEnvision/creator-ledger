@@ -27,11 +27,6 @@ export interface LedgerEntry {
     site_name?: string;
     signature?: string;
     tx_hash?: string; // Transaction hash for on-chain verification
-    stats?: {
-        views?: number;
-        likes?: number;
-        shares?: number;
-    };
     visibility_settings?: {
         isPublic?: boolean;
         hiddenTags?: string[];

@@ -2,7 +2,6 @@ import React, { useState, useEffect, useRef } from 'react';
 import { supabase } from '../lib/supabase';
 import { useAuth } from '../context/AuthContext';
 import { checkPremiumStatus } from '../lib/premium';
-import { Link } from 'react-router-dom';
 
 export const CustomizeProfileForm: React.FC<{ onUpdate: () => void; onClose: () => void }> = ({ onUpdate, onClose }) => {
     const { user } = useAuth();
@@ -140,8 +139,8 @@ export const CustomizeProfileForm: React.FC<{ onUpdate: () => void; onClose: () 
         setMessage(null);
 
         try {
-            let finalAvatarUrl = avatarUrl;
-            let finalBannerUrl = bannerUrl;
+            let finalAvatarUrl: string | null = avatarUrl || null;
+            let finalBannerUrl: string | null = bannerUrl || null;
 
             // Upload avatar file if selected (premium only)
             if (avatarFile && isPremium) {
@@ -149,7 +148,8 @@ export const CustomizeProfileForm: React.FC<{ onUpdate: () => void; onClose: () 
                 setUploadProgress(prev => ({ ...prev, avatar: 50 }));
                 const walletAddress = user.walletAddress.toLowerCase().replace('0x', '');
                 const avatarPath = `${walletAddress}/avatar-${Date.now()}.${avatarFile.name.split('.').pop()}`;
-                finalAvatarUrl = await uploadFile(avatarFile, avatarPath, 'avatar');
+                const uploadedUrl = await uploadFile(avatarFile, avatarPath, 'avatar');
+                finalAvatarUrl = uploadedUrl || finalAvatarUrl;
                 setUploadProgress(prev => ({ ...prev, avatar: 100 }));
             } else if (avatarFile && !isPremium) {
                 throw new Error('Photo uploads are only available for Pro users. Please upgrade to Pro.');
@@ -161,7 +161,8 @@ export const CustomizeProfileForm: React.FC<{ onUpdate: () => void; onClose: () 
                 setUploadProgress(prev => ({ ...prev, banner: 50 }));
                 const walletAddress = user.walletAddress.toLowerCase().replace('0x', '');
                 const bannerPath = `${walletAddress}/banner-${Date.now()}.${bannerFile.name.split('.').pop()}`;
-                finalBannerUrl = await uploadFile(bannerFile, bannerPath, 'banner');
+                const uploadedUrl = await uploadFile(bannerFile, bannerPath, 'banner');
+                finalBannerUrl = uploadedUrl || finalBannerUrl;
                 setUploadProgress(prev => ({ ...prev, banner: 100 }));
             } else if (bannerFile && !isPremium) {
                 throw new Error('Photo uploads are only available for Pro users. Please upgrade to Pro.');
@@ -176,8 +177,8 @@ export const CustomizeProfileForm: React.FC<{ onUpdate: () => void; onClose: () 
                     wallet_address: user.walletAddress.toLowerCase(),
                     display_name: displayName,
                     bio: bio,
-                    avatar_url: finalAvatarUrl,
-                    banner_url: finalBannerUrl,
+                    avatar_url: finalAvatarUrl || null,
+                    banner_url: finalBannerUrl || null,
                     updated_at: new Date().toISOString()
                 });
 

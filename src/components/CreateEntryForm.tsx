@@ -3,16 +3,29 @@ import { useAuth } from '../context/AuthContext';
 import { supabase } from '../lib/supabase';
 import { detectPlatform } from '../lib/platform';
 import { generateEntryHash } from '../lib/hashing';
-import { useSignMessage } from 'wagmi';
+import { generateContentHash } from '../lib/signatureVerification';
+import { useSignMessage, useSwitchChain, useAccount } from 'wagmi';
+import { baseSepolia } from 'wagmi/chains';
 import { HashtagInput } from './HashtagInput';
 import { Link } from 'react-router-dom';
 import { checkPremiumStatus } from '../lib/premium';
+import { OnChainUpgradeModal } from './OnChainUpgradeModal';
+import { useToast } from '../hooks/useToast';
 
 // Note: Operations fee and NFT minting now happen when admin verifies the entry
 
 export const CreateEntryForm: React.FC<{ onSuccess: () => void }> = ({ onSuccess }) => {
     const { user } = useAuth();
     const { signMessageAsync } = useSignMessage();
+    const { switchChainAsync } = useSwitchChain();
+    const { chain } = useAccount();
+    const { showToast } = useToast();
+    const [upgradeModal, setUpgradeModal] = useState<{
+        isOpen: boolean;
+        entryId: string;
+        contentHash: string;
+        url: string;
+    }>({ isOpen: false, entryId: '', contentHash: '', url: '' });
 
     const [url, setUrl] = useState('');
     const [description, setDescription] = useState('');
@@ -24,7 +37,7 @@ export const CreateEntryForm: React.FC<{ onSuccess: () => void }> = ({ onSuccess
     const [isFetching, setIsFetching] = useState(false);
     const [isUploading, setIsUploading] = useState(false);
     const [uploadProgress, setUploadProgress] = useState(0);
-    const [status, setStatus] = useState<'idle' | 'signing' | 'saving'>('idle');
+    const [status, setStatus] = useState<'idle' | 'switching' | 'signing' | 'saving'>('idle');
     const [error, setError] = useState<string | null>(null);
     const [isPremium, setIsPremium] = useState(false);
     const customImageInputRef = useRef<HTMLInputElement>(null);
@@ -130,13 +143,13 @@ export const CreateEntryForm: React.FC<{ onSuccess: () => void }> = ({ onSuccess
             .upload(imagePath, file, {
                 cacheControl: '3600',
                 upsert: true,
-                onUploadProgress: (event) => {
+                onUploadProgress: (event: { loaded: number; totalBytes: number }) => {
                     if (event.totalBytes > 0) {
                         const progress = Math.round((event.loaded / event.totalBytes) * 100);
                         setUploadProgress(progress);
                     }
                 }
-            });
+            } as any);
 
         if (error) throw error;
 
@@ -157,14 +170,67 @@ export const CreateEntryForm: React.FC<{ onSuccess: () => void }> = ({ onSuccess
         try {
             const platform = detectPlatform(url);
             const timestamp = new Date().toISOString();
+            
+            // Check for duplicate content (same URL already claimed by this wallet)
+            const contentHash = await generateContentHash(url);
+            const { data: existingEntry } = await supabase
+                .from('ledger_entries')
+                .select('id, url')
+                .eq('wallet_address', user.walletAddress.toLowerCase())
+                .eq('content_hash', contentHash)
+                .maybeSingle();
+
+            if (existingEntry) {
+                setError(`You have already claimed this content. See entry: ${existingEntry.url}`);
+                showToast('This content has already been claimed by you.', 'warning');
+                setIsSubmitting(false);
+                return;
+            }
+
             const payloadHash = await generateEntryHash(user.walletAddress, url, timestamp);
 
-            // 1. Proof of Ownership (Signature)
+            // 1. Switch to Base Sepolia if needed (for message signing compatibility)
+            if (chain?.id !== baseSepolia.id && switchChainAsync) {
+                setStatus('switching');
+                try {
+                    await switchChainAsync({ chainId: baseSepolia.id });
+                    // Wait a bit for chain switch to complete
+                    await new Promise(resolve => setTimeout(resolve, 500));
+                } catch (switchError: any) {
+                    if (switchError.code === 4001) { // User rejected
+                        setError('Please switch to Base Sepolia network to continue.');
+                        setIsSubmitting(false);
+                        setStatus('idle');
+                        return;
+                    }
+                    console.warn('Chain switch failed, continuing with message signing:', switchError);
+                }
+            }
+
+            // 2. Proof of Ownership (Signature)
             setStatus('signing');
             const message = `Creator Ledger Verification\n\nI, ${user.walletAddress}, affirm ownership/creation of the content at:\n${url}\n\nTimestamp: ${timestamp}\nHash: ${payloadHash}`;
-            const signature = await signMessageAsync({ message });
+            
+            let signature: string;
+            try {
+                signature = await signMessageAsync({ message });
+            } catch (signError: any) {
+                if (signError.message?.includes('chain') || signError.message?.includes('Chain')) {
+                    setError('Please switch to Base Sepolia network in your wallet and try again.');
+                    showToast('Please switch to Base Sepolia network to sign the message.', 'warning');
+                } else if (signError.code === 4001) {
+                    setError('Signature cancelled.');
+                    showToast('Signature cancelled.', 'info');
+                } else {
+                    setError(`Failed to sign message: ${signError.message || 'Unknown error'}`);
+                    showToast('Failed to sign message. Please try again.', 'error');
+                }
+                setIsSubmitting(false);
+                setStatus('idle');
+                return;
+            }
 
-            // 2. Upload custom hero image if file is selected (premium only)
+            // 3. Upload custom hero image if file is selected (premium only)
             let finalCustomImageUrl = customImageUrl;
             if (customImageFile && isPremium) {
                 setIsUploading(true);
@@ -174,17 +240,9 @@ export const CreateEntryForm: React.FC<{ onSuccess: () => void }> = ({ onSuccess
                 setIsUploading(false);
             }
 
-            // 3. Save to Supabase (including stats) - Status will be 'Unverified' until admin approves
+            // 3. Save to Supabase - Status will be 'Unverified' until admin approves
             // NFT will be minted/updated when admin verifies the entry
             setStatus('saving');
-
-            // Generate some random realistic stats for demo if not provided by Microlink
-            // In a production app, this would be fetched from social APIs
-            const mockStats = {
-                views: Math.floor(Math.random() * 50000) + 1000,
-                likes: Math.floor(Math.random() * 5000) + 100,
-                shares: Math.floor(Math.random() * 500) + 10
-            };
 
             const { error: insertError } = await supabase
                 .from('ledger_entries')
@@ -197,17 +255,33 @@ export const CreateEntryForm: React.FC<{ onSuccess: () => void }> = ({ onSuccess
                         campaign_tag: hashtags.map(tag => tag.replace(/^#/, '')).join(', '),
                         timestamp,
                         payload_hash: payloadHash,
+                        content_hash: contentHash, // For duplicate detection
                         verification_status: 'Unverified', // Requires admin verification
                         title: metadata.title || null,
                         image_url: metadata.image || null,
                         custom_image_url: finalCustomImageUrl || null,
                         site_name: metadata.siteName || null,
-                        signature: signature,
-                        stats: mockStats
+                        signature: signature
                     }
                 ]);
 
             if (insertError) throw insertError;
+
+            // Get the inserted entry ID
+            const { data: insertedEntries } = await supabase
+                .from('ledger_entries')
+                .select('id')
+                .eq('wallet_address', user.walletAddress.toLowerCase())
+                .eq('payload_hash', payloadHash)
+                .order('timestamp', { ascending: false })
+                .limit(1)
+                .single();
+
+            const entryId = insertedEntries?.id;
+
+            // Save URL and contentHash before clearing form state
+            const submittedUrl = url;
+            const submittedContentHash = contentHash;
 
             setUrl('');
             setDescription('');
@@ -220,7 +294,17 @@ export const CreateEntryForm: React.FC<{ onSuccess: () => void }> = ({ onSuccess
             setStatus('idle');
             
             // Show success message
-            alert('Entry submitted successfully! It is now pending admin verification and will appear publicly once verified.');
+            showToast('Entry submitted successfully! It is now pending admin verification.', 'success');
+            
+            // Show on-chain upgrade modal
+            if (entryId) {
+                setUpgradeModal({
+                    isOpen: true,
+                    entryId: entryId,
+                    contentHash: submittedContentHash,
+                    url: submittedUrl
+                });
+            }
             
             onSuccess();
         } catch (err: any) {
@@ -237,6 +321,7 @@ export const CreateEntryForm: React.FC<{ onSuccess: () => void }> = ({ onSuccess
     };
 
     return (
+        <>
         <form onSubmit={handleSubmit} className="glass-card p-6 sm:p-8 rounded-2xl">
             <div className="flex items-center gap-3 mb-6">
                 <div className="w-10 h-10 rounded-lg bg-gradient-to-br from-primary to-accent flex items-center justify-center">
@@ -422,6 +507,7 @@ export const CreateEntryForm: React.FC<{ onSuccess: () => void }> = ({ onSuccess
                                 <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
                             </svg>
                             {isUploading && 'Uploading Image...'}
+                            {status === 'switching' && !isUploading && 'Switching Network...'}
                             {status === 'signing' && !isUploading && 'Signing Proof...'}
                             {status === 'saving' && !isUploading && 'Submitting for Review...'}
                         </>
@@ -436,5 +522,14 @@ export const CreateEntryForm: React.FC<{ onSuccess: () => void }> = ({ onSuccess
                 </button>
             </div>
         </form>
+        
+        <OnChainUpgradeModal
+            isOpen={upgradeModal.isOpen}
+            onClose={() => setUpgradeModal({ isOpen: false, entryId: '', contentHash: '', url: '' })}
+            entryId={upgradeModal.entryId}
+            contentHash={upgradeModal.contentHash}
+            url={upgradeModal.url}
+        />
+        </>
     );
 };

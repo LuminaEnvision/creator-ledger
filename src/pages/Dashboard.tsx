@@ -7,7 +7,6 @@ import type { LedgerEntry } from '../types';
 import { CustomizeProfileForm } from '../components/CustomizeProfileForm';
 import { Link, useNavigate, useSearchParams } from 'react-router-dom';
 import { exportToCSV, exportToPDF } from '../lib/export';
-import { useConnectModal } from '@rainbow-me/rainbowkit';
 import { SignInWithBaseButton } from '@base-org/account-ui/react';
 import { createBaseAccountSDK } from '@base-org/account';
 import { DynamicNFT } from '../components/DynamicNFT';
@@ -20,13 +19,12 @@ export const Dashboard: React.FC = () => {
     const { user } = useAuth();
     const navigate = useNavigate();
     const [searchParams, setSearchParams] = useSearchParams();
-    const [isBaseAuthLoading, setIsBaseAuthLoading] = useState(false);
+    const [, setIsBaseAuthLoading] = useState(false);
     const [entries, setEntries] = useState<LedgerEntry[]>([]);
     const [isLoading, setIsLoading] = useState(false);
     const [isPremium, setIsPremium] = useState(false);
     const [refreshTrigger, setRefreshTrigger] = useState(0);
     const [isEditingProfile, setIsEditingProfile] = useState(false);
-    const { openConnectModal } = useConnectModal();
 
     // Handle Base account authentication
     const handleBaseSignIn = async () => {
@@ -37,6 +35,32 @@ export const Dashboard: React.FC = () => {
             
             // Request connection to Base account
             await provider.request({ method: 'eth_requestAccounts' });
+            
+            // Switch to Base Sepolia network if not already on it
+            try {
+                await provider.request({
+                    method: 'wallet_switchEthereumChain',
+                    params: [{ chainId: '0x14a34' }], // Base Sepolia chain ID in hex
+                });
+            } catch (switchError: any) {
+                // If chain doesn't exist, add it
+                if (switchError.code === 4902) {
+                    await provider.request({
+                        method: 'wallet_addEthereumChain',
+                        params: [{
+                            chainId: '0x14a34',
+                            chainName: 'Base Sepolia',
+                            nativeCurrency: {
+                                name: 'ETH',
+                                symbol: 'ETH',
+                                decimals: 18,
+                            },
+                            rpcUrls: ['https://sepolia.base.org'],
+                            blockExplorerUrls: ['https://sepolia.basescan.org'],
+                        }],
+                    });
+                }
+            }
             
             // After connection, the wagmi useAccount hook will detect the connection
             // and AuthContext will sync the user
@@ -190,7 +214,7 @@ export const Dashboard: React.FC = () => {
                             Creator <span className="text-primary">Ledger</span>
                         </h2>
                         <p className="text-muted-foreground text-lg font-medium leading-relaxed px-4">
-                            Sign in with Base Account for seamless authentication, or connect any wallet on Base network.
+                            Sign in with Base Account for seamless authentication.
                         </p>
                     </div>
 
@@ -200,25 +224,7 @@ export const Dashboard: React.FC = () => {
                             variant="solid"
                             colorScheme="dark"
                             onClick={handleBaseSignIn}
-                            isLoading={isBaseAuthLoading}
                         />
-                        <div className="flex items-center gap-3 py-2">
-                            <div className="h-px flex-1 bg-border"></div>
-                            <span className="text-[10px] font-black uppercase tracking-[0.2em] text-muted-foreground">Or</span>
-                            <div className="h-px flex-1 bg-border"></div>
-                        </div>
-                        <button
-                            onClick={() => {
-                                console.log('Connecting wallet...');
-                                openConnectModal?.();
-                            }}
-                            className="w-full py-4 rounded-2xl bg-secondary hover:bg-secondary/80 text-foreground font-black uppercase tracking-widest transition-all disabled:opacity-50 disabled:cursor-not-allowed border border-border"
-                        >
-                            Connect Other Wallet
-                        </button>
-                        <p className="text-xs text-muted-foreground text-center">
-                            Use Base Account for seamless authentication, or connect any wallet on Base network
-                        </p>
                     </div>
                 </div>
             </div>
@@ -244,7 +250,7 @@ export const Dashboard: React.FC = () => {
                             <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
                             </svg>
-                            {isPremium ? 'Pro Creator - Full Analytics Enabled' : 'Track and verify content'}
+                            {isPremium ? 'Pro Creator' : 'Track and verify content'}
                         </p>
                         <div className="flex gap-2 mt-3">
                         <button
@@ -463,7 +469,7 @@ export const Dashboard: React.FC = () => {
                         <div className="flex gap-3">
                             <button
                                 onClick={() => {
-                                    alert('🔒 Premium Feature\n\nExport your content library as CSV or PDF is available for Pro Creators.\n\nUpgrade to Pro to:\n• Export CSV for portfolio templates\n• Generate beautiful PDF portfolios\n• Unlock full analytics\n• Remove submission fees');
+                                    alert('🔒 Premium Feature\n\nExport your content library as CSV or PDF is available for Pro Creators.\n\nUpgrade to Pro to:\n• Export CSV for portfolio templates\n• Generate beautiful PDF portfolios\n• Remove submission fees');
                                     navigate('/pricing');
                                 }}
                                 className="px-5 py-2.5 rounded-xl glass-card hover:bg-accent/20 text-sm font-semibold transition-all hover:scale-105 active:scale-95 flex items-center justify-center gap-2 relative group"
@@ -479,7 +485,7 @@ export const Dashboard: React.FC = () => {
                             </button>
                             <button
                                 onClick={() => {
-                                    alert('🔒 Premium Feature\n\nExport your content library as CSV or PDF is available for Pro Creators.\n\nUpgrade to Pro to:\n• Export CSV for portfolio templates\n• Generate beautiful PDF portfolios\n• Unlock full analytics\n• Remove submission fees');
+                                    alert('🔒 Premium Feature\n\nExport your content library as CSV or PDF is available for Pro Creators.\n\nUpgrade to Pro to:\n• Export CSV for portfolio templates\n• Generate beautiful PDF portfolios\n• Remove submission fees');
                                     navigate('/pricing');
                                 }}
                                 className="px-5 py-2.5 rounded-xl glass-card hover:bg-accent/20 text-sm font-semibold transition-all hover:scale-105 active:scale-95 flex items-center justify-center gap-2 relative group"
