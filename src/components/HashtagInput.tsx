@@ -69,7 +69,7 @@ export const HashtagInput: React.FC<HashtagInputProps> = ({
     };
 
     const handleKeyDown = (e: KeyboardEvent<HTMLInputElement>) => {
-        if (e.key === ',' || e.key === 'Enter') {
+        if (e.key === ',' || e.key === 'Enter' || e.key === ' ') {
             e.preventDefault();
             if (inputValue.trim()) {
                 addTag(inputValue);
@@ -157,7 +157,7 @@ export const HashtagInput: React.FC<HashtagInputProps> = ({
             {/* Helper text */}
             {isFocused && value.length === 0 && (
                 <div className="absolute mt-10 text-xs text-muted-foreground bg-background/95 backdrop-blur-sm p-2 rounded border border-border shadow-lg z-10">
-                    <p>💡 Type a tag and press <kbd className="px-1.5 py-0.5 bg-muted rounded text-xs">,</kbd> or <kbd className="px-1.5 py-0.5 bg-muted rounded text-xs">Enter</kbd> to add</p>
+                    <p>💡 Type a tag and press <kbd className="px-1.5 py-0.5 bg-muted rounded text-xs">Space</kbd>, <kbd className="px-1.5 py-0.5 bg-muted rounded text-xs">,</kbd> or <kbd className="px-1.5 py-0.5 bg-muted rounded text-xs">Enter</kbd> to add</p>
                 </div>
             )}
         </div>

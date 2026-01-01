@@ -169,7 +169,7 @@ export const EditEntryModal: React.FC<EditEntryModalProps> = ({
                             placeholder="Type tags and press comma..."
                         />
                         <p className="mt-2 text-xs text-muted-foreground">
-                            Press <kbd className="px-1.5 py-0.5 bg-muted rounded text-xs">,</kbd> or <kbd className="px-1.5 py-0.5 bg-muted rounded text-xs">Enter</kbd> to add a tag. Tags automatically get a # prefix.
+                            Press <kbd className="px-1.5 py-0.5 bg-muted rounded text-xs">Space</kbd>, <kbd className="px-1.5 py-0.5 bg-muted rounded text-xs">,</kbd> or <kbd className="px-1.5 py-0.5 bg-muted rounded text-xs">Enter</kbd> to add a tag.
                         </p>
                     </div>
 

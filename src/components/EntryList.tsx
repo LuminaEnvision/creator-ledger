@@ -1,5 +1,8 @@
 import React, { useState } from 'react';
 import { EditEntryModal } from './EditEntryModal';
+import { EntryEndorsement } from './EntryEndorsement';
+import { SignatureVerificationModal } from './SignatureVerificationModal';
+import { useToast } from '../hooks/useToast';
 import type { LedgerEntry } from '../types';
 
 interface EntryListProps {
@@ -18,6 +21,8 @@ export const EntryList: React.FC<EntryListProps> = ({
     onEntryUpdated
 }) => {
     const [editingEntry, setEditingEntry] = useState<LedgerEntry | null>(null);
+    const [signatureModal, setSignatureModal] = useState<{ isOpen: boolean; signature: string }>({ isOpen: false, signature: '' });
+    const { showToast } = useToast();
     if (isLoading && entries.length === 0) {
         return (
             <div className="flex items-center justify-center py-12">
@@ -92,7 +97,7 @@ export const EntryList: React.FC<EntryListProps> = ({
                                     </div>
                                 ) : (
                                     <div
-                                        onClick={() => alert("PREMIUM ANALYTICS\n\nUpgrade to Pro to unlock:\n• Real-time View Tracking\n• Like & Engagement Counts\n• Performance Benchmarking\n\nAll stats are cryptographically verified to increase your market value.")}
+                                        onClick={() => showToast("Upgrade to Pro to unlock real-time analytics, engagement tracking, and performance benchmarking.", 'info', 5000)}
                                         className="flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-primary/20 backdrop-blur-lg border border-primary/30 text-white/90 shadow-lg group/locked cursor-pointer hover:bg-primary/30 transition-all"
                                     >
                                         <svg className="w-3.5 h-3.5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -165,7 +170,7 @@ export const EntryList: React.FC<EntryListProps> = ({
                                 </div>
                             ) : (
                                 <div
-                                    onClick={() => alert("SOCIAL PROOF ANALYTICS\n\nThis feature generates verified stats for your post:\n• Total Views\n• Total Engagement\n• Viral Potential\n\nBrands are 3x more likely to work with creators who have verified social proof.")}
+                                    onClick={() => showToast("Upgrade to Pro for verified analytics. Brands are 3x more likely to work with creators who have verified social proof.", 'info', 5000)}
                                     className="p-3 rounded-2xl bg-secondary/50 border border-border border-dashed flex items-center justify-center gap-2 group/stats cursor-pointer hover:bg-secondary/80 transition-all"
                                 >
                                     <svg className="w-3.5 h-3.5 text-muted-foreground/50" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -177,35 +182,79 @@ export const EntryList: React.FC<EntryListProps> = ({
                             )}
                         </div>
 
-                        {entry.signature && (
-                            <button
-                                onClick={() => {
-                                    navigator.clipboard.writeText(entry.signature!);
-                                    alert('Signature copied to clipboard!\nYou can verify this at verify.etherscan.io');
-                                }}
-                                className="w-full mb-4 p-2 bg-secondary/30 rounded-lg border border-border/50 hover:bg-secondary/50 hover:border-primary/30 transition-all group/sig text-left relative overflow-hidden"
-                                title="Click to copy signature"
-                            >
-                                <div className="absolute inset-y-0 right-2 flex items-center opacity-0 group-hover/sig:opacity-100 transition-opacity">
-                                    <svg className="w-3.5 h-3.5 text-primary" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 5H6a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2v-1M8 5a2 2 0 002 2h2a2 2 0 002-2M8 5a2 2 0 012-2h2a2 2 0 012 2m0 0h2a2 2 0 012 2v3m2 4H10m0 0l3-3m-3 3l3 3" />
-                                    </svg>
-                                </div>
-                                <p className="text-[8px] font-black text-muted-foreground/40 uppercase tracking-[0.2em] mb-1 group-hover/sig:text-primary transition-colors">On-Chain Proof (Click to Copy)</p>
-                                <p className="text-[10px] font-mono text-muted-foreground truncate pr-6">{entry.signature}</p>
-                            </button>
-                        )}
 
-                        <div className="mt-auto pt-4 border-t border-border/50">
-                            <div className="flex items-center justify-between mb-3">
-                                <div className="flex flex-col">
-                                    <span className="text-[10px] uppercase font-bold text-muted-foreground">Timestamp</span>
-                                    <span className="text-xs font-semibold">{new Date(entry.timestamp).toLocaleDateString()}</span>
+                        <div className="mt-auto pt-4 border-t border-border/50 space-y-3">
+                            {/* Verification Details - Professional for Funders/Hirers */}
+                            <div className="space-y-2">
+                                <div className="flex items-center justify-between text-xs">
+                                    <span className="text-[10px] uppercase font-bold text-muted-foreground">Verified</span>
+                                    <span className="text-xs font-semibold text-foreground">
+                                        {new Date(entry.timestamp).toLocaleDateString('en-US', { 
+                                            year: 'numeric', 
+                                            month: 'short', 
+                                            day: 'numeric',
+                                            hour: '2-digit',
+                                            minute: '2-digit'
+                                        })}
+                                    </span>
                                 </div>
+                                
+                                {/* Transaction Link - If available */}
+                                {(entry as any).tx_hash && (
+                                    <a
+                                        href={`https://sepolia.basescan.org/tx/${(entry as any).tx_hash}`}
+                                        target="_blank"
+                                        rel="noopener noreferrer"
+                                        className="flex items-center gap-1.5 text-[10px] text-primary hover:text-primary/80 transition-colors group/tx"
+                                    >
+                                        <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14" />
+                                        </svg>
+                                        <span className="font-mono truncate">View on BaseScan</span>
+                                        <svg className="w-3 h-3 group-hover/tx:translate-x-0.5 transition-transform" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+                                        </svg>
+                                    </a>
+                                )}
+                                
+                                {/* Signature Proof Link */}
+                                {entry.signature && (
+                                    <button
+                                        onClick={() => {
+                                            setSignatureModal({ isOpen: true, signature: entry.signature! });
+                                        }}
+                                        className="flex items-center gap-1.5 text-[10px] text-muted-foreground hover:text-primary transition-colors group/sig"
+                                        title="View cryptographic proof"
+                                    >
+                                        <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z" />
+                                        </svg>
+                                        <span className="font-semibold">Cryptographic Proof</span>
+                                        <svg className="w-3 h-3 opacity-0 group-hover/sig:opacity-100 transition-opacity" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
+                                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" />
+                                        </svg>
+                                    </button>
+                                )}
+                            </div>
+
+                            {/* Action Buttons */}
+                            <div className="flex gap-2">
+                                <a
+                                    href={entry.url}
+                                    target="_blank"
+                                    rel="noopener noreferrer"
+                                    className="flex-1 px-4 py-2.5 bg-primary/10 hover:bg-primary/20 text-primary rounded-xl text-xs font-bold transition-all flex items-center justify-center gap-2 group/btn"
+                                >
+                                    View Original
+                                    <svg className="w-3 h-3 group-hover/btn:translate-x-1 transition-transform" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M14 5l7 7m0 0l-7 7m7-7H3" />
+                                    </svg>
+                                </a>
                                 {currentWalletAddress && entry.wallet_address.toLowerCase() === currentWalletAddress.toLowerCase() && (
                                     <button
                                         onClick={() => setEditingEntry(entry)}
-                                        className="p-2 rounded-lg hover:bg-secondary transition-colors text-muted-foreground hover:text-primary"
+                                        className="p-2.5 rounded-xl hover:bg-secondary transition-colors text-muted-foreground hover:text-primary border border-border"
                                         title="Edit entry"
                                     >
                                         <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -214,17 +263,16 @@ export const EntryList: React.FC<EntryListProps> = ({
                                     </button>
                                 )}
                             </div>
-                            <a
-                                href={entry.url}
-                                target="_blank"
-                                rel="noopener noreferrer"
-                                className="w-full block px-4 py-2 bg-primary/10 hover:bg-primary/20 text-primary rounded-xl text-xs font-bold transition-all flex items-center justify-center gap-2 group/btn"
-                            >
-                                View Post
-                                <svg className="w-3 h-3 group-hover/btn:translate-x-1 transition-transform" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M14 5l7 7m0 0l-7 7m7-7H3" />
-                                </svg>
-                            </a>
+
+                            {/* Endorsement System - Only show on public profiles (when currentWalletAddress is not the creator) */}
+                            {(!currentWalletAddress || entry.wallet_address.toLowerCase() !== currentWalletAddress.toLowerCase()) && (
+                                <EntryEndorsement
+                                    entryId={entry.id}
+                                    walletAddress={entry.wallet_address}
+                                    currentEndorsements={entry.endorsement_count}
+                                    currentDisputes={entry.dispute_count}
+                                />
+                            )}
                         </div>
                     </div>
                 </div>
@@ -241,6 +289,11 @@ export const EntryList: React.FC<EntryListProps> = ({
                 }}
             />
         )}
+        <SignatureVerificationModal
+            isOpen={signatureModal.isOpen}
+            onClose={() => setSignatureModal({ isOpen: false, signature: '' })}
+            signature={signatureModal.signature}
+        />
     </>
     );
 };

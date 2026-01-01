@@ -26,6 +26,7 @@ export interface LedgerEntry {
     custom_image_url?: string;
     site_name?: string;
     signature?: string;
+    tx_hash?: string; // Transaction hash for on-chain verification
     stats?: {
         views?: number;
         likes?: number;
@@ -42,6 +43,8 @@ export interface LedgerEntry {
         hiddenPlatforms?: string[];
         minVerificationStatus?: 'Unverified' | 'Verified';
     };
+    endorsement_count?: number; // Number of endorsements
+    dispute_count?: number; // Number of disputes
 }
 
 declare global {

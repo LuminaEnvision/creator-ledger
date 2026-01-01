@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { useAuth } from '../context/AuthContext';
 import { supabase } from '../lib/supabase';
 import { detectPlatform } from '../lib/platform';
@@ -6,6 +6,7 @@ import { generateEntryHash } from '../lib/hashing';
 import { useSignMessage } from 'wagmi';
 import { HashtagInput } from './HashtagInput';
 import { Link } from 'react-router-dom';
+import { checkPremiumStatus } from '../lib/premium';
 
 // Note: Operations fee and NFT minting now happen when admin verifies the entry
 
@@ -17,10 +18,16 @@ export const CreateEntryForm: React.FC<{ onSuccess: () => void }> = ({ onSuccess
     const [description, setDescription] = useState('');
     const [hashtags, setHashtags] = useState<string[]>([]);
     const [customImageUrl, setCustomImageUrl] = useState('');
+    const [customImageFile, setCustomImageFile] = useState<File | null>(null);
+    const [customImagePreview, setCustomImagePreview] = useState<string | null>(null);
     const [isSubmitting, setIsSubmitting] = useState(false);
     const [isFetching, setIsFetching] = useState(false);
+    const [isUploading, setIsUploading] = useState(false);
+    const [uploadProgress, setUploadProgress] = useState(0);
     const [status, setStatus] = useState<'idle' | 'signing' | 'saving'>('idle');
     const [error, setError] = useState<string | null>(null);
+    const [isPremium, setIsPremium] = useState(false);
+    const customImageInputRef = useRef<HTMLInputElement>(null);
 
     // States for metadata
     const [metadata, setMetadata] = useState<{
@@ -28,6 +35,32 @@ export const CreateEntryForm: React.FC<{ onSuccess: () => void }> = ({ onSuccess
         image?: string;
         siteName?: string;
     }>({});
+
+    // Check premium status
+    useEffect(() => {
+        const fetchPremiumStatus = async () => {
+            if (!user) {
+                setIsPremium(false);
+                return;
+            }
+
+            try {
+                const { data: userData } = await supabase
+                    .from('users')
+                    .select('is_premium, subscription_active, subscription_end')
+                    .eq('wallet_address', user.walletAddress.toLowerCase())
+                    .maybeSingle();
+
+                const premiumStatus = checkPremiumStatus(userData, user.walletAddress);
+                setIsPremium(premiumStatus);
+            } catch (err) {
+                console.error('Error checking premium status:', err);
+                setIsPremium(false);
+            }
+        };
+
+        fetchPremiumStatus();
+    }, [user]);
 
     // Debounced metadata fetch when URL changes
     useEffect(() => {
@@ -61,6 +94,59 @@ export const CreateEntryForm: React.FC<{ onSuccess: () => void }> = ({ onSuccess
         return () => clearTimeout(timeoutId);
     }, [url]);
 
+    const handleCustomImageFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+        const file = e.target.files?.[0];
+        if (!file) return;
+
+        if (!file.type.startsWith('image/')) {
+            setError('Please select an image file');
+            return;
+        }
+
+        if (file.size > 5 * 1024 * 1024) {
+            setError('Image must be less than 5MB');
+            if (customImageInputRef.current) customImageInputRef.current.value = '';
+            return;
+        }
+
+        setCustomImageFile(file);
+        setCustomImageUrl(''); // Clear URL when file is selected
+
+        const reader = new FileReader();
+        reader.onloadend = () => {
+            setCustomImagePreview(reader.result as string);
+        };
+        reader.readAsDataURL(file);
+    };
+
+    const uploadCustomImage = async (file: File): Promise<string> => {
+        if (!user) throw new Error('User not authenticated');
+
+        const walletAddress = user.walletAddress.toLowerCase().replace('0x', '');
+        const imagePath = `${walletAddress}/hero-${Date.now()}.${file.name.split('.').pop()}`;
+
+        const { data, error } = await supabase.storage
+            .from('profile-images')
+            .upload(imagePath, file, {
+                cacheControl: '3600',
+                upsert: true,
+                onUploadProgress: (event) => {
+                    if (event.totalBytes > 0) {
+                        const progress = Math.round((event.loaded / event.totalBytes) * 100);
+                        setUploadProgress(progress);
+                    }
+                }
+            });
+
+        if (error) throw error;
+
+        const { data: publicUrlData } = supabase.storage
+            .from('profile-images')
+            .getPublicUrl(data.path);
+
+        return publicUrlData.publicUrl;
+    };
+
     const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
         if (!user) return;
@@ -78,7 +164,17 @@ export const CreateEntryForm: React.FC<{ onSuccess: () => void }> = ({ onSuccess
             const message = `Creator Ledger Verification\n\nI, ${user.walletAddress}, affirm ownership/creation of the content at:\n${url}\n\nTimestamp: ${timestamp}\nHash: ${payloadHash}`;
             const signature = await signMessageAsync({ message });
 
-            // 2. Save to Supabase (including stats) - Status will be 'Unverified' until admin approves
+            // 2. Upload custom hero image if file is selected (premium only)
+            let finalCustomImageUrl = customImageUrl;
+            if (customImageFile && isPremium) {
+                setIsUploading(true);
+                setUploadProgress(0);
+                finalCustomImageUrl = await uploadCustomImage(customImageFile);
+                setUploadProgress(100);
+                setIsUploading(false);
+            }
+
+            // 3. Save to Supabase (including stats) - Status will be 'Unverified' until admin approves
             // NFT will be minted/updated when admin verifies the entry
             setStatus('saving');
 
@@ -104,7 +200,7 @@ export const CreateEntryForm: React.FC<{ onSuccess: () => void }> = ({ onSuccess
                         verification_status: 'Unverified', // Requires admin verification
                         title: metadata.title || null,
                         image_url: metadata.image || null,
-                        custom_image_url: customImageUrl || null,
+                        custom_image_url: finalCustomImageUrl || null,
                         site_name: metadata.siteName || null,
                         signature: signature,
                         stats: mockStats
@@ -117,6 +213,9 @@ export const CreateEntryForm: React.FC<{ onSuccess: () => void }> = ({ onSuccess
             setDescription('');
             setHashtags([]);
             setCustomImageUrl('');
+            setCustomImageFile(null);
+            setCustomImagePreview(null);
+            if (customImageInputRef.current) customImageInputRef.current.value = '';
             setMetadata({});
             setStatus('idle');
             
@@ -217,7 +316,7 @@ export const CreateEntryForm: React.FC<{ onSuccess: () => void }> = ({ onSuccess
                             className="glass-card"
                         />
                         <p className="mt-2 text-xs text-muted-foreground">
-                            Press <kbd className="px-1.5 py-0.5 bg-muted rounded text-xs">,</kbd> or <kbd className="px-1.5 py-0.5 bg-muted rounded text-xs">Enter</kbd> to add a tag. Tags automatically get a # prefix.
+                            Press <kbd className="px-1.5 py-0.5 bg-muted rounded text-xs">Space</kbd>, <kbd className="px-1.5 py-0.5 bg-muted rounded text-xs">,</kbd> or <kbd className="px-1.5 py-0.5 bg-muted rounded text-xs">Enter</kbd> to add a tag.
                         </p>
                     </div>
                     <div>
@@ -225,16 +324,54 @@ export const CreateEntryForm: React.FC<{ onSuccess: () => void }> = ({ onSuccess
                             <svg className="w-4 h-4 text-primary" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
                             </svg>
-                            Custom Hero URL
+                            Custom Hero {isPremium ? 'Image' : 'URL'}
+                            {!isPremium && (
+                                <span className="ml-1 px-1.5 py-0.5 rounded text-[10px] font-bold bg-primary/10 text-primary uppercase">
+                                    URL Only
+                                </span>
+                            )}
                         </label>
-                        <input
-                            type="text"
-                            value={customImageUrl}
-                            onChange={(e) => setCustomImageUrl(e.target.value)}
-                            placeholder="Override preview image (1200x630px recommended)..."
-                            className="w-full px-4 py-3 rounded-xl glass-card text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-primary/50 transition-all font-medium"
-                        />
-                        <p className="mt-1 text-xs text-muted-foreground">(Optional: 1200x630px, 1.91:1 ratio, JPG/PNG)</p>
+                        {isPremium ? (
+                            <>
+                                <input
+                                    ref={customImageInputRef}
+                                    type="file"
+                                    accept="image/jpeg,image/jpg,image/png,image/webp,image/gif"
+                                    onChange={handleCustomImageFileChange}
+                                    className="w-full px-4 py-3 rounded-xl glass-card text-foreground text-xs file:mr-4 file:py-2 file:px-4 file:rounded-xl file:border-0 file:text-xs file:font-bold file:bg-primary file:text-white hover:file:bg-primary/90 file:cursor-pointer cursor-pointer focus:outline-none focus:ring-2 focus:ring-primary/50 transition-all"
+                                />
+                                {customImagePreview && (
+                                    <div className="mt-2 aspect-[1.91/1] w-full rounded-xl overflow-hidden border-2 border-border bg-background">
+                                        <img src={customImagePreview} alt="Hero Preview" className="w-full h-full object-cover" />
+                                    </div>
+                                )}
+                                {isUploading && uploadProgress > 0 && (
+                                    <div className="mt-2 w-full bg-secondary rounded-full h-2">
+                                        <div
+                                            className="bg-primary h-2 rounded-full transition-all duration-300"
+                                            style={{ width: `${uploadProgress}%` }}
+                                        />
+                                    </div>
+                                )}
+                                <p className="mt-1 text-xs text-muted-foreground">(Optional: 1200x630px, 1.91:1 ratio, JPG/PNG, max 5MB)</p>
+                            </>
+                        ) : (
+                            <>
+                                <input
+                                    type="url"
+                                    value={customImageUrl}
+                                    onChange={(e) => {
+                                        setCustomImageUrl(e.target.value);
+                                        if (e.target.value) {
+                                            setCustomImagePreview(e.target.value);
+                                        }
+                                    }}
+                                    placeholder="https://your-hero-image.com/image.jpg"
+                                    className="w-full px-4 py-3 rounded-xl glass-card text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-primary/50 transition-all font-mono text-xs"
+                                />
+                                <p className="mt-1 text-xs text-muted-foreground">(Optional: Link to hero image URL)</p>
+                            </>
+                        )}
                     </div>
                 </div>
 
@@ -255,7 +392,7 @@ export const CreateEntryForm: React.FC<{ onSuccess: () => void }> = ({ onSuccess
                                     . All submissions are reviewed by administrators before appearing publicly.
                                 </p>
                                 <p className="text-xs text-muted-foreground leading-relaxed">
-                                    <strong className="text-primary">Note:</strong> Your entry will be reviewed by administrators. Once verified, your Creator Passport NFT will be minted or updated automatically.
+                                    <strong className="text-primary">Note:</strong> Your entry will be reviewed by administrators. Once verified, your Creator's Passport NFT will be minted or updated automatically.
                                 </p>
                             </div>
                         </div>
@@ -275,17 +412,18 @@ export const CreateEntryForm: React.FC<{ onSuccess: () => void }> = ({ onSuccess
 
                 <button
                     type="submit"
-                    disabled={isSubmitting}
+                    disabled={isSubmitting || isUploading}
                     className="btn-primary w-full py-4 px-6 rounded-xl font-bold text-lg flex items-center justify-center gap-3 disabled:opacity-50 disabled:cursor-not-allowed shadow-xl"
                 >
-                    {isSubmitting ? (
+                    {(isSubmitting || isUploading) ? (
                         <>
                             <svg className="animate-spin w-5 h-5 text-white" fill="none" viewBox="0 0 24 24">
                                 <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
                                 <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
                             </svg>
-                            {status === 'signing' && 'Signing Proof...'}
-                            {status === 'saving' && 'Submitting for Review...'}
+                            {isUploading && 'Uploading Image...'}
+                            {status === 'signing' && !isUploading && 'Signing Proof...'}
+                            {status === 'saving' && !isUploading && 'Submitting for Review...'}
                         </>
                     ) : (
                         <>

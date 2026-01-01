@@ -1,6 +1,7 @@
 import { BrowserRouter as Router, Routes, Route, Link } from 'react-router-dom';
 import { AuthProvider } from './context/AuthContext';
 import { ThemeProvider } from './context/ThemeContext';
+import { ToastProvider } from './hooks/useToast';
 import { WalletConnect } from './components/WalletConnect';
 import { ThemeToggle } from './components/ThemeToggle';
 import { Dashboard } from './pages/Dashboard';
@@ -21,7 +22,8 @@ function App() {
   return (
     <ThemeProvider>
       <AuthProvider>
-        <Router>
+        <ToastProvider>
+          <Router>
           <div className="min-h-screen text-foreground transition-colors">
             <header className="sticky top-0 z-50 w-full glass-card border-b border-border/50">
               <div className="container mx-auto px-4 sm:px-6 lg:px-8">
@@ -55,6 +57,7 @@ function App() {
             <FooterMenu />
           </div>
         </Router>
+        </ToastProvider>
       </AuthProvider>
     </ThemeProvider>
   )

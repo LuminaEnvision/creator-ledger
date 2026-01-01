@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { supabase } from '../lib/supabase';
 import { useAuth } from '../context/AuthContext';
 
-export const EditProfileModal: React.FC<{ isOpen: boolean; onClose: () => void; onUpdate: () => void }> = ({ isOpen, onClose, onUpdate }) => {
+export const EditProfileModal: React.FC<{ isOpen: boolean; onClose: () => void; onUpdate: () => void; buttonPosition?: { top: number; left: number } | null }> = ({ isOpen, onClose, onUpdate, buttonPosition }) => {
     const { user } = useAuth();
     const [displayName, setDisplayName] = useState('');
     const [bio, setBio] = useState('');
@@ -60,30 +60,60 @@ export const EditProfileModal: React.FC<{ isOpen: boolean; onClose: () => void; 
         }
     };
 
-    // Prevent body scroll when modal is open
+    // Prevent body scroll when modal is open - ensure cleanup on unmount
     useEffect(() => {
         if (isOpen) {
+            // Save current scroll position
+            const scrollY = window.scrollY;
+            const originalOverflow = document.body.style.overflow;
+            const originalPosition = document.body.style.position;
+            const originalTop = document.body.style.top;
+            const originalWidth = document.body.style.width;
+            
+            // Lock body scroll
             document.body.style.overflow = 'hidden';
-        } else {
-            document.body.style.overflow = '';
+            document.body.style.position = 'fixed';
+            document.body.style.top = `-${scrollY}px`;
+            document.body.style.width = '100%';
+            
+            return () => {
+                // Restore everything
+                document.body.style.overflow = originalOverflow || '';
+                document.body.style.position = originalPosition || '';
+                document.body.style.top = originalTop || '';
+                document.body.style.width = originalWidth || '';
+                window.scrollTo(0, scrollY);
+            };
         }
-        return () => {
-            document.body.style.overflow = '';
-        };
     }, [isOpen]);
 
     if (!isOpen) return null;
 
     return (
-        <div className="fixed inset-0 z-[9999] flex items-center justify-center p-4 overflow-y-auto">
+        <>
             {/* Backdrop - increased opacity for better clarity */}
             <div
-                className="fixed inset-0 bg-black/70 backdrop-blur-md animate-in fade-in duration-300"
+                className="fixed inset-0 z-[9998] bg-black/70 backdrop-blur-md animate-in fade-in duration-300"
                 onClick={onClose}
             ></div>
 
-            {/* Modal Content - centered like Create Collection modal */}
-            <div className="relative w-full max-w-lg bg-white rounded-[2.5rem] shadow-[0_30px_100px_rgba(0,0,0,0.3)] overflow-hidden animate-in zoom-in-95 fade-in duration-300">
+            {/* Modal Content - positioned below button */}
+            <div className="fixed inset-0 z-[9999] overflow-y-auto pointer-events-none">
+                <div 
+                    className="relative w-full max-w-lg bg-white rounded-[2.5rem] shadow-[0_30px_100px_rgba(0,0,0,0.3)] overflow-hidden animate-in zoom-in-95 fade-in duration-300 pointer-events-auto mx-auto"
+                    style={buttonPosition ? {
+                        marginTop: `${Math.max(buttonPosition.top, 20)}px`,
+                        marginLeft: 'auto',
+                        marginRight: 'auto',
+                        maxWidth: '32rem'
+                    } : {
+                        marginTop: '6rem',
+                        marginLeft: 'auto',
+                        marginRight: 'auto',
+                        maxWidth: '32rem'
+                    }}
+                    onClick={(e) => e.stopPropagation()}
+                >
                 <div className="px-8 pt-8 pb-4 flex justify-between items-center border-b border-slate-100">
                     <h3 className="text-2xl font-black text-slate-900 tracking-tight">Level Up Your Brand</h3>
                     <button
@@ -198,7 +228,8 @@ export const EditProfileModal: React.FC<{ isOpen: boolean; onClose: () => void; 
                         </button>
                     </div>
                 </form>
+                </div>
             </div>
-        </div>
+        </>
     );
 };

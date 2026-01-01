@@ -27,12 +27,62 @@ export const PortfolioCollections: React.FC<PortfolioCollectionsProps> = ({
         fetchCollections();
     }, [walletAddress]);
 
+    // Debug: Log entries when they change
+    useEffect(() => {
+        console.log('PortfolioCollections: Entries updated', {
+            totalEntries: entries.length,
+            entryIds: entries.map(e => ({ id: e.id, title: e.title || e.url }))
+        });
+    }, [entries]);
+
+    // Refetch collections when entries change to ensure entry IDs are valid
+    useEffect(() => {
+        if (collections.length > 0 && entries.length > 0) {
+            // Validate and clean up collections with invalid entry IDs
+            const cleanedCollections = collections.map(collection => {
+                const validEntryIds = collection.entryIds.filter(id => 
+                    entries.some(e => e.id === id)
+                );
+                
+                if (validEntryIds.length !== collection.entryIds.length) {
+                    console.log(`Collection "${collection.name}" had ${collection.entryIds.length - validEntryIds.length} invalid entry IDs, cleaning up...`);
+                    return {
+                        ...collection,
+                        entryIds: validEntryIds
+                    };
+                }
+                return collection;
+            }).filter(collection => collection.entryIds.length > 0); // Remove empty collections
+            
+            // Only update if there are actual changes to avoid infinite loops
+            const hasChanges = cleanedCollections.length !== collections.length || 
+                collections.some((col, idx) => col.entryIds.length !== cleanedCollections[idx]?.entryIds.length);
+            
+            if (hasChanges) {
+                const normalizedAddress = walletAddress?.toLowerCase() || '';
+                if (normalizedAddress) {
+                    localStorage.setItem(`collections_${normalizedAddress}`, JSON.stringify(cleanedCollections));
+                    setCollections(cleanedCollections);
+                }
+            }
+        }
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [entries]);
+
     const fetchCollections = async () => {
         try {
+            // Normalize wallet address to lowercase for consistent storage
+            const normalizedAddress = walletAddress?.toLowerCase() || '';
+            if (!normalizedAddress) return;
+            
             // Store collections in localStorage for now (can be moved to Supabase later)
-            const stored = localStorage.getItem(`collections_${walletAddress}`);
+            const stored = localStorage.getItem(`collections_${normalizedAddress}`);
             if (stored) {
-                setCollections(JSON.parse(stored));
+                const parsed = JSON.parse(stored);
+                console.log('Loaded collections:', parsed);
+                setCollections(parsed);
+            } else {
+                console.log('No collections found in localStorage for:', normalizedAddress);
             }
         } catch (error) {
             console.error('Error fetching collections:', error);
@@ -40,8 +90,22 @@ export const PortfolioCollections: React.FC<PortfolioCollectionsProps> = ({
     };
 
     const saveCollections = (newCollections: PortfolioCollection[]) => {
-        localStorage.setItem(`collections_${walletAddress}`, JSON.stringify(newCollections));
-        setCollections(newCollections);
+        try {
+            // Normalize wallet address to lowercase for consistent storage
+            const normalizedAddress = walletAddress?.toLowerCase() || '';
+            if (!normalizedAddress) {
+                console.error('Cannot save collections: wallet address is missing');
+                return;
+            }
+            
+            const key = `collections_${normalizedAddress}`;
+            localStorage.setItem(key, JSON.stringify(newCollections));
+            console.log('Saved collections:', newCollections, 'to key:', key);
+            setCollections(newCollections);
+        } catch (error) {
+            console.error('Error saving collections:', error);
+            alert('Failed to save collection. Please try again.');
+        }
     };
 
     const handleCreateCollection = () => {
@@ -125,7 +189,35 @@ export const PortfolioCollections: React.FC<PortfolioCollectionsProps> = ({
             ) : (
                 <div className="space-y-2">
                     {collections.map((collection) => {
+                        // Filter entries and validate that entry IDs still exist
                         const filteredEntries = entries.filter(e => collection.entryIds.includes(e.id));
+                        const missingEntries = collection.entryIds.filter(id => !entries.some(e => e.id === id));
+                        
+                        // Debug logging
+                        console.log('Collection:', collection.name, {
+                            collectionEntryIds: collection.entryIds,
+                            totalEntries: entries.length,
+                            filteredCount: filteredEntries.length,
+                            missingCount: missingEntries.length,
+                            entryIds: entries.map(e => e.id)
+                        });
+                        
+                        // If some entries are missing, update the collection to remove invalid IDs
+                        if (missingEntries.length > 0 && filteredEntries.length > 0) {
+                            console.warn('Some entry IDs in collection are missing:', missingEntries);
+                            // Optionally auto-fix: remove invalid entry IDs
+                            const updatedCollection = {
+                                ...collection,
+                                entryIds: collection.entryIds.filter(id => entries.some(e => e.id === id))
+                            };
+                            const updatedCollections = collections.map(c => 
+                                c.id === collection.id ? updatedCollection : c
+                            );
+                            saveCollections(updatedCollections);
+                        }
+                        
+                        const shareLink = generateShareLink(collection);
+                        
                         return (
                             <div key={collection.id} className="p-4 rounded-xl glass-card border border-border/50">
                                 <div className="flex items-start justify-between mb-3">
@@ -136,6 +228,13 @@ export const PortfolioCollections: React.FC<PortfolioCollectionsProps> = ({
                                         </p>
                                     </div>
                                     <div className="flex gap-2">
+                                        <button
+                                            onClick={() => window.open(shareLink, '_blank')}
+                                            className="px-3 py-1.5 rounded-lg bg-primary hover:bg-primary/80 text-white text-xs font-bold transition-all"
+                                            title="View collection"
+                                        >
+                                            View
+                                        </button>
                                         <button
                                             onClick={() => copyShareLink(collection)}
                                             className="px-3 py-1.5 rounded-lg bg-primary/10 hover:bg-primary/20 text-primary text-xs font-bold transition-all"

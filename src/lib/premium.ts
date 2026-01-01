@@ -40,3 +40,31 @@ export const getPremiumWhitelist = (): string[] => {
     return [...PREMIUM_WHITELIST];
 };
 
+/**
+ * Check if a user has premium status based on database subscription data
+ * This function should be called with data from the 'users' table
+ */
+export const checkPremiumStatus = (userData: {
+    subscription_active?: boolean | null;
+    subscription_end?: string | null;
+    is_premium?: boolean | null;
+} | null, walletAddress?: string | null): boolean => {
+    if (!userData) return false;
+
+    const now = new Date();
+    const subscriptionEnd = userData.subscription_end ? new Date(userData.subscription_end) : null;
+    
+    // Check if subscription is active (not null/undefined, equals true, and not expired)
+    const hasActiveSubscription = userData.subscription_active === true;
+    const isNotExpired = !subscriptionEnd || subscriptionEnd > now;
+    const isActive = hasActiveSubscription && isNotExpired;
+    
+    // Premium status: Active subscription OR legacy premium flag (if no subscription system was used)
+    // OR whitelisted for testing
+    const hasSubscription = userData.subscription_active !== null && userData.subscription_active !== undefined;
+    const dbPremiumStatus = isActive || (!hasSubscription && userData.is_premium === true);
+    const isWhitelisted = walletAddress ? isPremiumWhitelisted(walletAddress) : false;
+    
+    return dbPremiumStatus || isWhitelisted;
+};
+

@@ -4,11 +4,12 @@ import { supabase } from '../lib/supabase';
 import { CreateEntryForm } from '../components/CreateEntryForm';
 import { EntryList } from '../components/EntryList';
 import type { LedgerEntry } from '../types';
-import { EditProfileModal } from '../components/EditProfileModal';
+import { CustomizeProfileForm } from '../components/CustomizeProfileForm';
 import { Link, useNavigate, useSearchParams } from 'react-router-dom';
 import { exportToCSV, exportToPDF } from '../lib/export';
-import { SignInWithBaseButton } from '@base-org/account-ui/react';
 import { useConnectModal } from '@rainbow-me/rainbowkit';
+import { SignInWithBaseButton } from '@base-org/account-ui/react';
+import { createBaseAccountSDK } from '@base-org/account';
 import { DynamicNFT } from '../components/DynamicNFT';
 import { PassportMintButton } from '../components/PassportMintButton';
 import { PortfolioCollections } from '../components/PortfolioCollections';
@@ -19,12 +20,36 @@ export const Dashboard: React.FC = () => {
     const { user } = useAuth();
     const navigate = useNavigate();
     const [searchParams, setSearchParams] = useSearchParams();
+    const [isBaseAuthLoading, setIsBaseAuthLoading] = useState(false);
     const [entries, setEntries] = useState<LedgerEntry[]>([]);
     const [isLoading, setIsLoading] = useState(false);
     const [isPremium, setIsPremium] = useState(false);
     const [refreshTrigger, setRefreshTrigger] = useState(0);
-    const [isEditModalOpen, setIsEditModalOpen] = useState(false);
+    const [isEditingProfile, setIsEditingProfile] = useState(false);
     const { openConnectModal } = useConnectModal();
+
+    // Handle Base account authentication
+    const handleBaseSignIn = async () => {
+        setIsBaseAuthLoading(true);
+        try {
+            const baseAccountSDK = createBaseAccountSDK({ appName: 'Creator Ledger' });
+            const provider = baseAccountSDK.getProvider();
+            
+            // Request connection to Base account
+            await provider.request({ method: 'eth_requestAccounts' });
+            
+            // After connection, the wagmi useAccount hook will detect the connection
+            // and AuthContext will sync the user
+            console.log('✅ Base account connected');
+        } catch (error: any) {
+            console.error('Base account authentication error:', error);
+            if (error.code !== 4001) { // User rejected
+                alert('Failed to connect Base account. Please try again.');
+            }
+        } finally {
+            setIsBaseAuthLoading(false);
+        }
+    };
     
     // Check for refresh parameter and trigger refresh
     useEffect(() => {
@@ -161,11 +186,11 @@ export const Dashboard: React.FC = () => {
                         <img src="/assets/logo.png" className="w-full h-full object-cover group-hover:scale-110 transition-transform" alt="Logo" />
                     </div>
                     <div className="space-y-3">
-                        <h2 className="text-4xl font-black tracking-tight text-white uppercase">
+                        <h2 className="text-4xl font-black tracking-tight text-foreground uppercase">
                             Creator <span className="text-primary">Ledger</span>
                         </h2>
-                        <p className="text-slate-400 text-lg font-medium leading-relaxed px-4">
-                            Sign in with your Base Account to secure your on-chain content proof.
+                        <p className="text-muted-foreground text-lg font-medium leading-relaxed px-4">
+                            Sign in with Base Account for seamless authentication, or connect any wallet on Base network.
                         </p>
                     </div>
 
@@ -174,16 +199,26 @@ export const Dashboard: React.FC = () => {
                             align="center"
                             variant="solid"
                             colorScheme="dark"
-                            onClick={() => {
-                                console.log('Connecting with Base...');
-                                openConnectModal?.();
-                            }}
+                            onClick={handleBaseSignIn}
+                            isLoading={isBaseAuthLoading}
                         />
                         <div className="flex items-center gap-3 py-2">
-                            <div className="h-px flex-1 bg-white/10"></div>
-                            <span className="text-[10px] font-black uppercase tracking-[0.2em] text-white/30">Or use other wallets</span>
-                            <div className="h-px flex-1 bg-white/10"></div>
+                            <div className="h-px flex-1 bg-border"></div>
+                            <span className="text-[10px] font-black uppercase tracking-[0.2em] text-muted-foreground">Or</span>
+                            <div className="h-px flex-1 bg-border"></div>
                         </div>
+                        <button
+                            onClick={() => {
+                                console.log('Connecting wallet...');
+                                openConnectModal?.();
+                            }}
+                            className="w-full py-4 rounded-2xl bg-secondary hover:bg-secondary/80 text-foreground font-black uppercase tracking-widest transition-all disabled:opacity-50 disabled:cursor-not-allowed border border-border"
+                        >
+                            Connect Other Wallet
+                        </button>
+                        <p className="text-xs text-muted-foreground text-center">
+                            Use Base Account for seamless authentication, or connect any wallet on Base network
+                        </p>
                     </div>
                 </div>
             </div>
@@ -198,7 +233,7 @@ export const Dashboard: React.FC = () => {
                         <div className="flex items-center gap-2 mb-1">
                             <h2 className="text-xl sm:text-2xl font-bold bg-gradient-to-r from-primary via-accent to-primary bg-clip-text text-transparent">
                                 Dashboard
-                            </h2>
+                        </h2>
                             {isPremium && (
                                 <span className="px-2 py-0.5 rounded-lg bg-gradient-to-r from-primary to-accent text-[10px] font-black uppercase tracking-wider text-white shadow-lg shadow-primary/30">
                                     PRO
@@ -212,12 +247,12 @@ export const Dashboard: React.FC = () => {
                             {isPremium ? 'Pro Creator - Full Analytics Enabled' : 'Track and verify content'}
                         </p>
                         <div className="flex gap-2 mt-3">
-                            <button
-                                onClick={() => setIsEditModalOpen(true)}
+                        <button
+                                onClick={() => setIsEditingProfile(!isEditingProfile)}
                                 className="px-4 py-2 rounded-lg glass-card text-xs font-bold hover:bg-accent/20 transition-all border border-primary/20 text-primary"
                             >
-                                Customize Profile
-                            </button>
+                                {isEditingProfile ? 'Cancel' : 'Customize Profile'}
+                        </button>
                             {!isPremium && (
                                 <Link
                                     to="/pricing"
@@ -226,7 +261,7 @@ export const Dashboard: React.FC = () => {
                                     GO PRO
                                 </Link>
                             )}
-                            <button
+                        <button
                                 onClick={async () => {
                                     console.log('🔄 Manual refresh triggered, current isPremium:', isPremium);
                                     console.log('🔄 Current user wallet:', user?.walletAddress);
@@ -263,42 +298,48 @@ export const Dashboard: React.FC = () => {
                                 title="Refresh premium status and data"
                             >
                                 🔄
-                            </button>
+                        </button>
                         </div>
+                        {isEditingProfile && (
+                            <CustomizeProfileForm
+                                onUpdate={() => setRefreshTrigger(prev => prev + 1)}
+                                onClose={() => setIsEditingProfile(false)}
+                            />
+                        )}
                     </div>
                 </div>
 
-                {/* NFT Display Section */}
-                <div className="mt-8 pt-8 border-t border-border/50">
-                    <div className="flex flex-col items-center gap-4 p-6 rounded-2xl bg-gradient-to-br from-primary/10 via-accent/5 to-primary/10 border border-primary/20">
-                        <div className="text-center mb-2">
-                            <p className="text-sm font-bold uppercase tracking-wider text-primary mb-1">Your Creator Passport</p>
-                            <p className="text-xs text-muted-foreground">Onchain proof of your original works</p>
+                {/* NFT Display Section - Clean and Centered */}
+                <div className="mt-4 border-t border-border/50">
+                    <div className="flex flex-col items-center gap-4 py-6">
+                        <div className="text-center">
+                            <p className="text-lg font-black uppercase tracking-wider text-primary mb-1">Your Creator's Passport</p>
+                            <p className="text-sm text-muted-foreground">Onchain proof of your original works</p>
                         </div>
+                        
                         {user?.walletAddress && (
                             <>
-                                <div className="group relative w-full max-w-[280px]">
-                                    <div className={`absolute -inset-4 rounded-[3rem] blur-2xl opacity-30 group-hover:opacity-50 transition duration-1000 ${isPremium ? 'bg-primary' : 'bg-slate-400'}`}></div>
+                                {/* NFT - Simple and Centered */}
+                                <div className="flex justify-center">
                                     {isPremium ? (
                                         <NFTImageFrame isPro={true} noMargin={true}>
                                             <DynamicNFT
                                                 key={`${user.walletAddress}-${refreshTrigger}`}
                                                 walletAddress={user.walletAddress}
-                                                size="md"
+                                                size="lg"
                                                 mode="pro"
-                                                className="transition-all duration-700 group-hover:scale-105 group-hover:rotate-1"
                                             />
                                         </NFTImageFrame>
                                     ) : (
                                         <DynamicNFT
                                             key={`${user.walletAddress}-${refreshTrigger}`}
                                             walletAddress={user.walletAddress}
-                                            size="md"
+                                            size="lg"
                                             mode="free"
-                                            className="transition-all duration-700 group-hover:scale-105 group-hover:rotate-1"
                                         />
                                     )}
                                 </div>
+                                
                                 <PassportMintButton
                                     walletAddress={user.walletAddress}
                                     verifiedEntriesCount={entries.filter(e => e.verification_status === 'Verified').length}
@@ -309,48 +350,51 @@ export const Dashboard: React.FC = () => {
                     </div>
                 </div>
 
-                {/* Portfolio Collections Section */}
+                {/* Shareable Media Kit - Main Link (All Entries) */}
+                <div className="mt-6 pt-6 border-t border-border/50">
+                    <div className="p-6 rounded-2xl bg-gradient-to-br from-primary/10 via-primary/5 to-primary/10 border-2 border-primary/20 shadow-lg">
+                        <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
+                            <div className="flex items-center gap-4">
+                                <div className="w-12 h-12 rounded-xl bg-primary/20 flex items-center justify-center flex-shrink-0">
+                                    <svg className="w-6 h-6 text-primary" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8.684 13.342C8.886 12.938 9 12.482 9 12c0-.482-.114-.938-.316-1.342m0 2.684a3 3 0 110-2.684m0 2.684l6.632 3.316m-6.632-6l6.632-3.316m0 0a3 3 0 105.367-2.684 3 3 0 00-5.367 2.684zm0 9.316a3 3 0 105.368 2.684 3 3 0 00-5.368-2.684z" />
+                                    </svg>
+                                </div>
+                                <div>
+                                    <h3 className="text-lg font-black uppercase tracking-wider text-primary mb-1">Shareable Media Kit</h3>
+                                    <p className="text-sm text-muted-foreground">Your complete portfolio with all {entries.filter(e => e.verification_status === 'Verified').length} verified entries</p>
+                                </div>
+                            </div>
+                            <div className="flex gap-2 w-full sm:w-auto">
+                                <Link
+                                    to={`/u/${user.walletAddress}`}
+                                    className="flex-1 sm:flex-none px-6 py-3 rounded-xl bg-primary text-white text-sm font-black hover:bg-primary/80 transition-all text-center shadow-lg shadow-primary/20"
+                                >
+                                    View
+                                </Link>
+                                <button
+                                    onClick={() => {
+                                        navigator.clipboard.writeText(`${window.location.origin}/u/${user.walletAddress}`);
+                                        alert('Link copied to clipboard!');
+                                    }}
+                                    className="flex-1 sm:flex-none px-6 py-3 rounded-xl glass-card text-sm font-bold hover:bg-accent/20 transition-all border border-border/50"
+                                >
+                                    Copy Link
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                {/* Portfolio Collections - Optional Filtered Views */}
                 {user?.walletAddress && (
-                    <div className="mt-8 pt-8 border-t border-border/50">
+                    <div className="mt-4 pt-4 border-t border-border/30">
                         <PortfolioCollections
                             entries={entries}
                             walletAddress={user.walletAddress}
                         />
                     </div>
                 )}
-
-                {/* Shareable Section */}
-                <div className="mt-8 pt-8 border-t border-border/50">
-                    <div className="flex flex-col sm:flex-row items-center justify-between gap-4 p-4 rounded-2xl bg-primary/5 border border-primary/10">
-                        <div className="flex items-center gap-3">
-                            <div className="w-10 h-10 rounded-full bg-primary/20 flex items-center justify-center">
-                                <svg className="w-5 h-5 text-primary" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8.684 13.342C8.886 12.938 9 12.482 9 12c0-.482-.114-.938-.316-1.342m0 2.684a3 3 0 110-2.684m0 2.684l6.632 3.316m-6.632-6l6.632-3.316m0 0a3 3 0 105.367-2.684 3 3 0 00-5.367 2.684zm0 9.316a3 3 0 105.368 2.684 3 3 0 00-5.368-2.684z" />
-                                </svg>
-                            </div>
-                            <div>
-                                <p className="text-sm font-bold uppercase tracking-wider text-primary">Shareable Media Kit</p>
-                            </div>
-                        </div>
-                        <div className="flex gap-2 w-full sm:w-auto">
-                            <Link
-                                to={`/u/${user.walletAddress}`}
-                                className="flex-1 sm:flex-none px-4 py-2 rounded-lg bg-primary text-white text-xs font-bold hover:bg-primary/80 transition-all text-center"
-                            >
-                                View
-                            </Link>
-                            <button
-                                onClick={() => {
-                                    navigator.clipboard.writeText(`${window.location.origin}/u/${user.walletAddress}`);
-                                    alert('Link copied to clipboard!');
-                                }}
-                                className="flex-1 sm:flex-none px-4 py-2 rounded-lg glass-card text-xs font-bold hover:bg-accent/20 transition-all border border-border/50"
-                            >
-                                Copy Link
-                            </button>
-                        </div>
-                    </div>
-                </div>
             </div>
 
             <CreateEntryForm onSuccess={() => setRefreshTrigger(prev => prev + 1)} />
@@ -358,13 +402,13 @@ export const Dashboard: React.FC = () => {
             <div className="glass-card p-6 sm:p-8 rounded-2xl">
                 <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 mb-6">
                     <div className="flex items-center gap-3">
-                        <div className="w-10 h-10 rounded-lg bg-gradient-to-br from-primary to-accent flex items-center justify-center">
-                            <svg className="w-5 h-5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
-                            </svg>
-                        </div>
-                        <h3 className="text-xl font-bold">Your Submissions</h3>
+                    <div className="w-10 h-10 rounded-lg bg-gradient-to-br from-primary to-accent flex items-center justify-center">
+                        <svg className="w-5 h-5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                        </svg>
                     </div>
+                    <h3 className="text-xl font-bold">Your Submissions</h3>
+                </div>
                     {isPremium && (
                         <div className="flex gap-3">
                             <button
@@ -461,11 +505,6 @@ export const Dashboard: React.FC = () => {
                 />
             </div>
 
-            <EditProfileModal
-                isOpen={isEditModalOpen}
-                onClose={() => setIsEditModalOpen(false)}
-                onUpdate={() => setRefreshTrigger(prev => prev + 1)}
-            />
         </div>
     );
 };

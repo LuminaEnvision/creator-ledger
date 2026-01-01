@@ -140,13 +140,39 @@ export const TermsOfService: React.FC = () => {
                     </div>
                 </section>
 
-                {/* Fees */}
+                {/* Fees & Subscriptions */}
                 <section>
-                    <h2 className="text-2xl font-bold mb-4">Fees & Payments</h2>
-                    <div className="space-y-3 text-muted-foreground">
-                        <p><strong className="text-foreground">Free Users:</strong> Pay 0.00025 ETH per entry submission to cover on-chain verification costs (plus network gas fees). This fee goes to operations address: <code className="bg-muted px-1.5 py-0.5 rounded text-xs">0x7eB8F203167dF3bC14D59536E671528dd97FB72a</code></p>
-                        <p><strong className="text-foreground">Pro Users:</strong> Monthly subscription of 15 USDC. No submission fees. Subscription automatically renews each month. You can cancel or renew at any time from the Pricing page.</p>
-                        <p className="text-xs italic">Subscriptions are managed through Base Pay. Payment is required monthly to maintain Pro status.</p>
+                    <h2 className="text-2xl font-bold mb-4">Fees & Subscriptions</h2>
+                    <div className="space-y-4 text-muted-foreground">
+                        <div>
+                            <h3 className="text-lg font-semibold mb-2 text-foreground">Free Tier</h3>
+                            <ul className="list-disc list-inside space-y-1 ml-4">
+                                <li>Pay 0.00025 ETH per entry submission to cover on-chain verification costs (plus network gas fees)</li>
+                                <li>Operations fee goes to: <code className="bg-muted px-1.5 py-0.5 rounded text-xs">0x7eB8F203167dF3bC14D59536E671528dd97FB72a</code></li>
+                                <li>Basic profile customization (display name, bio)</li>
+                                <li>URL-based image links only (no file uploads)</li>
+                                <li>Export features not available</li>
+                            </ul>
+                        </div>
+                        <div>
+                            <h3 className="text-lg font-semibold mb-2 text-foreground">Pro Tier (Premium Subscription)</h3>
+                            <p className="mb-2"><strong className="text-foreground">Monthly subscription:</strong> 15 USDC per month</p>
+                            <p className="mb-2"><strong className="text-foreground">Benefits include:</strong></p>
+                            <ul className="list-disc list-inside space-y-1 ml-4">
+                                <li><strong className="text-foreground">No submission fees</strong> - Unlimited entry submissions without per-entry charges</li>
+                                <li><strong className="text-foreground">Photo uploads</strong> - Upload custom images for:
+                                    <ul className="list-disc list-inside ml-6 mt-1 space-y-1">
+                                        <li>Profile avatar (Passport Photo)</li>
+                                        <li>Media kit banner</li>
+                                        <li>Custom hero images for entries</li>
+                                    </ul>
+                                </li>
+                                <li><strong className="text-foreground">Export features</strong> - Download your ledger as CSV or PDF</li>
+                                <li><strong className="text-foreground">Pro NFT styling</strong> - Enhanced Creator's Passport NFT display</li>
+                                <li><strong className="text-foreground">Premium UI elements</strong> - Access to all premium features</li>
+                            </ul>
+                            <p className="mt-3 text-xs italic">Subscriptions are managed through Base Pay. Payment is required monthly to maintain Pro status. You can cancel or renew at any time from the Pricing page.</p>
+                        </div>
                     </div>
                 </section>
 
