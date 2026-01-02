@@ -1,8 +1,9 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { supabase } from '../lib/supabase';
 import { useEnsName } from 'wagmi';
 import { mainnet } from 'wagmi/chains';
 import { Link } from 'react-router-dom';
+import { useFarcaster } from '../context/FarcasterContext';
 
 interface ProfileDisplayProps {
     walletAddress: string;
@@ -21,6 +22,7 @@ export const ProfileDisplay: React.FC<ProfileDisplayProps> = ({
 }) => {
     const [profile, setProfile] = useState<any>(null);
     const [isLoading, setIsLoading] = useState(true);
+    const { user: farcasterUser } = useFarcaster();
 
     // Fetch ENS name
     const { data: ensName } = useEnsName({
@@ -32,6 +34,27 @@ export const ProfileDisplay: React.FC<ProfileDisplayProps> = ({
             refetchOnWindowFocus: false,
         }
     });
+
+    // Check if wallet address matches current Farcaster user
+    const isFarcasterUser = useMemo(() => {
+        if (!farcasterUser || !walletAddress) return false;
+        
+        const normalizedWallet = walletAddress.toLowerCase();
+        
+        // Check custody address
+        if (farcasterUser.custodyAddress?.toLowerCase() === normalizedWallet) {
+            return true;
+        }
+        
+        // Check verified addresses
+        if (farcasterUser.verifications?.some(
+            (addr: string) => addr.toLowerCase() === normalizedWallet
+        )) {
+            return true;
+        }
+        
+        return false;
+    }, [farcasterUser, walletAddress]);
 
     useEffect(() => {
         const fetchProfile = async () => {
@@ -67,9 +90,17 @@ export const ProfileDisplay: React.FC<ProfileDisplayProps> = ({
         );
     }
 
-    // Priority: profile display_name > ENS > truncated address
-    const displayName = profile?.display_name || ensName || `${walletAddress.slice(0, 6)}...${walletAddress.slice(-4)}`;
-    const avatarUrl = profile?.avatar_url;
+    // Priority: Farcaster > profile display_name > ENS > truncated address
+    const displayName = isFarcasterUser && farcasterUser?.displayName
+        ? farcasterUser.displayName
+        : isFarcasterUser && farcasterUser?.username
+        ? farcasterUser.username
+        : profile?.display_name || ensName || `${walletAddress.slice(0, 6)}...${walletAddress.slice(-4)}`;
+    
+    // Priority: Farcaster pfpUrl > profile avatar_url > null
+    const avatarUrl = isFarcasterUser && farcasterUser?.pfpUrl
+        ? farcasterUser.pfpUrl
+        : profile?.avatar_url;
 
     const sizeClasses = {
         sm: { avatar: 'w-6 h-6', text: 'text-xs' },
@@ -92,7 +123,7 @@ export const ProfileDisplay: React.FC<ProfileDisplayProps> = ({
                     </div>
                 )
             )}
-            <span className={`${sizeClasses[size].text} font-medium ${profile?.display_name ? 'text-foreground' : 'text-muted-foreground'}`}>
+            <span className={`${sizeClasses[size].text} font-medium ${(isFarcasterUser && farcasterUser?.displayName) || profile?.display_name ? 'text-foreground' : 'text-muted-foreground'}`}>
                 {displayName}
             </span>
         </div>
