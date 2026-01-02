@@ -7,98 +7,36 @@ import type { LedgerEntry } from '../types';
 import { CustomizeProfileForm } from '../components/CustomizeProfileForm';
 import { Link, useNavigate, useSearchParams } from 'react-router-dom';
 import { exportToCSV, exportToPDF } from '../lib/export';
-import { SignInWithBaseButton } from '@base-org/account-ui/react';
-import { createBaseAccountSDK } from '@base-org/account';
+// Base Account will be used automatically when available - no explicit connection needed per Base guidelines
 import { DynamicNFT } from '../components/DynamicNFT';
 import { ProNFT } from '../components/ProNFT';
 import { PassportMintButton } from '../components/PassportMintButton';
 import { PortfolioCollections } from '../components/PortfolioCollections';
 import { NFTImageFrame } from '../components/NFTImageFrame';
 import { isPremiumWhitelisted } from '../lib/premium';
-import { getEnvironment } from '../lib/environment';
-import { useFarcaster } from '../context/FarcasterContext';
-import { useConnect } from 'wagmi';
+import { OnboardingFlow } from '../components/OnboardingFlow';
 
 export const Dashboard: React.FC = () => {
     const { user } = useAuth();
-    const { isAvailable: isFarcasterAvailable, connectWallet: connectFarcasterWallet } = useFarcaster();
-    const env = getEnvironment();
     const navigate = useNavigate();
     const [searchParams, setSearchParams] = useSearchParams();
-    const [, setIsBaseAuthLoading] = useState(false);
-    const { connect, connectors } = useConnect();
     const [entries, setEntries] = useState<LedgerEntry[]>([]);
     const [isLoading, setIsLoading] = useState(false);
     const [isPremium, setIsPremium] = useState(false);
     const [refreshTrigger, setRefreshTrigger] = useState(0);
     const [isEditingProfile, setIsEditingProfile] = useState(false);
-
-    // Handle Base account authentication
-    const handleBaseSignIn = async () => {
-        setIsBaseAuthLoading(true);
-        try {
-            const baseAccountSDK = createBaseAccountSDK({ appName: 'Creator Ledger' });
-            const provider = baseAccountSDK.getProvider();
-            
-            // Request connection to Base account
-            const accounts = await provider.request({ method: 'eth_requestAccounts' }) as string[];
-            
-            if (!accounts || !Array.isArray(accounts) || accounts.length === 0) {
-                throw new Error('No accounts returned');
-            }
-            
-            // Expose Base Account provider to window.ethereum so wagmi can detect it
-            if (typeof window !== 'undefined') {
-                (window as any).ethereum = provider;
-            }
-            
-            // Switch to Base Sepolia network if not already on it
-            try {
-                await provider.request({
-                    method: 'wallet_switchEthereumChain',
-                    params: [{ chainId: '0x14a34' }], // Base Sepolia chain ID in hex
-                });
-            } catch (switchError: any) {
-                // If chain doesn't exist, add it
-                if (switchError.code === 4902) {
-                    await provider.request({
-                        method: 'wallet_addEthereumChain',
-                        params: [{
-                            chainId: '0x14a34',
-                            chainName: 'Base Sepolia',
-                            nativeCurrency: {
-                                name: 'ETH',
-                                symbol: 'ETH',
-                                decimals: 18,
-                            },
-                            rpcUrls: ['https://sepolia.base.org'],
-                            blockExplorerUrls: ['https://sepolia.basescan.org'],
-                        }],
-                    });
-                }
-            }
-            
-            // Find the injected connector (which should now detect Base Account provider)
-            const injectedConnector = connectors.find(c => c.id === 'injected' || c.id === 'metaMask');
-            if (injectedConnector) {
-                // Connect using wagmi's connect function
-                await connect({ connector: injectedConnector, chainId: 84532 }); // Base Sepolia chain ID
-            } else {
-                // Fallback: trigger a page refresh to let wagmi detect the provider
-                console.log('✅ Base account connected, refreshing to sync with wagmi...');
-                window.location.reload();
-            }
-            
-            console.log('✅ Base account connected');
-        } catch (error: any) {
-            console.error('Base account authentication error:', error);
-            if (error.code !== 4001) { // User rejected
-                alert('Failed to connect Base account. Please try again.');
-            }
-        } finally {
-            setIsBaseAuthLoading(false);
+    const [showOnboarding, setShowOnboarding] = useState(() => {
+        // Show onboarding only once per session
+        if (typeof window !== 'undefined') {
+            const hasSeenOnboarding = sessionStorage.getItem('hasSeenOnboarding');
+            return !hasSeenOnboarding;
         }
-    };
+        return false;
+    });
+
+    // Base Account is used automatically when available
+    // Per Base guidelines: "Use Base Account seamlessly for on-chain actions; no upfront connect flow"
+    // Wallet connection is triggered when user tries to submit entry (handled by CreateEntryForm)
     
     // Check for refresh parameter and trigger refresh
     useEffect(() => {
@@ -232,46 +170,50 @@ export const Dashboard: React.FC = () => {
 
     return (
         <div className={`space-y-4 max-w-4xl mx-auto px-3 ${isPremium ? 'premium-bg' : ''}`}>
-            {!user && (
+            {!user && showOnboarding && (
+                <OnboardingFlow onComplete={() => {
+                    setShowOnboarding(false);
+                    if (typeof window !== 'undefined') {
+                        sessionStorage.setItem('hasSeenOnboarding', 'true');
+                    }
+                }} />
+            )}
+            {!user && !showOnboarding && (
                 <div className="glass-card p-6 rounded-xl mb-4 border-2 border-primary/20">
-                    <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
+                    <div className="text-center space-y-4">
                         <div>
-                            <h3 className="text-lg font-bold text-foreground mb-1">Welcome to Creator Ledger</h3>
-                            <p className="text-sm text-muted-foreground">
-                                Connect your wallet to start tracking and verifying your content. You can explore the app first!
+                            <h3 className="text-2xl font-bold text-foreground mb-2">Welcome to Creator Ledger</h3>
+                            <p className="text-sm text-muted-foreground max-w-2xl mx-auto">
+                                Track and verify your creative work onchain. Build your professional portfolio with cryptographic proof of ownership.
                             </p>
                         </div>
-                        <div className="flex gap-2">
-                            {env.isFarcaster && isFarcasterAvailable ? (
-                                <button
-                                    onClick={async () => {
-                                        try {
-                                            await connectFarcasterWallet();
-                                        } catch (err) {
-                                            console.error('Failed to connect Farcaster wallet:', err);
-                                        }
-                                    }}
-                                    className="px-4 py-2 rounded-lg bg-gradient-to-r from-primary to-accent text-white text-sm font-bold hover:scale-105 active:scale-95 transition-all shadow-lg shadow-primary/20"
-                                >
-                                    Connect Farcaster Wallet
-                                </button>
-                            ) : (
-                                !env.isFarcaster && (
-                                    <SignInWithBaseButton
-                                        align="center"
-                                        variant="solid"
-                                        colorScheme="dark"
-                                        onClick={handleBaseSignIn}
-                                    />
-                                )
-                            )}
+                        {/* Primary CTA - Single clear action */}
+                        <div className="flex flex-col sm:flex-row items-center justify-center gap-3">
+                            <button
+                                onClick={() => {
+                                    // Scroll to entry form or show it
+                                    const formElement = document.getElementById('entry-form');
+                                    if (formElement) {
+                                        formElement.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                                    }
+                                }}
+                                className="px-6 py-3 min-h-[44px] rounded-xl bg-gradient-to-r from-primary to-accent text-white text-base font-bold hover:scale-105 active:scale-95 transition-all shadow-lg shadow-primary/20 flex items-center justify-center gap-2"
+                            >
+                                <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
+                                </svg>
+                                Submit Your First Entry
+                            </button>
                             <Link
                                 to="/pricing"
-                                className="px-4 py-2 rounded-lg glass-card text-sm font-bold hover:bg-accent/20 transition-all border border-border/50"
+                                className="px-6 py-3 min-h-[44px] rounded-xl glass-card text-sm font-bold hover:bg-accent/20 transition-all border border-border/50 flex items-center justify-center"
                             >
                                 View Pricing
                             </Link>
                         </div>
+                        <p className="text-xs text-muted-foreground">
+                            No wallet needed to explore. Connect when you're ready to submit.
+                        </p>
                     </div>
                 </div>
             )}
@@ -446,7 +388,9 @@ export const Dashboard: React.FC = () => {
                 )}
             </div>
 
-            <CreateEntryForm onSuccess={() => setRefreshTrigger(prev => prev + 1)} />
+            <div id="entry-form">
+                <CreateEntryForm onSuccess={() => setRefreshTrigger(prev => prev + 1)} />
+            </div>
 
             {user && (
                 <div className="glass-card p-6 sm:p-8 rounded-2xl">

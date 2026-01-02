@@ -123,7 +123,7 @@ export const EntryList: React.FC<EntryListProps> = ({
 
                                         <div className="absolute top-full right-0 mt-2 w-48 p-3 rounded-xl bg-card border border-border text-[10px] text-muted-foreground opacity-0 group-hover/verify:opacity-100 transition-all pointer-events-none shadow-2xl translate-y-2 group-hover/verify:translate-y-0">
                                             <p className="font-bold text-green-500 mb-1">PRO PROOF</p>
-                                            This content is cryptographically signed by the creator's wallet on-chain.
+                                            This content is cryptographically signed by the creator's wallet onchain.
                                         </div>
                                     </div>
                                 ) : (
@@ -139,7 +139,7 @@ export const EntryList: React.FC<EntryListProps> = ({
 
                                         <div className="absolute top-full right-0 mt-2 w-48 p-3 rounded-xl bg-card border border-border text-[10px] text-primary opacity-0 group-hover/locked:opacity-100 transition-all pointer-events-none shadow-2xl translate-y-2 group-hover/locked:translate-y-0 z-50">
                                             <p className="font-bold text-primary mb-1">PREMIUM FEATURE</p>
-                                            Click to view on-chain verification.
+                                            Click to view onchain verification.
                                         </div>
                                     </div>
                                 )
@@ -182,15 +182,24 @@ export const EntryList: React.FC<EntryListProps> = ({
                             {/* Verification Details - Professional for Funders/Hirers */}
                             <div className="space-y-2">
                                 <div className="flex items-center justify-between text-xs">
-                                    <span className="text-[10px] uppercase font-bold text-muted-foreground">Verified</span>
+                                    <span className="text-[10px] uppercase font-bold text-muted-foreground">Published</span>
                                     <span className="text-xs font-semibold text-foreground">
-                                        {new Date(entry.timestamp).toLocaleDateString('en-US', { 
-                                            year: 'numeric', 
-                                            month: 'short', 
-                                            day: 'numeric',
-                                            hour: '2-digit',
-                                            minute: '2-digit'
-                                        })}
+                                        {entry.content_published_at 
+                                            ? new Date(entry.content_published_at).toLocaleDateString('en-US', { 
+                                                year: 'numeric', 
+                                                month: 'short', 
+                                                day: 'numeric',
+                                                hour: '2-digit',
+                                                minute: '2-digit'
+                                            })
+                                            : new Date(entry.timestamp).toLocaleDateString('en-US', { 
+                                                year: 'numeric', 
+                                                month: 'short', 
+                                                day: 'numeric',
+                                                hour: '2-digit',
+                                                minute: '2-digit'
+                                            }) + ' (submitted)'
+                                        }
                                     </span>
                                 </div>
                                 
@@ -268,7 +277,7 @@ export const EntryList: React.FC<EntryListProps> = ({
                                     )}
                                 </div>
                                 
-                                {/* Upgrade to On-Chain Button - Only show for own entries that haven't been upgraded yet */}
+                                {/* Upgrade to Onchain Button - Only show for own entries that haven't been upgraded yet */}
                                 {currentWalletAddress && 
                                  entry.wallet_address.toLowerCase() === currentWalletAddress.toLowerCase() && 
                                  !entry.tx_hash && 
@@ -294,12 +303,12 @@ export const EntryList: React.FC<EntryListProps> = ({
                                             }
                                         }}
                                         className="w-full px-4 py-2.5 bg-gradient-to-r from-primary/20 to-accent/20 hover:from-primary/30 hover:to-accent/30 border border-primary/30 rounded-xl text-xs font-bold transition-all flex items-center justify-center gap-2 text-primary group/upgrade"
-                                        title="Upgrade this entry to on-chain storage"
+                                        title="Upgrade this entry to onchain storage"
                                     >
                                         <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" />
                                         </svg>
-                                        <span>Upgrade to On-Chain</span>
+                                        <span>Upgrade to Onchain</span>
                                         <svg className="w-3 h-3 opacity-0 group-hover/upgrade:opacity-100 transition-opacity" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
                                         </svg>

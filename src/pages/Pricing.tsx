@@ -170,8 +170,8 @@ export const Pricing: React.FC = () => {
             
             alert(`✅ Test mode: Premium subscription activated until ${subscriptionEnd.toLocaleDateString()}! (No payment required)\n\nRedirecting to Dashboard...`);
             
-            // Force a hard refresh by reloading the page with a cache-busting parameter
-            window.location.href = '/?refresh=' + Date.now() + '&premium=' + Date.now();
+            // Navigate to dashboard with refresh parameters (stays in-app)
+            navigate('/?refresh=' + Date.now() + '&premium=' + Date.now());
         } catch (err: any) {
             console.error('Failed to activate test premium:', err);
             alert(`Failed to activate premium: ${err?.message || 'Please try again.'}`);
@@ -372,7 +372,7 @@ export const Pricing: React.FC = () => {
                     Level Up Your <span className="text-primary italic">Presence</span>
                 </h1>
                 <p className="text-slate-400 text-lg max-w-2xl mx-auto font-medium">
-                    Secure your digital legacy with on-chain verification.
+                    Secure your digital legacy with onchain verification.
                     Monthly subscription keeps your Pro status active.
                 </p>
             </div>
@@ -411,7 +411,7 @@ export const Pricing: React.FC = () => {
                     }
                     subscriptionEndDate={subscriptionEnd}
                     features={[
-                        "Cryptographic On-Chain Proof",
+                        "Cryptographic Onchain Proof",
                         "Verified View Tracking",
                         "Custom Profile Themes",
                         "Priority Admin Review",

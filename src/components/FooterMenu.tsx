@@ -15,7 +15,7 @@ export const FooterMenu = () => {
                 <nav className="flex items-center justify-around h-16 min-h-[64px]">
                     <Link
                         to="/"
-                        className={`flex flex-col items-center justify-center gap-1 px-4 py-2 rounded-lg transition-all ${
+                        className={`flex flex-col items-center justify-center gap-1 px-4 py-2 min-h-[44px] rounded-lg transition-all ${
                             isActive('/') 
                                 ? 'text-primary' 
                                 : 'text-muted-foreground hover:text-foreground'
@@ -29,7 +29,7 @@ export const FooterMenu = () => {
 
                     <Link
                         to="/pricing"
-                        className={`flex flex-col items-center justify-center gap-1 px-4 py-2 rounded-lg transition-all ${
+                        className={`flex flex-col items-center justify-center gap-1 px-4 py-2 min-h-[44px] rounded-lg transition-all ${
                             isActive('/pricing') 
                                 ? 'text-primary' 
                                 : 'text-muted-foreground hover:text-foreground'
@@ -44,7 +44,7 @@ export const FooterMenu = () => {
                     {userIsAdmin && (
                         <Link
                             to="/admin"
-                            className={`flex flex-col items-center justify-center gap-1 px-4 py-2 rounded-lg transition-all ${
+                            className={`flex flex-col items-center justify-center gap-1 px-4 py-2 min-h-[44px] rounded-lg transition-all ${
                                 isActive('/admin') 
                                     ? 'text-primary' 
                                     : 'text-muted-foreground hover:text-foreground'

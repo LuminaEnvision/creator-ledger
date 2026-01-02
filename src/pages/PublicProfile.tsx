@@ -149,7 +149,7 @@ export const PublicProfile: React.FC = () => {
     // Use filtered entries if filter is applied, otherwise use all entries
     const displayEntries = searchParams.get('filter') ? filteredEntries : entries;
 
-    // Calculate level - unlimited, matches on-chain NFT
+    // Calculate level - unlimited, matches onchain NFT
     // Level should always reflect total verified entries, not filtered results
     const calculateLevel = () => {
         const entryCount = entries.length; // Use all entries, not filtered

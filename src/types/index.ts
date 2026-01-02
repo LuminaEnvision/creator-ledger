@@ -15,7 +15,8 @@ export interface LedgerEntry {
     id: string;
     url: string;
     platform: string;
-    timestamp: string;
+    timestamp: string; // When entry was submitted to Creator Ledger
+    content_published_at?: string; // Actual publication date of the content
     verification_status: string;
     description?: string;
     campaign_tag?: string;
@@ -27,7 +28,7 @@ export interface LedgerEntry {
     custom_image_url?: string;
     site_name?: string;
     signature?: string;
-    tx_hash?: string; // Transaction hash for on-chain verification
+    tx_hash?: string; // Transaction hash for onchain verification
     visibility_settings?: {
         isPublic?: boolean;
         hiddenTags?: string[];

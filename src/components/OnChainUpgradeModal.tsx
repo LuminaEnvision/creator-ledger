@@ -33,7 +33,7 @@ export const OnChainUpgradeModal: React.FC<OnChainUpgradeModalProps> = ({
     
     const handleUpgrade = async () => {
         if (!contentHash || !url) {
-            showToast('Missing required data for on-chain upgrade.', 'error');
+            showToast('Missing required data for onchain upgrade.', 'error');
             return;
         }
 
@@ -103,14 +103,14 @@ export const OnChainUpgradeModal: React.FC<OnChainUpgradeModalProps> = ({
                 console.error('Error updating tx_hash:', updateError);
                 showToast('Transaction confirmed but failed to update database. Please contact support.', 'warning');
             } else {
-                showToast('✅ Entry upgraded to on-chain storage!', 'success');
+                showToast('✅ Entry upgraded to onchain storage!', 'success');
                 // Small delay to ensure database update is visible
                 setTimeout(() => {
                     onClose();
                 }, 500);
             }
         } catch (err: any) {
-            console.error('Error upgrading to on-chain:', err);
+            console.error('Error upgrading to onchain:', err);
             let errorMessage = 'Unknown error';
             let shouldClose = false;
             
@@ -119,7 +119,7 @@ export const OnChainUpgradeModal: React.FC<OnChainUpgradeModalProps> = ({
                 showToast('Transaction cancelled.', 'info');
                 shouldClose = true; // Close on user cancellation
             } else if (err.message?.includes('already registered')) {
-                errorMessage = 'This content is already registered on-chain.';
+                errorMessage = 'This content is already registered onchain.';
                 showToast(errorMessage, 'warning');
                 shouldClose = true; // Close if already registered
             } else if (err.message?.includes('chain') || err.message?.includes('network') || err.message?.includes('Wrong chain')) {
@@ -147,13 +147,13 @@ export const OnChainUpgradeModal: React.FC<OnChainUpgradeModalProps> = ({
         <Modal
             isOpen={isOpen}
             onClose={onClose}
-            title="Upgrade to On-Chain Storage"
+            title="Upgrade to Onchain Storage"
             size="lg"
         >
             <div className="space-y-6">
                 {/* Benefits Section */}
                 <div className="p-6 rounded-xl bg-primary/5 border border-primary/20">
-                    <h3 className="text-lg font-bold mb-4 text-foreground">Why Upgrade to On-Chain Storage?</h3>
+                    <h3 className="text-lg font-bold mb-4 text-foreground">Why Upgrade to Onchain Storage?</h3>
                     <div className="space-y-3">
                         <div className="flex items-start gap-3">
                             <svg className="w-5 h-5 text-green-500 mt-0.5 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -170,7 +170,7 @@ export const OnChainUpgradeModal: React.FC<OnChainUpgradeModalProps> = ({
                             </svg>
                             <div>
                                 <p className="font-semibold text-foreground">Prevent Duplicate Claims</p>
-                                <p className="text-sm text-muted-foreground">Once registered on-chain, no one else can claim the same content, protecting your ownership across the entire network.</p>
+                                <p className="text-sm text-muted-foreground">Once registered onchain, no one else can claim the same content, protecting your ownership across the entire network.</p>
                             </div>
                         </div>
                         <div className="flex items-start gap-3">
@@ -203,7 +203,7 @@ export const OnChainUpgradeModal: React.FC<OnChainUpgradeModalProps> = ({
                         </div>
                         <div className="text-right">
                             <p className="text-2xl font-black text-primary">0.0001 ETH</p>
-                            <p className="text-xs text-muted-foreground">~$0.25 - $0.50</p>
+                            <p className="text-xs text-muted-foreground">Price varies with ETH</p>
                         </div>
                     </div>
                 </div>
@@ -214,7 +214,7 @@ export const OnChainUpgradeModal: React.FC<OnChainUpgradeModalProps> = ({
                         <strong className="text-foreground">Current Status:</strong> Your entry is stored in our database with a cryptographic signature.
                     </p>
                     <p className="text-sm text-muted-foreground">
-                        <strong className="text-foreground">After Upgrade:</strong> Your entry will be permanently recorded on the Base blockchain.
+                        <strong className="text-foreground">After Upgrade:</strong> Your entry will be permanently recorded onchain on Base.
                     </p>
                 </div>
 
@@ -235,7 +235,7 @@ export const OnChainUpgradeModal: React.FC<OnChainUpgradeModalProps> = ({
                                 <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" />
                                 </svg>
-                                Upgrade to On-Chain
+                                Upgrade to Onchain
                             </>
                         )}
                     </button>
@@ -249,7 +249,7 @@ export const OnChainUpgradeModal: React.FC<OnChainUpgradeModalProps> = ({
                 </div>
 
                 <p className="text-xs text-center text-muted-foreground">
-                    You can upgrade this entry to on-chain storage at any time from your dashboard.
+                    You can upgrade this entry to onchain storage at any time from your dashboard.
                 </p>
             </div>
         </Modal>

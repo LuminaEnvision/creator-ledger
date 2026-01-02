@@ -7,6 +7,7 @@ interface ExportEntry {
     url: string;
     platform: string;
     timestamp: string;
+    content_published_at?: string;
     verification_status: string;
     description?: string;
     campaign_tag?: string;
@@ -88,7 +89,9 @@ export const exportToPDF = async (data: ExportEntry[], filename: string = 'ledge
         
         const details = [
             `Platform: ${entry.platform}`,
-            `Date: ${new Date(entry.timestamp).toLocaleDateString()}`,
+            `Date: ${entry.content_published_at 
+                ? new Date(entry.content_published_at).toLocaleDateString() 
+                : new Date(entry.timestamp).toLocaleDateString() + ' (submitted)'}`,
             `Status: ${entry.verification_status}`,
             entry.campaign_tag ? `Tags: ${entry.campaign_tag}` : null,
         ].filter(Boolean);

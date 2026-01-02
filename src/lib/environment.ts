@@ -1,9 +1,9 @@
 /**
  * Environment detection utility
- * Detects if the app is running in Farcaster, web, mobile, or desktop
+ * Detects if the app is running in various environments (Base App, web, mobile, or desktop)
  */
 
-export type AppEnvironment = 'farcaster' | 'web' | 'mobile' | 'desktop';
+export type AppEnvironment = 'base' | 'web' | 'mobile' | 'desktop';
 
 export interface EnvironmentInfo {
     environment: AppEnvironment;
@@ -20,15 +20,14 @@ export interface EnvironmentInfo {
 export function detectEnvironment(): EnvironmentInfo {
     const userAgent = typeof window !== 'undefined' ? window.navigator.userAgent : '';
     
-    // Check if running in Farcaster
-    const isFarcaster = typeof window !== 'undefined' && 
-        (window.location.href.includes('farcaster.xyz') ||
-         window.location.href.includes('warpcast.com') ||
-         // Check for Farcaster SDK context
-         typeof (window as any).farcaster !== 'undefined' ||
-         // Check for Farcaster user agent patterns
-         userAgent.includes('Farcaster') ||
-         userAgent.includes('Warpcast'));
+    // Check if running in Base App or compatible mini app environment
+    const isBase = typeof window !== 'undefined' && 
+        (window.location.href.includes('base.org') ||
+         window.location.href.includes('base.xyz') ||
+         // Check for Base SDK context
+         typeof (window as any).base !== 'undefined' ||
+         // Check for Base user agent patterns
+         userAgent.includes('Base'));
 
     // Check if mobile
     const isMobile = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(userAgent);
@@ -38,8 +37,8 @@ export function detectEnvironment(): EnvironmentInfo {
     
     // Determine environment
     let environment: AppEnvironment;
-    if (isFarcaster) {
-        environment = 'farcaster';
+    if (isBase) {
+        environment = 'base';
     } else if (isMobile) {
         environment = 'mobile';
     } else if (isDesktop) {
@@ -50,8 +49,8 @@ export function detectEnvironment(): EnvironmentInfo {
 
     return {
         environment,
-        isFarcaster,
-        isWeb: !isFarcaster && !isMobile,
+        isFarcaster: isBase, // Keep for backward compatibility with existing code
+        isWeb: !isBase && !isMobile,
         isMobile,
         isDesktop,
         userAgent,

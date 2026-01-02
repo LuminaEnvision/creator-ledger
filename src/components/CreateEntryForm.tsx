@@ -47,6 +47,7 @@ export const CreateEntryForm: React.FC<{ onSuccess: () => void }> = ({ onSuccess
         title?: string;
         image?: string;
         siteName?: string;
+        publishedAt?: string; // Publication date from metadata
     }>({});
 
     // Check premium status
@@ -90,10 +91,21 @@ export const CreateEntryForm: React.FC<{ onSuccess: () => void }> = ({ onSuccess
                 const data = await response.json();
 
                 if (data.status === 'success') {
+                    // Microlink returns date in various formats, try to parse it
+                    let publishedAt: string | undefined;
+                    if (data.data.date) {
+                        // Try to parse the date string
+                        const parsedDate = new Date(data.data.date);
+                        if (!isNaN(parsedDate.getTime())) {
+                            publishedAt = parsedDate.toISOString();
+                        }
+                    }
+
                     setMetadata({
                         title: data.data.title,
                         image: data.data.image?.url,
-                        siteName: data.data.publisher
+                        siteName: data.data.publisher,
+                        publishedAt: publishedAt
                     });
                 }
             } catch (err) {
@@ -277,6 +289,7 @@ export const CreateEntryForm: React.FC<{ onSuccess: () => void }> = ({ onSuccess
                         description,
                         campaign_tag: hashtags.map(tag => tag.replace(/^#/, '')).join(', '),
                         timestamp,
+                        content_published_at: metadata.publishedAt || null, // Actual publication date
                         payload_hash: payloadHash,
                         content_hash: contentHash, // For duplicate detection
                         verification_status: 'Unverified', // Requires admin verification

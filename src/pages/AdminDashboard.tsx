@@ -9,6 +9,7 @@ import { waitForTransactionReceipt, readContract } from 'wagmi/actions';
 import { PASSPORT_CONTRACT_ADDRESS, PASSPORT_ABI } from '../lib/contracts';
 import { config } from '../wagmi';
 import { useToast } from '../hooks/useToast';
+import { ProfileDisplay } from '../components/ProfileDisplay';
 
 interface DuplicateGroup {
     contentHash: string;
@@ -374,9 +375,12 @@ export const AdminDashboard: React.FC = () => {
                                                 >
                                                     <div className="flex-1">
                                                         <div className="flex items-center gap-2">
-                                                            <span className="text-xs font-mono text-muted-foreground">
-                                                                {entry.wallet_address.slice(0, 8)}...{entry.wallet_address.slice(-6)}
-                                                            </span>
+                                                            <ProfileDisplay 
+                                                                walletAddress={entry.wallet_address}
+                                                                showAvatar={true}
+                                                                showLink={true}
+                                                                size="sm"
+                                                            />
                                                             <span className={`text-xs px-2 py-0.5 rounded ${
                                                                 isVerified
                                                                     ? 'bg-green-500/20 text-green-400'
@@ -391,7 +395,10 @@ export const AdminDashboard: React.FC = () => {
                                                             )}
                                                         </div>
                                                         <p className="text-xs text-muted-foreground mt-1">
-                                                            Submitted: {new Date(entry.timestamp).toLocaleString()}
+                                                            {entry.content_published_at 
+                                                                ? `Published: ${new Date(entry.content_published_at).toLocaleString()}`
+                                                                : `Submitted: ${new Date(entry.timestamp).toLocaleString()}`
+                                                            }
                                                         </p>
                                                     </div>
                                                     <div className="flex gap-2">
@@ -452,9 +459,14 @@ export const AdminDashboard: React.FC = () => {
                                         isDuplicate ? 'bg-orange-500/5 border-l-4 border-orange-500' : ''
                                     }`}
                                 >
-                                    <td className="px-6 py-4 whitespace-nowrap text-sm font-mono text-muted-foreground">
+                                    <td className="px-6 py-4 whitespace-nowrap text-sm">
                                         <div className="flex items-center gap-2">
-                                            {entry.wallet_address.slice(0, 6)}...{entry.wallet_address.slice(-4)}
+                                            <ProfileDisplay 
+                                                walletAddress={entry.wallet_address}
+                                                showAvatar={true}
+                                                showLink={true}
+                                                size="sm"
+                                            />
                                             {isDuplicate && (
                                                 <span className="text-xs px-2 py-0.5 rounded bg-orange-500/20 text-orange-400 font-semibold" title={`This content is claimed by ${duplicateCount} different wallets`}>
                                                     ⚠️ Duplicate

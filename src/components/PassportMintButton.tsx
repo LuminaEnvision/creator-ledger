@@ -30,7 +30,7 @@ export const PassportMintButton: React.FC<PassportMintButtonProps> = ({
         }
     });
 
-    // Get current entry count from on-chain
+    // Get current entry count from onchain
     const { data: passportData } = useReadContract({
         address: PASSPORT_CONTRACT_ADDRESS,
         abi: PASSPORT_ABI,

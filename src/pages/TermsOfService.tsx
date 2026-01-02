@@ -53,10 +53,24 @@ export const TermsOfService: React.FC = () => {
                             <li>Ownership verification (wallet signature)</li>
                             <li>Content is accessible and not removed/deleted</li>
                             <li>Content matches the description provided</li>
+                            <li>No duplicate content claims (same URL/content hash claimed by multiple wallets)</li>
                         </ul>
                         <p className="mt-4 font-semibold text-foreground">
                             Unverified content will not appear in public profiles until approved by an administrator.
                         </p>
+                        <div className="mt-4 p-4 bg-primary/5 border border-primary/20 rounded-lg">
+                            <p className="font-semibold text-foreground mb-2">Onchain Verification (Optional)</p>
+                            <p className="text-sm">
+                                After verification, you can optionally upgrade entries to onchain storage for 0.0001 ETH. 
+                                This registers your content hash on the Base blockchain, providing:
+                            </p>
+                            <ul className="list-disc list-inside space-y-1 ml-4 mt-2 text-sm">
+                                <li>Immutable timestamp onchain on Base</li>
+                                <li>Transaction hash for BaseScan verification</li>
+                                <li>Stronger proof for sponsors and brands</li>
+                                <li>Protection against duplicate claims across the network</li>
+                            </ul>
+                        </div>
                     </div>
                 </section>
 
@@ -68,7 +82,7 @@ export const TermsOfService: React.FC = () => {
                             <h3 className="text-lg font-semibold mb-2 text-foreground">Where Your Data is Stored</h3>
                             <ul className="list-disc list-inside space-y-1 ml-4">
                                 <li><strong>Database:</strong> Supabase (PostgreSQL) - hosted on secure cloud infrastructure</li>
-                                <li><strong>Blockchain:</strong> Base network - NFT metadata and entry counts stored on-chain</li>
+                                <li><strong>Blockchain:</strong> Base Sepolia (testnet) / Base (mainnet) - NFT metadata and entry counts stored onchain</li>
                                 <li><strong>Content URLs:</strong> Only links are stored, not the actual content files</li>
                             </ul>
                         </div>
@@ -89,7 +103,18 @@ export const TermsOfService: React.FC = () => {
                             <ul className="list-disc list-inside space-y-1 ml-4 mt-2">
                                 <li>Immutable record of your creative work</li>
                                 <li>Verifiable history for sponsors and brands</li>
-                                <li>On-chain proof of ownership</li>
+                                <li>Onchain proof of ownership (via signatures and optional blockchain transactions)</li>
+                            </ul>
+                        </div>
+                        
+                        <div>
+                            <h3 className="text-lg font-semibold mb-2 text-foreground">Duplicate Content Detection</h3>
+                            <p>Creator Ledger automatically detects when the same content (same URL or content hash) is claimed by multiple wallets:</p>
+                            <ul className="list-disc list-inside space-y-1 ml-4 mt-2">
+                                <li>Content hashes are generated for each entry to identify duplicates</li>
+                                <li>Administrators are alerted when duplicate content is detected</li>
+                                <li>Duplicate entries are flagged for review to determine legitimate ownership</li>
+                                <li>Onchain content hash registration prevents duplicate claims across the network</li>
                             </ul>
                         </div>
                     </div>
@@ -104,7 +129,8 @@ export const TermsOfService: React.FC = () => {
                             <li>URLs (links) to your content</li>
                             <li>Metadata (title, description, platform)</li>
                             <li>Timestamps and verification status</li>
-                            <li>On-chain signatures for proof of ownership</li>
+                            <li>Onchain signatures for proof of ownership</li>
+                            <li>Optional onchain content hash registration (transaction-based verification)</li>
                         </ul>
                         <p className="mt-4">
                             <strong className="text-foreground">You can export your ledger</strong> as CSV or PDF for reporting purposes, but this only contains metadata, not the actual content files.
@@ -147,11 +173,12 @@ export const TermsOfService: React.FC = () => {
                         <div>
                             <h3 className="text-lg font-semibold mb-2 text-foreground">Free Tier</h3>
                             <ul className="list-disc list-inside space-y-1 ml-4">
-                                <li>Pay 0.00025 ETH per entry submission to cover on-chain verification costs (plus network gas fees)</li>
+                                <li>Pay 0.00025 ETH per entry submission to cover operations costs (plus network gas fees)</li>
                                 <li>Operations fee goes to: <code className="bg-muted px-1.5 py-0.5 rounded text-xs">0x7eB8F203167dF3bC14D59536E671528dd97FB72a</code></li>
                                 <li>Basic profile customization (display name, bio)</li>
                                 <li>URL-based image links only (no file uploads)</li>
                                 <li>Export features not available</li>
+                                <li>Optional onchain upgrade: 0.0001 ETH per entry to register content hash onchain on Base (provides stronger proof with transaction hash)</li>
                             </ul>
                         </div>
                         <div>
@@ -170,6 +197,7 @@ export const TermsOfService: React.FC = () => {
                                 <li><strong className="text-foreground">Export features</strong> - Download your ledger as CSV or PDF</li>
                                 <li><strong className="text-foreground">Pro NFT styling</strong> - Enhanced Creator's Passport NFT display</li>
                                 <li><strong className="text-foreground">Premium UI elements</strong> - Access to all premium features</li>
+                                <li><strong className="text-foreground">Onchain upgrades included</strong> - No additional fee for onchain content hash registration (normally 0.0001 ETH per entry)</li>
                             </ul>
                             <p className="mt-3 text-xs italic">Subscriptions are managed through Base Pay. Payment is required monthly to maintain Pro status. You can cancel or renew at any time from the Pricing page.</p>
                         </div>

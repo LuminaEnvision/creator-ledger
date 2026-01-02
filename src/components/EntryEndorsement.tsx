@@ -3,6 +3,7 @@ import { useAuth } from '../context/AuthContext';
 import { supabase } from '../lib/supabase';
 import { useSignMessage } from 'wagmi';
 import { useToast } from '../hooks/useToast';
+import { ProfileDisplay } from './ProfileDisplay';
 
 interface EntryEndorsementProps {
     entryId: string;
@@ -239,9 +240,13 @@ export const EntryEndorsement: React.FC<EntryEndorsementProps> = ({
                             <div className="ml-6 space-y-1.5 max-h-40 overflow-y-auto">
                                 {endorsers.map((endorser, idx) => (
                                     <div key={idx} className="flex items-center justify-between text-[10px] text-muted-foreground py-1">
-                                        <span className="font-mono">
-                                            {endorser.wallet.slice(0, 6)}...{endorser.wallet.slice(-4)}
-                                        </span>
+                                        <ProfileDisplay 
+                                            walletAddress={endorser.wallet}
+                                            showAvatar={true}
+                                            showLink={true}
+                                            size="sm"
+                                            className="text-[10px]"
+                                        />
                                         <span className="text-[9px]">
                                             {new Date(endorser.timestamp).toLocaleDateString()}
                                         </span>

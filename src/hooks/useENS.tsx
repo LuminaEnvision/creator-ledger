@@ -13,10 +13,10 @@ export function useENS(address: string | null | undefined): string | null {
             return;
         }
 
-        // Only resolve ENS for web environment (not Farcaster)
+        // Only resolve ENS for web environment (not in Base App)
         const isWeb = typeof window !== 'undefined' && 
-            !window.location.href.includes('farcaster.xyz') &&
-            !window.location.href.includes('warpcast.com');
+            !window.location.href.includes('base.org') &&
+            !window.location.href.includes('base.xyz');
 
         if (!isWeb) {
             setEnsName(null);
