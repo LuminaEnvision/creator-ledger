@@ -162,7 +162,14 @@ export const CreateEntryForm: React.FC<{ onSuccess: () => void }> = ({ onSuccess
 
     const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
-        if (!user) return;
+        
+        if (!user) {
+            setError('You need to connect your wallet on Base Sepolia to proceed.');
+            showToast('Please connect your wallet to submit an entry. You can connect via the header or use the button below.', 'warning');
+            // Scroll to top to show the error
+            window.scrollTo({ top: 0, behavior: 'smooth' });
+            return;
+        }
 
         setIsSubmitting(true);
         setError(null);
@@ -185,6 +192,22 @@ export const CreateEntryForm: React.FC<{ onSuccess: () => void }> = ({ onSuccess
                 showToast('This content has already been claimed by you.', 'warning');
                 setIsSubmitting(false);
                 return;
+            }
+
+            // Check if this content has been claimed by ANY other user
+            const { data: duplicateEntry } = await supabase
+                .from('ledger_entries')
+                .select('id, url, wallet_address, verification_status')
+                .eq('content_hash', contentHash)
+                .neq('wallet_address', user.walletAddress.toLowerCase())
+                .maybeSingle();
+
+            if (duplicateEntry) {
+                // Still allow submission, but warn the user
+                const isVerified = duplicateEntry.verification_status === 'Verified';
+                const warningMessage = `⚠️ Warning: This content has already been claimed by another wallet${isVerified ? ' and is verified' : ''}. Your submission will be flagged for admin review.`;
+                showToast(warningMessage, 'warning');
+                // Continue with submission - admin will see the duplicate
             }
 
             const payloadHash = await generateEntryHash(user.walletAddress, url, timestamp);
@@ -495,9 +518,25 @@ export const CreateEntryForm: React.FC<{ onSuccess: () => void }> = ({ onSuccess
                     </div>
                 )}
 
+                {!user && (
+                    <div className="p-4 rounded-xl glass-card border-2 border-primary/30 bg-primary/5">
+                        <div className="flex items-start gap-3">
+                            <svg className="w-5 h-5 text-primary flex-shrink-0 mt-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" />
+                            </svg>
+                            <div>
+                                <p className="text-sm font-bold text-primary mb-1">Wallet Connection Required</p>
+                                <p className="text-xs text-muted-foreground">
+                                    You need to connect your wallet on Base Sepolia to submit entries and verify your content. Use the Connect Wallet button in the header.
+                                </p>
+                            </div>
+                        </div>
+                    </div>
+                )}
+
                 <button
                     type="submit"
-                    disabled={isSubmitting || isUploading}
+                    disabled={isSubmitting || isUploading || !user}
                     className="btn-primary w-full py-4 px-6 rounded-xl font-bold text-lg flex items-center justify-center gap-3 disabled:opacity-50 disabled:cursor-not-allowed shadow-xl"
                 >
                     {(isSubmitting || isUploading) ? (

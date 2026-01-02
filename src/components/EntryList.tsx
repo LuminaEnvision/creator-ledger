@@ -2,6 +2,8 @@ import React, { useState } from 'react';
 import { EditEntryModal } from './EditEntryModal';
 import { EntryEndorsement } from './EntryEndorsement';
 import { SignatureVerificationModal } from './SignatureVerificationModal';
+import { OnChainUpgradeModal } from './OnChainUpgradeModal';
+import { generateContentHash } from '../lib/signatureVerification';
 import { useToast } from '../hooks/useToast';
 import type { LedgerEntry } from '../types';
 
@@ -33,6 +35,12 @@ export const EntryList: React.FC<EntryListProps> = ({
         walletAddress: '',
         message: ''
     });
+    const [upgradeModal, setUpgradeModal] = useState<{
+        isOpen: boolean;
+        entryId: string;
+        contentHash: string;
+        url: string;
+    }>({ isOpen: false, entryId: '', contentHash: '', url: '' });
     const [currentPage, setCurrentPage] = useState(1);
     const { showToast } = useToast();
     
@@ -234,40 +242,79 @@ export const EntryList: React.FC<EntryListProps> = ({
                             </div>
 
                             {/* Action Buttons */}
-                            <div className="flex gap-2">
-                                <a
-                                    href={entry.url}
-                                    target="_blank"
-                                    rel="noopener noreferrer"
-                                    className="flex-1 px-4 py-2.5 bg-primary/10 hover:bg-primary/20 text-primary rounded-xl text-xs font-bold transition-all flex items-center justify-center gap-2 group/btn"
-                                >
-                                    View Original
-                                    <svg className="w-3 h-3 group-hover/btn:translate-x-1 transition-transform" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M14 5l7 7m0 0l-7 7m7-7H3" />
-                                    </svg>
-                                </a>
-                                {currentWalletAddress && entry.wallet_address.toLowerCase() === currentWalletAddress.toLowerCase() && (
+                            <div className="flex flex-col gap-2">
+                                <div className="flex gap-2">
+                                    <a
+                                        href={entry.url}
+                                        target="_blank"
+                                        rel="noopener noreferrer"
+                                        className="flex-1 px-4 py-2.5 bg-primary/10 hover:bg-primary/20 text-primary rounded-xl text-xs font-bold transition-all flex items-center justify-center gap-2 group/btn"
+                                    >
+                                        View Original
+                                        <svg className="w-3 h-3 group-hover/btn:translate-x-1 transition-transform" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M14 5l7 7m0 0l-7 7m7-7H3" />
+                                        </svg>
+                                    </a>
+                                    {currentWalletAddress && entry.wallet_address.toLowerCase() === currentWalletAddress.toLowerCase() && (
+                                        <button
+                                            onClick={() => setEditingEntry(entry)}
+                                            className="p-2.5 rounded-xl hover:bg-secondary transition-colors text-muted-foreground hover:text-primary border border-border"
+                                            title="Edit entry"
+                                        >
+                                            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
+                                            </svg>
+                                        </button>
+                                    )}
+                                </div>
+                                
+                                {/* Upgrade to On-Chain Button - Only show for own entries that haven't been upgraded yet */}
+                                {currentWalletAddress && 
+                                 entry.wallet_address.toLowerCase() === currentWalletAddress.toLowerCase() && 
+                                 !entry.tx_hash && 
+                                 entry.verification_status === 'Verified' && (
                                     <button
-                                        onClick={() => setEditingEntry(entry)}
-                                        className="p-2.5 rounded-xl hover:bg-secondary transition-colors text-muted-foreground hover:text-primary border border-border"
-                                        title="Edit entry"
+                                        onClick={async () => {
+                                            try {
+                                                // Generate content hash if not already stored
+                                                let contentHash = entry.content_hash;
+                                                if (!contentHash) {
+                                                    contentHash = await generateContentHash(entry.url);
+                                                }
+                                                
+                                                setUpgradeModal({
+                                                    isOpen: true,
+                                                    entryId: entry.id,
+                                                    contentHash: contentHash,
+                                                    url: entry.url
+                                                });
+                                            } catch (error) {
+                                                console.error('Error generating content hash:', error);
+                                                showToast('Failed to prepare upgrade. Please try again.', 'error');
+                                            }
+                                        }}
+                                        className="w-full px-4 py-2.5 bg-gradient-to-r from-primary/20 to-accent/20 hover:from-primary/30 hover:to-accent/30 border border-primary/30 rounded-xl text-xs font-bold transition-all flex items-center justify-center gap-2 text-primary group/upgrade"
+                                        title="Upgrade this entry to on-chain storage"
                                     >
                                         <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
+                                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" />
+                                        </svg>
+                                        <span>Upgrade to On-Chain</span>
+                                        <svg className="w-3 h-3 opacity-0 group-hover/upgrade:opacity-100 transition-opacity" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
                                         </svg>
                                     </button>
                                 )}
                             </div>
 
-                            {/* Endorsement System - Only show on public profiles (when currentWalletAddress is not the creator) */}
-                            {(!currentWalletAddress || entry.wallet_address.toLowerCase() !== currentWalletAddress.toLowerCase()) && (
-                                <EntryEndorsement
-                                    entryId={entry.id}
-                                    walletAddress={entry.wallet_address}
-                                    currentEndorsements={entry.endorsement_count}
-                                    currentDisputes={entry.dispute_count}
-                                />
-                            )}
+                            {/* Endorsement System - Show for everyone, but with different UI for owners */}
+                            <EntryEndorsement
+                                entryId={entry.id}
+                                walletAddress={entry.wallet_address}
+                                currentEndorsements={entry.endorsement_count}
+                                currentDisputes={entry.dispute_count}
+                                isOwner={currentWalletAddress?.toLowerCase() === entry.wallet_address.toLowerCase()}
+                            />
                         </div>
                     </div>
                 </div>
@@ -327,6 +374,16 @@ export const EntryList: React.FC<EntryListProps> = ({
             walletAddress={signatureModal.walletAddress}
             message={signatureModal.message}
             entryId={signatureModal.entryId}
+        />
+        <OnChainUpgradeModal
+            isOpen={upgradeModal.isOpen}
+            onClose={() => {
+                setUpgradeModal({ isOpen: false, entryId: '', contentHash: '', url: '' });
+                onEntryUpdated?.(); // Refresh entries to show updated tx_hash
+            }}
+            entryId={upgradeModal.entryId}
+            contentHash={upgradeModal.contentHash}
+            url={upgradeModal.url}
         />
     </>
     );

@@ -10,16 +10,23 @@ import { exportToCSV, exportToPDF } from '../lib/export';
 import { SignInWithBaseButton } from '@base-org/account-ui/react';
 import { createBaseAccountSDK } from '@base-org/account';
 import { DynamicNFT } from '../components/DynamicNFT';
+import { ProNFT } from '../components/ProNFT';
 import { PassportMintButton } from '../components/PassportMintButton';
 import { PortfolioCollections } from '../components/PortfolioCollections';
 import { NFTImageFrame } from '../components/NFTImageFrame';
 import { isPremiumWhitelisted } from '../lib/premium';
+import { getEnvironment } from '../lib/environment';
+import { useFarcaster } from '../context/FarcasterContext';
+import { useConnect } from 'wagmi';
 
 export const Dashboard: React.FC = () => {
     const { user } = useAuth();
+    const { isAvailable: isFarcasterAvailable, connectWallet: connectFarcasterWallet } = useFarcaster();
+    const env = getEnvironment();
     const navigate = useNavigate();
     const [searchParams, setSearchParams] = useSearchParams();
     const [, setIsBaseAuthLoading] = useState(false);
+    const { connect, connectors } = useConnect();
     const [entries, setEntries] = useState<LedgerEntry[]>([]);
     const [isLoading, setIsLoading] = useState(false);
     const [isPremium, setIsPremium] = useState(false);
@@ -34,7 +41,16 @@ export const Dashboard: React.FC = () => {
             const provider = baseAccountSDK.getProvider();
             
             // Request connection to Base account
-            await provider.request({ method: 'eth_requestAccounts' });
+            const accounts = await provider.request({ method: 'eth_requestAccounts' }) as string[];
+            
+            if (!accounts || !Array.isArray(accounts) || accounts.length === 0) {
+                throw new Error('No accounts returned');
+            }
+            
+            // Expose Base Account provider to window.ethereum so wagmi can detect it
+            if (typeof window !== 'undefined') {
+                (window as any).ethereum = provider;
+            }
             
             // Switch to Base Sepolia network if not already on it
             try {
@@ -62,8 +78,17 @@ export const Dashboard: React.FC = () => {
                 }
             }
             
-            // After connection, the wagmi useAccount hook will detect the connection
-            // and AuthContext will sync the user
+            // Find the injected connector (which should now detect Base Account provider)
+            const injectedConnector = connectors.find(c => c.id === 'injected' || c.id === 'metaMask');
+            if (injectedConnector) {
+                // Connect using wagmi's connect function
+                await connect({ connector: injectedConnector, chainId: 84532 }); // Base Sepolia chain ID
+            } else {
+                // Fallback: trigger a page refresh to let wagmi detect the provider
+                console.log('✅ Base account connected, refreshing to sync with wagmi...');
+                window.location.reload();
+            }
+            
             console.log('✅ Base account connected');
         } catch (error: any) {
             console.error('Base account authentication error:', error);
@@ -202,37 +227,55 @@ export const Dashboard: React.FC = () => {
         return () => document.removeEventListener('visibilitychange', handleVisibilityChange);
     }, [user]);
 
-    if (!user) {
-        return (
-            <div className="flex flex-col items-center justify-center py-20 px-4">
-                <div className="glass-card max-w-md w-full text-center space-y-8 p-10 rounded-3xl shadow-2xl animate-in fade-in zoom-in duration-500">
-                    <div className="w-24 h-24 mx-auto rounded-3xl bg-black flex items-center justify-center shadow-2xl relative group overflow-hidden border border-white/10">
-                        <img src="/assets/logo.png" className="w-full h-full object-cover group-hover:scale-110 transition-transform" alt="Logo" />
-                    </div>
-                    <div className="space-y-3">
-                        <h2 className="text-4xl font-black tracking-tight text-foreground uppercase">
-                            Creator <span className="text-primary">Ledger</span>
-                        </h2>
-                        <p className="text-muted-foreground text-lg font-medium leading-relaxed px-4">
-                            Sign in with Base Account for seamless authentication.
-                        </p>
-                    </div>
-
-                    <div className="pt-4 flex flex-col gap-4">
-                        <SignInWithBaseButton
-                            align="center"
-                            variant="solid"
-                            colorScheme="dark"
-                            onClick={handleBaseSignIn}
-                        />
-                    </div>
-                </div>
-            </div>
-        );
-    }
+    // Allow exploration without wallet - show dashboard content
+    // Users will be prompted to connect wallet when they try to submit an entry
 
     return (
         <div className={`space-y-4 max-w-4xl mx-auto px-3 ${isPremium ? 'premium-bg' : ''}`}>
+            {!user && (
+                <div className="glass-card p-6 rounded-xl mb-4 border-2 border-primary/20">
+                    <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
+                        <div>
+                            <h3 className="text-lg font-bold text-foreground mb-1">Welcome to Creator Ledger</h3>
+                            <p className="text-sm text-muted-foreground">
+                                Connect your wallet to start tracking and verifying your content. You can explore the app first!
+                            </p>
+                        </div>
+                        <div className="flex gap-2">
+                            {env.isFarcaster && isFarcasterAvailable ? (
+                                <button
+                                    onClick={async () => {
+                                        try {
+                                            await connectFarcasterWallet();
+                                        } catch (err) {
+                                            console.error('Failed to connect Farcaster wallet:', err);
+                                        }
+                                    }}
+                                    className="px-4 py-2 rounded-lg bg-gradient-to-r from-primary to-accent text-white text-sm font-bold hover:scale-105 active:scale-95 transition-all shadow-lg shadow-primary/20"
+                                >
+                                    Connect Farcaster Wallet
+                                </button>
+                            ) : (
+                                !env.isFarcaster && (
+                                    <SignInWithBaseButton
+                                        align="center"
+                                        variant="solid"
+                                        colorScheme="dark"
+                                        onClick={handleBaseSignIn}
+                                    />
+                                )
+                            )}
+                            <Link
+                                to="/pricing"
+                                className="px-4 py-2 rounded-lg glass-card text-sm font-bold hover:bg-accent/20 transition-all border border-border/50"
+                            >
+                                View Pricing
+                            </Link>
+                        </div>
+                    </div>
+                </div>
+            )}
+
             <div className="glass-card p-4 sm:p-6 rounded-xl">
                 <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3">
                     <div>
@@ -240,7 +283,7 @@ export const Dashboard: React.FC = () => {
                             <h2 className="text-xl sm:text-2xl font-bold bg-gradient-to-r from-primary via-accent to-primary bg-clip-text text-transparent">
                                 Dashboard
                         </h2>
-                            {isPremium && (
+                            {isPremium && user && (
                                 <span className="px-2 py-0.5 rounded-lg bg-gradient-to-r from-primary to-accent text-[10px] font-black uppercase tracking-wider text-white shadow-lg shadow-primary/30">
                                     PRO
                                 </span>
@@ -250,63 +293,65 @@ export const Dashboard: React.FC = () => {
                             <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
                             </svg>
-                            {isPremium ? 'Pro Creator' : 'Track and verify content'}
+                            {isPremium && user ? 'Pro Creator' : 'Track and verify content'}
                         </p>
-                        <div className="flex gap-2 mt-3">
-                        <button
-                                onClick={() => setIsEditingProfile(!isEditingProfile)}
-                                className="px-4 py-2 rounded-lg glass-card text-xs font-bold hover:bg-accent/20 transition-all border border-primary/20 text-primary"
-                            >
-                                {isEditingProfile ? 'Cancel' : 'Customize Profile'}
-                        </button>
-                            {!isPremium && (
-                                <Link
-                                    to="/pricing"
-                                    className="px-4 py-2 rounded-lg bg-gradient-to-r from-primary to-accent text-white text-xs font-black uppercase tracking-widest hover:scale-105 active:scale-95 transition-all text-center shadow-lg shadow-primary/20"
+                        {user && (
+                            <div className="flex gap-2 mt-3">
+                            <button
+                                    onClick={() => setIsEditingProfile(!isEditingProfile)}
+                                    className="px-4 py-2 rounded-lg glass-card text-xs font-bold hover:bg-accent/20 transition-all border border-primary/20 text-primary"
                                 >
-                                    GO PRO
-                                </Link>
-                            )}
-                        <button
-                                onClick={async () => {
-                                    console.log('🔄 Manual refresh triggered, current isPremium:', isPremium);
-                                    console.log('🔄 Current user wallet:', user?.walletAddress);
-                                    
-                                    // Force immediate database fetch
-                                    if (user) {
-                                        const { data: userData, error } = await supabase
-                                            .from('users')
-                                            .select('is_premium, subscription_active, subscription_end, wallet_address')
-                                            .eq('wallet_address', user.walletAddress.toLowerCase())
-                                            .maybeSingle();
+                                    {isEditingProfile ? 'Cancel' : 'Customize Profile'}
+                            </button>
+                                {!isPremium && (
+                                    <Link
+                                        to="/pricing"
+                                        className="px-4 py-2 rounded-lg bg-gradient-to-r from-primary to-accent text-white text-xs font-black uppercase tracking-widest hover:scale-105 active:scale-95 transition-all text-center shadow-lg shadow-primary/20"
+                                    >
+                                        GO PRO
+                                    </Link>
+                                )}
+                            <button
+                                    onClick={async () => {
+                                        console.log('🔄 Manual refresh triggered, current isPremium:', isPremium);
+                                        console.log('🔄 Current user wallet:', user?.walletAddress);
                                         
-                                        console.log('🔄 Manual fetch result:', { userData, error });
-                                        
-                                        if (userData) {
-                                            const now = new Date();
-                                            const subscriptionEnd = userData.subscription_end ? new Date(userData.subscription_end) : null;
-                                            const hasActiveSubscription = userData.subscription_active === true;
-                                            const isNotExpired = !subscriptionEnd || subscriptionEnd > now;
-                                            const isActive = hasActiveSubscription && isNotExpired;
-                                            const hasSubscription = userData.subscription_active !== null && userData.subscription_active !== undefined;
-                                            const dbPremiumStatus = isActive || (!hasSubscription && userData.is_premium === true);
-                                            const isWhitelisted = isPremiumWhitelisted(user.walletAddress);
-                                            const premiumStatus = dbPremiumStatus || isWhitelisted;
+                                        // Force immediate database fetch
+                                        if (user) {
+                                            const { data: userData, error } = await supabase
+                                                .from('users')
+                                                .select('is_premium, subscription_active, subscription_end, wallet_address')
+                                                .eq('wallet_address', user.walletAddress.toLowerCase())
+                                                .maybeSingle();
                                             
-                                            console.log('🔄 Calculated premium status:', { dbPremiumStatus, isWhitelisted, premiumStatus });
-                                            setIsPremium(premiumStatus);
+                                            console.log('🔄 Manual fetch result:', { userData, error });
+                                            
+                                            if (userData) {
+                                                const now = new Date();
+                                                const subscriptionEnd = userData.subscription_end ? new Date(userData.subscription_end) : null;
+                                                const hasActiveSubscription = userData.subscription_active === true;
+                                                const isNotExpired = !subscriptionEnd || subscriptionEnd > now;
+                                                const isActive = hasActiveSubscription && isNotExpired;
+                                                const hasSubscription = userData.subscription_active !== null && userData.subscription_active !== undefined;
+                                                const dbPremiumStatus = isActive || (!hasSubscription && userData.is_premium === true);
+                                                const isWhitelisted = isPremiumWhitelisted(user.walletAddress);
+                                                const premiumStatus = dbPremiumStatus || isWhitelisted;
+                                                
+                                                console.log('🔄 Calculated premium status:', { dbPremiumStatus, isWhitelisted, premiumStatus });
+                                                setIsPremium(premiumStatus);
+                                            }
                                         }
-                                    }
-                                    
-                                    setRefreshTrigger(prev => prev + 1);
-                                }}
-                                className="px-3 py-1.5 rounded-lg glass-card text-[10px] font-bold hover:bg-accent/20 transition-all border border-border/50 text-muted-foreground"
-                                title="Refresh premium status and data"
-                            >
-                                🔄
-                        </button>
-                        </div>
-                        {isEditingProfile && (
+                                        
+                                        setRefreshTrigger(prev => prev + 1);
+                                    }}
+                                    className="px-3 py-1.5 rounded-lg glass-card text-[10px] font-bold hover:bg-accent/20 transition-all border border-border/50 text-muted-foreground"
+                                    title="Refresh premium status and data"
+                                >
+                                    🔄
+                            </button>
+                            </div>
+                        )}
+                        {isEditingProfile && user && (
                             <CustomizeProfileForm
                                 onUpdate={() => setRefreshTrigger(prev => prev + 1)}
                                 onClose={() => setIsEditingProfile(false)}
@@ -316,105 +361,104 @@ export const Dashboard: React.FC = () => {
                 </div>
 
                 {/* NFT Display Section - Clean and Centered */}
-                <div className="mt-4 border-t border-border/50">
-                    <div className="flex flex-col items-center gap-4 py-6">
-                        <div className="text-center">
-                            <p className="text-lg font-black uppercase tracking-wider text-primary mb-1">Your Creator's Passport</p>
-                            <p className="text-sm text-muted-foreground">Onchain proof of your original works</p>
-                        </div>
-                        
-                        {user?.walletAddress && (
-                            <>
-                                {/* NFT - Simple and Centered */}
-                                <div className="flex justify-center">
-                                    {isPremium ? (
-                                        <NFTImageFrame isPro={true} noMargin={true}>
-                                            <DynamicNFT
-                                                key={`${user.walletAddress}-${refreshTrigger}`}
-                                                walletAddress={user.walletAddress}
-                                                size="lg"
-                                                mode="pro"
-                                            />
-                                        </NFTImageFrame>
-                                    ) : (
-                                        <DynamicNFT
-                                            key={`${user.walletAddress}-${refreshTrigger}`}
-                                            walletAddress={user.walletAddress}
+                {user?.walletAddress && (
+                    <div className="mt-4 border-t border-border/50">
+                        <div className="flex flex-col items-center gap-4 py-6">
+                            <div className="text-center">
+                                <p className="text-lg font-black uppercase tracking-wider text-primary mb-1">Your Creator's Passport</p>
+                                <p className="text-sm text-muted-foreground">Onchain proof of your original works</p>
+                            </div>
+                            
+                            {/* NFT - Simple and Centered */}
+                            <div className="flex justify-center">
+                                {isPremium ? (
+                                    <NFTImageFrame isPro={true} noMargin={true}>
+                                        <ProNFT
                                             size="lg"
-                                            mode="free"
+                                            className="w-full h-full"
                                         />
-                                    )}
-                                </div>
-                                
-                                <PassportMintButton
-                                    walletAddress={user.walletAddress}
-                                    verifiedEntriesCount={entries.filter(e => e.verification_status === 'Verified').length}
-                                    onSuccess={() => setRefreshTrigger(prev => prev + 1)}
-                                />
-                            </>
-                        )}
+                                    </NFTImageFrame>
+                                ) : (
+                                    <DynamicNFT
+                                        key={`${user.walletAddress}-${refreshTrigger}`}
+                                        walletAddress={user.walletAddress}
+                                        size="lg"
+                                        mode="free"
+                                    />
+                                )}
+                            </div>
+                            
+                            <PassportMintButton
+                                walletAddress={user.walletAddress}
+                                verifiedEntriesCount={entries.filter(e => e.verification_status === 'Verified').length}
+                                onSuccess={() => setRefreshTrigger(prev => prev + 1)}
+                            />
+                        </div>
                     </div>
-                </div>
+                )}
 
                 {/* Shareable Media Kit - Main Link (All Entries) */}
-                <div className="mt-6 pt-6 border-t border-border/50">
-                    <div className="p-6 rounded-2xl bg-gradient-to-br from-primary/10 via-primary/5 to-primary/10 border-2 border-primary/20 shadow-lg">
-                        <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
-                            <div className="flex items-center gap-4">
-                                <div className="w-12 h-12 rounded-xl bg-primary/20 flex items-center justify-center flex-shrink-0">
-                                    <svg className="w-6 h-6 text-primary" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8.684 13.342C8.886 12.938 9 12.482 9 12c0-.482-.114-.938-.316-1.342m0 2.684a3 3 0 110-2.684m0 2.684l6.632 3.316m-6.632-6l6.632-3.316m0 0a3 3 0 105.367-2.684 3 3 0 00-5.367 2.684zm0 9.316a3 3 0 105.368 2.684 3 3 0 00-5.368-2.684z" />
-                                    </svg>
+                {user?.walletAddress && (
+                    <>
+                        <div className="mt-6 pt-6 border-t border-border/50">
+                            <div className="p-6 rounded-2xl bg-gradient-to-br from-primary/10 via-primary/5 to-primary/10 border-2 border-primary/20 shadow-lg">
+                                <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
+                                    <div className="flex items-center gap-4">
+                                        <div className="w-12 h-12 rounded-xl bg-primary/20 flex items-center justify-center flex-shrink-0">
+                                            <svg className="w-6 h-6 text-primary" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8.684 13.342C8.886 12.938 9 12.482 9 12c0-.482-.114-.938-.316-1.342m0 2.684a3 3 0 110-2.684m0 2.684l6.632 3.316m-6.632-6l6.632-3.316m0 0a3 3 0 105.367-2.684 3 3 0 00-5.367 2.684zm0 9.316a3 3 0 105.368 2.684 3 3 0 00-5.368-2.684z" />
+                                            </svg>
+                                        </div>
+                                        <div>
+                                            <h3 className="text-lg font-black uppercase tracking-wider text-primary mb-1">Shareable Media Kit</h3>
+                                            <p className="text-sm text-muted-foreground">Your complete portfolio with all {entries.filter(e => e.verification_status === 'Verified').length} verified entries</p>
+                                        </div>
+                                    </div>
+                                    <div className="flex gap-2 w-full sm:w-auto">
+                                        <Link
+                                            to={`/u/${user.walletAddress}`}
+                                            className="flex-1 sm:flex-none px-6 py-3 rounded-xl bg-primary text-white text-sm font-black hover:bg-primary/80 transition-all text-center shadow-lg shadow-primary/20"
+                                        >
+                                            View
+                                        </Link>
+                                        <button
+                                            onClick={() => {
+                                                navigator.clipboard.writeText(`${window.location.origin}/u/${user.walletAddress}`);
+                                                alert('Link copied to clipboard!');
+                                            }}
+                                            className="flex-1 sm:flex-none px-6 py-3 rounded-xl glass-card text-sm font-bold hover:bg-accent/20 transition-all border border-border/50"
+                                        >
+                                            Copy Link
+                                        </button>
+                                    </div>
                                 </div>
-                                <div>
-                                    <h3 className="text-lg font-black uppercase tracking-wider text-primary mb-1">Shareable Media Kit</h3>
-                                    <p className="text-sm text-muted-foreground">Your complete portfolio with all {entries.filter(e => e.verification_status === 'Verified').length} verified entries</p>
-                                </div>
-                            </div>
-                            <div className="flex gap-2 w-full sm:w-auto">
-                                <Link
-                                    to={`/u/${user.walletAddress}`}
-                                    className="flex-1 sm:flex-none px-6 py-3 rounded-xl bg-primary text-white text-sm font-black hover:bg-primary/80 transition-all text-center shadow-lg shadow-primary/20"
-                                >
-                                    View
-                                </Link>
-                                <button
-                                    onClick={() => {
-                                        navigator.clipboard.writeText(`${window.location.origin}/u/${user.walletAddress}`);
-                                        alert('Link copied to clipboard!');
-                                    }}
-                                    className="flex-1 sm:flex-none px-6 py-3 rounded-xl glass-card text-sm font-bold hover:bg-accent/20 transition-all border border-border/50"
-                                >
-                                    Copy Link
-                                </button>
                             </div>
                         </div>
-                    </div>
-                </div>
 
-                {/* Portfolio Collections - Optional Filtered Views */}
-                {user?.walletAddress && (
-                    <div className="mt-4 pt-4 border-t border-border/30">
-                        <PortfolioCollections
-                            entries={entries}
-                            walletAddress={user.walletAddress}
-                        />
-                    </div>
+                        {/* Portfolio Collections - Optional Filtered Views */}
+                        <div className="mt-4 pt-4 border-t border-border/30">
+                            <PortfolioCollections
+                                entries={entries}
+                                walletAddress={user.walletAddress}
+                            />
+                        </div>
+                    </>
                 )}
             </div>
 
             <CreateEntryForm onSuccess={() => setRefreshTrigger(prev => prev + 1)} />
 
-            <div className="glass-card p-6 sm:p-8 rounded-2xl">
-                <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 mb-6">
-                    <div className="flex items-center gap-3">
-                    <div className="w-10 h-10 rounded-lg bg-gradient-to-br from-primary to-accent flex items-center justify-center">
-                        <svg className="w-5 h-5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
-                        </svg>
+            {user && (
+                <div className="glass-card p-6 sm:p-8 rounded-2xl">
+                    <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 mb-6">
+                        <div className="flex items-center gap-3">
+                        <div className="w-10 h-10 rounded-lg bg-gradient-to-br from-primary to-accent flex items-center justify-center">
+                            <svg className="w-5 h-5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                            </svg>
+                        </div>
+                        <h3 className="text-xl font-bold">Your Submissions</h3>
                     </div>
-                    <h3 className="text-xl font-bold">Your Submissions</h3>
-                </div>
                     {isPremium && (
                         <div className="flex gap-3">
                             <button
@@ -502,14 +546,15 @@ export const Dashboard: React.FC = () => {
                         </div>
                     )}
                 </div>
-                <EntryList 
-                    entries={entries} 
-                    isLoading={isLoading} 
-                    isPremium={isPremium}
-                    currentWalletAddress={user?.walletAddress}
-                    onEntryUpdated={() => setRefreshTrigger(prev => prev + 1)}
-                />
-            </div>
+                    <EntryList 
+                        entries={entries} 
+                        isLoading={isLoading} 
+                        isPremium={isPremium}
+                        currentWalletAddress={user?.walletAddress}
+                        onEntryUpdated={() => setRefreshTrigger(prev => prev + 1)}
+                    />
+                </div>
+            )}
 
         </div>
     );

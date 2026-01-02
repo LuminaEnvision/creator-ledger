@@ -82,10 +82,10 @@ export const SignatureVerificationModal: React.FC<SignatureVerificationModalProp
                             rel="noopener noreferrer"
                             className="flex-1 px-4 py-3 rounded-xl bg-primary hover:bg-primary/90 text-white font-bold text-sm transition-all flex items-center justify-center gap-2"
                         >
-                            Verify Signature
                             <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
                             </svg>
+                            Verify Signature
                         </a>
                         <button
                             onClick={copyVerificationLink}
@@ -99,15 +99,15 @@ export const SignatureVerificationModal: React.FC<SignatureVerificationModalProp
                     </div>
                     <div className="flex gap-3">
                         <a
-                            href="https://verify.etherscan.io"
+                            href={`https://sepolia.basescan.org/address/${walletAddress}#code`}
                             target="_blank"
                             rel="noopener noreferrer"
                             className="flex-1 px-4 py-3 rounded-xl bg-primary/10 hover:bg-primary/20 text-primary font-bold text-sm transition-all flex items-center justify-center gap-2"
                         >
-                            Verify on Etherscan
                             <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14" />
                             </svg>
+                            View on BaseScan
                         </a>
                         <button
                             onClick={onClose}

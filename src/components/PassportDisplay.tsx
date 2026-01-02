@@ -1,5 +1,6 @@
 import React from 'react';
 import { DynamicNFT } from './DynamicNFT';
+import { ProNFT } from './ProNFT';
 
 interface PassportDisplayProps {
     walletAddress: string;
@@ -16,11 +17,18 @@ export const PassportDisplay: React.FC<PassportDisplayProps> = ({ walletAddress,
             {/* NFT Display - Clean and Centered */}
             <div className="flex flex-col items-center gap-3">
                 <div className="flex justify-center">
-                    <DynamicNFT
-                        walletAddress={walletAddress}
-                        size="md"
-                        mode={isPremium ? 'pro' : 'free'}
-                    />
+                    {isPremium ? (
+                        <ProNFT
+                            size="md"
+                            className="w-full h-full"
+                        />
+                    ) : (
+                        <DynamicNFT
+                            walletAddress={walletAddress}
+                            size="md"
+                            mode="free"
+                        />
+                    )}
                 </div>
                 
                 <p className="text-sm text-muted-foreground text-center">

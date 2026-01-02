@@ -3,14 +3,26 @@ import { useAuth } from '../context/AuthContext';
 import { supabase } from '../lib/supabase';
 import type { LedgerEntry } from '../types';
 import { isAdmin as checkIsAdmin } from '../lib/admin';
-import { useReadContract } from 'wagmi';
+import { useReadContract, useWriteContract } from 'wagmi';
 import { baseSepolia } from 'wagmi/chains';
+import { waitForTransactionReceipt, readContract } from 'wagmi/actions';
 import { PASSPORT_CONTRACT_ADDRESS, PASSPORT_ABI } from '../lib/contracts';
+import { config } from '../wagmi';
+import { useToast } from '../hooks/useToast';
+
+interface DuplicateGroup {
+    contentHash: string;
+    url: string;
+    entries: LedgerEntry[];
+}
 
 export const AdminDashboard: React.FC = () => {
     const { user } = useAuth();
     const [entries, setEntries] = useState<LedgerEntry[]>([]);
     const [processingEntryId, setProcessingEntryId] = useState<string | null>(null);
+    const [duplicateGroups, setDuplicateGroups] = useState<DuplicateGroup[]>([]);
+    const { writeContractAsync } = useWriteContract();
+    const { showToast } = useToast();
 
     // Check if user is admin (frontend check)
     const userIsAdmin = checkIsAdmin(user?.walletAddress);
@@ -65,11 +77,56 @@ export const AdminDashboard: React.FC = () => {
         }
     };
 
+    // Detect duplicate entries (same content_hash claimed by different wallets)
+    const detectDuplicates = (allEntries: LedgerEntry[]) => {
+        const hashMap = new Map<string, LedgerEntry[]>();
+        
+        // Group entries by content_hash
+        allEntries.forEach(entry => {
+            if (entry.content_hash) {
+                if (!hashMap.has(entry.content_hash)) {
+                    hashMap.set(entry.content_hash, []);
+                }
+                hashMap.get(entry.content_hash)!.push(entry);
+            }
+        });
+        
+        // Find groups with multiple entries (duplicates)
+        const duplicates: DuplicateGroup[] = [];
+        hashMap.forEach((entriesList, contentHash) => {
+            if (entriesList.length > 1) {
+                // Check if entries are from different wallets
+                const uniqueWallets = new Set(entriesList.map(e => e.wallet_address.toLowerCase()));
+                if (uniqueWallets.size > 1) {
+                    // Only show duplicates if at least one entry is NOT rejected
+                    // If all entries are rejected, don't show the alert
+                    const hasNonRejected = entriesList.some(e => e.verification_status !== 'Rejected');
+                    if (hasNonRejected) {
+                        duplicates.push({
+                            contentHash,
+                            url: entriesList[0].url,
+                            entries: entriesList,
+                        });
+                    }
+                }
+            }
+        });
+        
+        return duplicates;
+    };
+
     useEffect(() => {
         if (userIsAdmin) {
             fetchAllEntries();
         }
     }, [user, userIsAdmin]);
+
+    useEffect(() => {
+        if (entries.length > 0) {
+            const duplicates = detectDuplicates(entries);
+            setDuplicateGroups(duplicates);
+        }
+    }, [entries]);
 
     const handleVerify = async (id: string) => {
         const entry = entries.find(e => e.id === id);
@@ -78,26 +135,104 @@ export const AdminDashboard: React.FC = () => {
         setProcessingEntryId(id);
 
         try {
-            // Only update database status - no on-chain transaction
-            // User will mint/upgrade their passport themselves
+            const creatorAddress = entry.wallet_address.toLowerCase() as `0x${string}`;
+            
+            // Step 1: Check if creator has a passport
+            const tokenId = await readContract(config, {
+                address: PASSPORT_CONTRACT_ADDRESS,
+                abi: PASSPORT_ABI,
+                functionName: 'addressToTokenId',
+                args: [creatorAddress],
+                chainId: baseSepolia.id,
+            });
+
+            const hasPassport = tokenId && tokenId > 0n;
+
+            // Step 2: Mint passport if user doesn't have one
+            if (!hasPassport) {
+                showToast('Minting passport for creator...', 'info');
+                const mintTx = await writeContractAsync({
+                    address: PASSPORT_CONTRACT_ADDRESS,
+                    abi: PASSPORT_ABI,
+                    functionName: 'mintFor',
+                    args: [creatorAddress],
+                    chainId: baseSepolia.id,
+                });
+                
+                await waitForTransactionReceipt(config, {
+                    hash: mintTx,
+                    timeout: 60000
+                });
+                showToast('✅ Passport minted!', 'success');
+            }
+
+            // Step 3: Increment entry count
+            showToast('Incrementing entry count...', 'info');
+            const incrementTx = await writeContractAsync({
+                address: PASSPORT_CONTRACT_ADDRESS,
+                abi: PASSPORT_ABI,
+                functionName: 'adminIncrementEntryCount',
+                args: [creatorAddress],
+                chainId: baseSepolia.id,
+            });
+
+            await waitForTransactionReceipt(config, {
+                hash: incrementTx,
+                timeout: 60000
+            });
+
+            // Step 4: Update database status
             const { error: dbError } = await supabase
                 .from('ledger_entries')
                 .update({ verification_status: 'Verified' })
                 .eq('id', id);
 
             if (dbError) {
-                console.error('Error verifying entry:', dbError);
-                alert('Failed to verify entry');
-                setProcessingEntryId(null);
-                return;
+                console.error('Error updating database:', dbError);
+                showToast('On-chain operations succeeded but database update failed. Please contact support.', 'warning');
+            } else {
+                // Update local state
+                setEntries(prev => prev.map(e => e.id === id ? { ...e, verification_status: 'Verified' } : e));
+                showToast('✅ Entry verified and NFT updated!', 'success');
             }
-
-            // Update local state
-            setEntries(prev => prev.map(e => e.id === id ? { ...e, verification_status: 'Verified' } : e));
-            alert('Entry verified successfully! The user can now mint/upgrade their passport.');
         } catch (err: any) {
             console.error('Error in verification process:', err);
-            alert(`Verification error: ${err?.message || 'Please try again.'}`);
+            if (err.message?.includes('User rejected') || err.code === 4001) {
+                showToast('Transaction cancelled.', 'info');
+            } else if (err.message?.includes('Not an admin')) {
+                showToast('Admin not registered in contract. Please contact contract owner.', 'error');
+            } else if (err.message?.includes('already has a passport')) {
+                // User already has passport, just increment
+                try {
+                    showToast('Incrementing entry count...', 'info');
+                    const incrementTx = await writeContractAsync({
+                        address: PASSPORT_CONTRACT_ADDRESS,
+                        abi: PASSPORT_ABI,
+                        functionName: 'adminIncrementEntryCount',
+                        args: [entry.wallet_address.toLowerCase() as `0x${string}`],
+                        chainId: baseSepolia.id,
+                    });
+
+                    await waitForTransactionReceipt(config, {
+                        hash: incrementTx,
+                        timeout: 60000
+                    });
+
+                    const { error: dbError } = await supabase
+                        .from('ledger_entries')
+                        .update({ verification_status: 'Verified' })
+                        .eq('id', id);
+
+                    if (!dbError) {
+                        setEntries(prev => prev.map(e => e.id === id ? { ...e, verification_status: 'Verified' } : e));
+                        showToast('✅ Entry verified and NFT updated!', 'success');
+                    }
+                } catch (retryErr: any) {
+                    showToast(`Failed to increment entry count: ${retryErr.message || 'Unknown error'}`, 'error');
+                }
+            } else {
+                showToast(`Verification error: ${err.message || 'Please try again.'}`, 'error');
+            }
         } finally {
             setProcessingEntryId(null);
         }
@@ -188,6 +323,106 @@ export const AdminDashboard: React.FC = () => {
                 </div>
             )}
 
+            {/* Duplicate Content Alerts */}
+            {duplicateGroups.length > 0 && (
+                <div className="rounded-lg border border-orange-500/50 bg-orange-500/10 p-6">
+                    <div className="flex items-start gap-3 mb-4">
+                        <svg className="w-6 h-6 text-orange-500 mt-0.5 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
+                        </svg>
+                        <div className="flex-1">
+                            <h3 className="text-lg font-bold text-orange-400 mb-1">
+                                ⚠️ Duplicate Content Detected ({duplicateGroups.length})
+                            </h3>
+                            <p className="text-sm text-orange-300/90 mb-4">
+                                The following content has been claimed by multiple users. Review carefully to determine the legitimate owner.
+                            </p>
+                        </div>
+                    </div>
+                    
+                    <div className="space-y-4">
+                        {duplicateGroups.map((group) => {
+                            const verifiedEntries = group.entries.filter(e => e.verification_status === 'Verified');
+                            
+                            return (
+                                <div key={group.contentHash} className="rounded-lg border border-orange-500/30 bg-orange-500/5 p-4">
+                                    <div className="mb-3">
+                                        <a
+                                            href={group.url}
+                                            target="_blank"
+                                            rel="noopener noreferrer"
+                                            className="text-orange-400 hover:text-orange-300 font-semibold text-sm break-all"
+                                        >
+                                            {group.url}
+                                        </a>
+                                        <p className="text-xs text-orange-300/70 mt-1">
+                                            Claimed by {group.entries.length} different wallet{group.entries.length > 1 ? 's' : ''}
+                                        </p>
+                                    </div>
+                                    
+                                    <div className="space-y-2">
+                                        {group.entries.map((entry) => {
+                                            const isVerified = entry.verification_status === 'Verified';
+                                            return (
+                                                <div
+                                                    key={entry.id}
+                                                    className={`flex items-center justify-between p-3 rounded-lg border ${
+                                                        isVerified
+                                                            ? 'border-green-500/30 bg-green-500/10'
+                                                            : 'border-orange-500/20 bg-orange-500/5'
+                                                    }`}
+                                                >
+                                                    <div className="flex-1">
+                                                        <div className="flex items-center gap-2">
+                                                            <span className="text-xs font-mono text-muted-foreground">
+                                                                {entry.wallet_address.slice(0, 8)}...{entry.wallet_address.slice(-6)}
+                                                            </span>
+                                                            <span className={`text-xs px-2 py-0.5 rounded ${
+                                                                isVerified
+                                                                    ? 'bg-green-500/20 text-green-400'
+                                                                    : 'bg-yellow-500/20 text-yellow-400'
+                                                            }`}>
+                                                                {entry.verification_status}
+                                                            </span>
+                                                            {isVerified && (
+                                                                <span className="text-xs text-green-400 font-semibold">
+                                                                    ✓ Verified
+                                                                </span>
+                                                            )}
+                                                        </div>
+                                                        <p className="text-xs text-muted-foreground mt-1">
+                                                            Submitted: {new Date(entry.timestamp).toLocaleString()}
+                                                        </p>
+                                                    </div>
+                                                    <div className="flex gap-2">
+                                                        <a
+                                                            href={`/u/${entry.wallet_address}`}
+                                                            target="_blank"
+                                                            rel="noopener noreferrer"
+                                                            className="text-xs px-3 py-1.5 rounded-lg bg-primary/10 hover:bg-primary/20 text-primary font-semibold transition-colors"
+                                                        >
+                                                            View Profile
+                                                        </a>
+                                                    </div>
+                                                </div>
+                                            );
+                                        })}
+                                    </div>
+                                    
+                                    {verifiedEntries.length > 1 && (
+                                        <div className="mt-3 p-2 rounded-lg bg-red-500/20 border border-red-500/30">
+                                            <p className="text-xs text-red-400 font-semibold">
+                                                ⚠️ Multiple verified claims! This content has been verified for {verifiedEntries.length} different wallets.
+                                            </p>
+                                        </div>
+                                    )}
+                                </div>
+                            );
+                        })}
+                    </div>
+                </div>
+            )}
+
             <div className="rounded-lg border border-border bg-card overflow-hidden">
                 <div className="overflow-x-auto">
                     <table className="min-w-full divide-y divide-border">
@@ -200,10 +435,32 @@ export const AdminDashboard: React.FC = () => {
                             </tr>
                         </thead>
                         <tbody className="divide-y divide-border">
-                            {entries.map((entry) => (
-                                <tr key={entry.id} className="hover:bg-muted/30 transition-colors">
+                            {entries.map((entry) => {
+                                // Check if this entry is part of a duplicate group
+                                const isDuplicate = duplicateGroups.some(group => 
+                                    group.entries.some(e => e.id === entry.id)
+                                );
+                                const duplicateGroup = duplicateGroups.find(group => 
+                                    group.entries.some(e => e.id === entry.id)
+                                );
+                                const duplicateCount = duplicateGroup ? duplicateGroup.entries.length : 0;
+                                
+                                return (
+                                <tr 
+                                    key={entry.id} 
+                                    className={`hover:bg-muted/30 transition-colors ${
+                                        isDuplicate ? 'bg-orange-500/5 border-l-4 border-orange-500' : ''
+                                    }`}
+                                >
                                     <td className="px-6 py-4 whitespace-nowrap text-sm font-mono text-muted-foreground">
-                                        {entry.wallet_address.slice(0, 6)}...{entry.wallet_address.slice(-4)}
+                                        <div className="flex items-center gap-2">
+                                            {entry.wallet_address.slice(0, 6)}...{entry.wallet_address.slice(-4)}
+                                            {isDuplicate && (
+                                                <span className="text-xs px-2 py-0.5 rounded bg-orange-500/20 text-orange-400 font-semibold" title={`This content is claimed by ${duplicateCount} different wallets`}>
+                                                    ⚠️ Duplicate
+                                                </span>
+                                            )}
+                                        </div>
                                     </td>
                                     <td className="px-6 py-4 text-sm">
                                         <div className="flex flex-col gap-2">
@@ -278,7 +535,8 @@ export const AdminDashboard: React.FC = () => {
                                         </div>
                                     </td>
                                 </tr>
-                            ))}
+                                );
+                            })}
                         </tbody>
                     </table>
                 </div>

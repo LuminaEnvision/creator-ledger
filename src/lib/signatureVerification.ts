@@ -13,14 +13,32 @@ export async function verifySignature(
     address: string
 ): Promise<boolean> {
     try {
+        // Normalize address to checksum format for verification
+        const normalizedAddress = address.toLowerCase();
+        
+        // viem's verifyMessage handles EIP-191 message signing
+        // It automatically prefixes the message with "\x19Ethereum Signed Message:\n" + length
         const isValid = await verifyMessage({
-            address: address as `0x${string}`,
+            address: normalizedAddress as `0x${string}`,
             message,
             signature: signature as `0x${string}`
         });
+        
+        console.log('Signature verification result:', {
+            isValid,
+            address: normalizedAddress,
+            messageLength: message.length,
+            signatureLength: signature.length
+        });
+        
         return isValid;
-    } catch (error) {
+    } catch (error: any) {
         console.error('Signature verification error:', error);
+        console.error('Verification details:', {
+            address,
+            message: message.substring(0, 100) + '...',
+            signature: signature.substring(0, 20) + '...'
+        });
         return false;
     }
 }

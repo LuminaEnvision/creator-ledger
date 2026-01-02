@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { Modal } from './Modal';
-import { useWriteContract } from 'wagmi';
+import { useWriteContract, useAccount, useSwitchChain } from 'wagmi';
 import { baseSepolia } from 'wagmi/chains';
 import { parseEther } from 'viem';
 import { waitForTransactionReceipt } from 'wagmi/actions';
@@ -26,7 +26,10 @@ export const OnChainUpgradeModal: React.FC<OnChainUpgradeModalProps> = ({
 }) => {
     const { showToast } = useToast();
     const { writeContractAsync } = useWriteContract();
+    const { chain } = useAccount();
+    const { switchChainAsync } = useSwitchChain();
     const [isProcessing, setIsProcessing] = useState(false);
+    const [status, setStatus] = useState<'idle' | 'switching' | 'processing'>('idle');
     
     const handleUpgrade = async () => {
         if (!contentHash || !url) {
@@ -36,6 +39,27 @@ export const OnChainUpgradeModal: React.FC<OnChainUpgradeModalProps> = ({
 
         setIsProcessing(true);
         try {
+            // Step 1: Switch to Base Sepolia if needed
+            if (chain?.id !== baseSepolia.id && switchChainAsync) {
+                setStatus('switching');
+                showToast('Switching to Base Sepolia network...', 'info');
+                try {
+                    await switchChainAsync({ chainId: baseSepolia.id });
+                    // Wait a bit for chain switch to complete
+                    await new Promise(resolve => setTimeout(resolve, 1000));
+                } catch (switchError: any) {
+                    if (switchError.code === 4001) { // User rejected
+                        showToast('Please switch to Base Sepolia network to continue.', 'warning');
+                        setIsProcessing(false);
+                        setStatus('idle');
+                        return;
+                    }
+                    throw new Error(`Failed to switch network: ${switchError.message || 'Unknown error'}`);
+                }
+            }
+
+            setStatus('processing');
+            
             // Convert content hash to bytes32 (ensure it's 64 hex chars + 0x prefix)
             let contentHashBytes: `0x${string}`;
             if (contentHash.startsWith('0x')) {
@@ -60,12 +84,14 @@ export const OnChainUpgradeModal: React.FC<OnChainUpgradeModalProps> = ({
             showToast('Transaction submitted! Waiting for confirmation...', 'info');
 
             // Wait for transaction receipt using wagmi
-            const receipt = await waitForTransactionReceipt(config, {
+            // The hash is already the transaction hash, and we've ensured the chain is correct before calling writeContractAsync
+            await waitForTransactionReceipt(config, {
                 hash: hash,
                 timeout: 60000
             });
 
-            const txHash = receipt.transactionHash;
+            // Use the hash directly as the transaction hash
+            const txHash = hash;
 
             // Update database with transaction hash
             const { error: updateError } = await supabase
@@ -78,19 +104,42 @@ export const OnChainUpgradeModal: React.FC<OnChainUpgradeModalProps> = ({
                 showToast('Transaction confirmed but failed to update database. Please contact support.', 'warning');
             } else {
                 showToast('✅ Entry upgraded to on-chain storage!', 'success');
-                onClose();
+                // Small delay to ensure database update is visible
+                setTimeout(() => {
+                    onClose();
+                }, 500);
             }
         } catch (err: any) {
             console.error('Error upgrading to on-chain:', err);
+            let errorMessage = 'Unknown error';
+            let shouldClose = false;
+            
             if (err.message?.includes('User rejected') || err.code === 4001) {
+                errorMessage = 'Transaction cancelled.';
                 showToast('Transaction cancelled.', 'info');
+                shouldClose = true; // Close on user cancellation
             } else if (err.message?.includes('already registered')) {
-                showToast('This content is already registered on-chain.', 'warning');
+                errorMessage = 'This content is already registered on-chain.';
+                showToast(errorMessage, 'warning');
+                shouldClose = true; // Close if already registered
+            } else if (err.message?.includes('chain') || err.message?.includes('network') || err.message?.includes('Wrong chain')) {
+                errorMessage = 'Wrong network detected. Please switch to Base Sepolia and try again.';
+                showToast(errorMessage, 'error');
+                // Don't close on wrong chain - let user switch and retry
             } else {
-                showToast(`Failed to upgrade: ${err.message || 'Unknown error'}`, 'error');
+                errorMessage = err.message || 'Unknown error';
+                showToast(`Failed to upgrade: ${errorMessage}`, 'error');
+                // Don't auto-close on other errors - let user see the error and decide
+            }
+            
+            if (shouldClose) {
+                setTimeout(() => {
+                    onClose();
+                }, 1000);
             }
         } finally {
             setIsProcessing(false);
+            setStatus('idle');
         }
     };
 
@@ -179,7 +228,7 @@ export const OnChainUpgradeModal: React.FC<OnChainUpgradeModalProps> = ({
                         {isProcessing ? (
                             <>
                                 <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white"></div>
-                                Processing...
+                                {status === 'switching' ? 'Switching Network...' : 'Processing...'}
                             </>
                         ) : (
                             <>
@@ -192,10 +241,10 @@ export const OnChainUpgradeModal: React.FC<OnChainUpgradeModalProps> = ({
                     </button>
                     <button
                         onClick={onClose}
-                        disabled={isProcessing}
+                        disabled={isProcessing && status === 'processing'}
                         className="px-6 py-3 rounded-xl bg-secondary hover:bg-secondary/80 text-foreground font-bold text-sm transition-all disabled:opacity-50"
                     >
-                        Maybe Later
+                        {isProcessing && status === 'processing' ? 'Processing...' : 'Maybe Later'}
                     </button>
                 </div>
 

@@ -21,6 +21,7 @@ export interface LedgerEntry {
     campaign_tag?: string;
     wallet_address: string;
     payload_hash: string;
+    content_hash?: string; // For duplicate detection across all users
     title?: string;
     image_url?: string;
     custom_image_url?: string;

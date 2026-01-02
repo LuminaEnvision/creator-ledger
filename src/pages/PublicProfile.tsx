@@ -6,10 +6,12 @@ import type { LedgerEntry } from '../types';
 import { useEnsName } from 'wagmi';
 import { mainnet } from 'wagmi/chains';
 import { PassportDisplay } from '../components/PassportDisplay';
+import { useAuth } from '../context/AuthContext';
 
 export const PublicProfile: React.FC = () => {
     const { address } = useParams<{ address: string }>();
     const [searchParams] = useSearchParams();
+    const { user } = useAuth();
     const [entries, setEntries] = useState<LedgerEntry[]>([]);
     const [filteredEntries, setFilteredEntries] = useState<LedgerEntry[]>([]);
     const [profile, setProfile] = useState<any>(null);
@@ -82,12 +84,21 @@ export const PublicProfile: React.FC = () => {
                     console.error('Error fetching user data:', userError);
                 }
 
-                // Fetch public entries (only verified ones are shown publicly)
-                const { data: entriesData, error: entriesError } = await supabase
+                // Check if current user is viewing their own profile
+                const isOwnProfile = user && user.walletAddress.toLowerCase() === normalizedAddress;
+                
+                // Fetch entries: show all to owner, only verified to public
+                let query = supabase
                     .from('ledger_entries')
                     .select('*')
-                    .eq('wallet_address', normalizedAddress)
-                    .eq('verification_status', 'Verified')
+                    .eq('wallet_address', normalizedAddress);
+                
+                // Only filter by verification status if not viewing own profile
+                if (!isOwnProfile) {
+                    query = query.eq('verification_status', 'Verified');
+                }
+                
+                const { data: entriesData, error: entriesError } = await query
                     .order('timestamp', { ascending: false });
 
                 if (!entriesError) {
@@ -148,6 +159,9 @@ export const PublicProfile: React.FC = () => {
 
     const level = calculateLevel();
 
+    // Check if current user is viewing their own profile
+    const isOwnProfile = user && address && user.walletAddress.toLowerCase() === address.toLowerCase();
+
     if (displayEntries.length === 0 && !profile && !searchParams.get('filter')) {
         return (
             <div className="max-w-md mx-auto text-center py-20 px-4">
@@ -156,8 +170,14 @@ export const PublicProfile: React.FC = () => {
                         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
                     </svg>
                 </div>
-                <h2 className="text-2xl font-bold mb-2">Profile Not Found</h2>
-                <p className="text-muted-foreground">This creator hasn't started their ledger yet.</p>
+                <h2 className="text-2xl font-bold mb-2">
+                    {isOwnProfile ? 'No Entries Yet' : 'Profile Not Found'}
+                </h2>
+                <p className="text-muted-foreground">
+                    {isOwnProfile 
+                        ? "You haven't submitted any entries yet. Submit your first entry from the Dashboard!"
+                        : "This creator hasn't started their ledger yet."}
+                </p>
             </div>
         );
     }

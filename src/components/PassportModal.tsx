@@ -1,5 +1,6 @@
 import React, { useEffect } from 'react';
 import { DynamicNFT } from './DynamicNFT';
+import { ProNFT } from './ProNFT';
 
 interface PassportModalProps {
     isOpen: boolean;
@@ -86,12 +87,19 @@ export const PassportModal: React.FC<PassportModalProps> = ({ isOpen, onClose, w
                             
                             {/* NFT Container */}
                             <div className="relative z-10 p-4 bg-background/50 backdrop-blur-sm rounded-[2rem] border-2 border-primary/30 shadow-xl">
-                                <DynamicNFT
-                                    walletAddress={walletAddress}
-                                    size="lg"
-                                    mode={isPremium ? 'pro' : 'free'}
-                                    className="transition-all duration-700 group-hover:scale-[1.02] group-hover:rotate-1"
-                                />
+                                {isPremium ? (
+                                    <ProNFT
+                                        size="lg"
+                                        className="transition-all duration-700 group-hover:scale-[1.02] group-hover:rotate-1 w-full h-full"
+                                    />
+                                ) : (
+                                    <DynamicNFT
+                                        walletAddress={walletAddress}
+                                        size="lg"
+                                        mode="free"
+                                        className="transition-all duration-700 group-hover:scale-[1.02] group-hover:rotate-1"
+                                    />
+                                )}
                             </div>
                         </div>
                         

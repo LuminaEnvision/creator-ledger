@@ -8,6 +8,7 @@ import { useNavigate } from 'react-router-dom';
 import { useAccount } from 'wagmi';
 import { isAddress, getAddress } from 'viem';
 import { DynamicNFT } from '../components/DynamicNFT';
+import { ProNFT } from '../components/ProNFT';
 import { NFTImageFrame } from '../components/NFTImageFrame';
 import { isPremiumWhitelisted } from '../lib/premium';
 
@@ -402,7 +403,12 @@ export const Pricing: React.FC = () => {
                     price="15 USDC"
                     isPro={true}
                     isActive={isPremium}
-                    image="/assets/pro_nft.png"
+                    nftComponent={
+                        <ProNFT 
+                            size="lg"
+                            className="w-full h-full"
+                        />
+                    }
                     subscriptionEndDate={subscriptionEnd}
                     features={[
                         "Cryptographic On-Chain Proof",

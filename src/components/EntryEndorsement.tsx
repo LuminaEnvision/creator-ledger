@@ -9,13 +9,15 @@ interface EntryEndorsementProps {
     walletAddress: string; // Creator's wallet address
     currentEndorsements?: number;
     currentDisputes?: number;
+    isOwner?: boolean; // Whether the current user is the entry owner
 }
 
 export const EntryEndorsement: React.FC<EntryEndorsementProps> = ({
     entryId,
     walletAddress,
     currentEndorsements = 0,
-    currentDisputes = 0
+    currentDisputes = 0,
+    isOwner = false
 }) => {
     const { user } = useAuth();
     const { signMessageAsync } = useSignMessage();
@@ -25,6 +27,8 @@ export const EntryEndorsement: React.FC<EntryEndorsementProps> = ({
     const [userVote, setUserVote] = useState<'endorse' | 'dispute' | null>(null);
     const [isLoading, setIsLoading] = useState(false);
     const [isChecking, setIsChecking] = useState(true);
+    const [endorsers, setEndorsers] = useState<Array<{ wallet: string; timestamp: string }>>([]);
+    const [showEndorsers, setShowEndorsers] = useState(false);
 
     // Check if user has already voted
     useEffect(() => {
@@ -55,7 +59,7 @@ export const EntryEndorsement: React.FC<EntryEndorsementProps> = ({
         checkUserVote();
     }, [user, entryId]);
 
-    // Fetch current counts
+    // Fetch current counts and endorsers list
     useEffect(() => {
         const fetchCounts = async () => {
             try {
@@ -77,13 +81,30 @@ export const EntryEndorsement: React.FC<EntryEndorsementProps> = ({
                 if (disputeCount !== null) {
                     setDisputes(disputeCount);
                 }
+
+                // If owner, fetch list of endorsers
+                if (isOwner) {
+                    const { data: endorsersData } = await supabase
+                        .from('entry_endorsements')
+                        .select('endorser_wallet, created_at')
+                        .eq('entry_id', entryId)
+                        .eq('vote_type', 'endorse')
+                        .order('created_at', { ascending: false });
+
+                    if (endorsersData) {
+                        setEndorsers(endorsersData.map(e => ({
+                            wallet: e.endorser_wallet,
+                            timestamp: e.created_at
+                        })));
+                    }
+                }
             } catch (err) {
                 console.error('Error fetching endorsement counts:', err);
             }
         };
 
         fetchCounts();
-    }, [entryId]);
+    }, [entryId, isOwner]);
 
     const handleVote = async (voteType: 'endorse' | 'dispute') => {
         if (!user) {
@@ -91,6 +112,7 @@ export const EntryEndorsement: React.FC<EntryEndorsementProps> = ({
             return;
         }
 
+        // This check is now handled by isOwner prop, but keep as safety
         if (user.walletAddress.toLowerCase() === walletAddress.toLowerCase()) {
             showToast('You cannot vote on your own entries.', 'warning');
             return;
@@ -194,17 +216,73 @@ export const EntryEndorsement: React.FC<EntryEndorsementProps> = ({
         );
     }
 
+    // If owner, show endorsers list instead of voting buttons
+    if (isOwner) {
+        return (
+            <div className="pt-2 border-t border-border/30">
+                {endorsements > 0 ? (
+                    <div className="space-y-2">
+                        <button
+                            onClick={() => setShowEndorsers(!showEndorsers)}
+                            className="flex items-center gap-2 text-xs text-muted-foreground hover:text-foreground transition-colors"
+                        >
+                            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M14 10h4.764a2 2 0 011.789 2.894l-3.5 7A2 2 0 0115.263 21h-4.017c-.163 0-.326-.02-.485-.06L7 20m7-10V5a2 2 0 00-2-2h-.095c-.5 0-.905.405-.905.905 0 .714-.211 1.412-.608 2.006L7 11v9m7-10h-2M7 20H5a2 2 0 01-2-2v-6a2 2 0 012-2h2.5" />
+                            </svg>
+                            <span className="font-semibold text-green-600">{endorsements}</span>
+                            <span>endorsement{endorsements !== 1 ? 's' : ''}</span>
+                            <svg className={`w-3 h-3 transition-transform ${showEndorsers ? 'rotate-180' : ''}`} fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+                            </svg>
+                        </button>
+                        {showEndorsers && (
+                            <div className="ml-6 space-y-1.5 max-h-40 overflow-y-auto">
+                                {endorsers.map((endorser, idx) => (
+                                    <div key={idx} className="flex items-center justify-between text-[10px] text-muted-foreground py-1">
+                                        <span className="font-mono">
+                                            {endorser.wallet.slice(0, 6)}...{endorser.wallet.slice(-4)}
+                                        </span>
+                                        <span className="text-[9px]">
+                                            {new Date(endorser.timestamp).toLocaleDateString()}
+                                        </span>
+                                    </div>
+                                ))}
+                            </div>
+                        )}
+                    </div>
+                ) : (
+                    <div className="text-xs text-muted-foreground flex items-center gap-2">
+                        <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M14 10h4.764a2 2 0 011.789 2.894l-3.5 7A2 2 0 0115.263 21h-4.017c-.163 0-.326-.02-.485-.06L7 20m7-10V5a2 2 0 00-2-2h-.095c-.5 0-.905.405-.905.905 0 .714-.211 1.412-.608 2.006L7 11v9m7-10h-2M7 20H5a2 2 0 01-2-2v-6a2 2 0 012-2h2.5" />
+                        </svg>
+                        <span>No endorsements yet</span>
+                    </div>
+                )}
+                {disputes > 0 && (
+                    <div className="mt-2 text-xs text-muted-foreground flex items-center gap-2">
+                        <svg className="w-4 h-4 text-red-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 14l2-2m0 0l2-2m-2 2l-2-2m2 2l2 2m7-2a9 9 0 11-18 0 9 9 0 0118 0z" />
+                        </svg>
+                        <span className="text-red-500 font-semibold">{disputes}</span>
+                        <span>dispute{disputes !== 1 ? 's' : ''}</span>
+                    </div>
+                )}
+            </div>
+        );
+    }
+
+    // For non-owners: show voting buttons
     return (
         <div className="flex items-center gap-3 pt-2 border-t border-border/30">
             <button
                 onClick={() => handleVote('endorse')}
-                disabled={isLoading || !user || user.walletAddress.toLowerCase() === walletAddress.toLowerCase()}
+                disabled={isLoading || !user}
                 className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold transition-all ${
                     userVote === 'endorse'
                         ? 'bg-green-500/20 text-green-600 border border-green-500/30'
                         : 'bg-secondary/50 hover:bg-green-500/10 text-muted-foreground hover:text-green-600 border border-border'
                 } disabled:opacity-50 disabled:cursor-not-allowed`}
-                title={!user ? 'Connect wallet to endorse' : user.walletAddress.toLowerCase() === walletAddress.toLowerCase() ? "Can't vote on own entries" : 'Endorse this entry'}
+                title={!user ? 'Connect wallet to endorse' : 'Endorse this entry'}
             >
                 <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M14 10h4.764a2 2 0 011.789 2.894l-3.5 7A2 2 0 0115.263 21h-4.017c-.163 0-.326-.02-.485-.06L7 20m7-10V5a2 2 0 00-2-2h-.095c-.5 0-.905.405-.905.905 0 .714-.211 1.412-.608 2.006L7 11v9m7-10h-2M7 20H5a2 2 0 01-2-2v-6a2 2 0 012-2h2.5" />
@@ -214,13 +292,13 @@ export const EntryEndorsement: React.FC<EntryEndorsementProps> = ({
 
             <button
                 onClick={() => handleVote('dispute')}
-                disabled={isLoading || !user || user.walletAddress.toLowerCase() === walletAddress.toLowerCase()}
+                disabled={isLoading || !user}
                 className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold transition-all ${
                     userVote === 'dispute'
                         ? 'bg-red-500/20 text-red-600 border border-red-500/30'
                         : 'bg-secondary/50 hover:bg-red-500/10 text-muted-foreground hover:text-red-600 border border-border'
                 } disabled:opacity-50 disabled:cursor-not-allowed`}
-                title={!user ? 'Connect wallet to dispute' : user.walletAddress.toLowerCase() === walletAddress.toLowerCase() ? "Can't vote on own entries" : 'Dispute this entry'}
+                title={!user ? 'Connect wallet to dispute' : 'Dispute this entry'}
             >
                 <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 14l2-2m0 0l2-2m-2 2l-2-2m2 2l2 2m7-2a9 9 0 11-18 0 9 9 0 0118 0z" />
