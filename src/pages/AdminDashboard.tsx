@@ -4,7 +4,7 @@ import { supabase } from '../lib/supabase';
 import type { LedgerEntry } from '../types';
 import { isAdmin as checkIsAdmin } from '../lib/admin';
 import { useReadContract, useWriteContract } from 'wagmi';
-import { baseSepolia } from 'wagmi/chains';
+import { base } from 'wagmi/chains';
 import { waitForTransactionReceipt, readContract } from 'wagmi/actions';
 import { PASSPORT_CONTRACT_ADDRESS, PASSPORT_ABI } from '../lib/contracts';
 import { config } from '../wagmi';
@@ -34,7 +34,7 @@ export const AdminDashboard: React.FC = () => {
         abi: PASSPORT_ABI,
         functionName: 'admins',
         args: user?.walletAddress ? [user.walletAddress.toLowerCase() as `0x${string}`] : undefined,
-        chainId: baseSepolia.id,
+        chainId: base.id,
         query: {
             enabled: !!userIsAdmin && !!user?.walletAddress,
         }
@@ -45,7 +45,7 @@ export const AdminDashboard: React.FC = () => {
         address: PASSPORT_CONTRACT_ADDRESS,
         abi: PASSPORT_ABI,
         functionName: 'owner',
-        chainId: baseSepolia.id,
+        chainId: base.id,
         query: {
             enabled: !!userIsAdmin,
         }
@@ -144,7 +144,7 @@ export const AdminDashboard: React.FC = () => {
                 abi: PASSPORT_ABI,
                 functionName: 'addressToTokenId',
                 args: [creatorAddress],
-                chainId: baseSepolia.id,
+                chainId: base.id,
             });
 
             const hasPassport = tokenId && tokenId > 0n;
@@ -157,7 +157,7 @@ export const AdminDashboard: React.FC = () => {
                     abi: PASSPORT_ABI,
                     functionName: 'mintFor',
                     args: [creatorAddress],
-                    chainId: baseSepolia.id,
+                    chainId: base.id,
                 });
                 
                 await waitForTransactionReceipt(config, {
@@ -174,7 +174,7 @@ export const AdminDashboard: React.FC = () => {
                 abi: PASSPORT_ABI,
                 functionName: 'adminIncrementEntryCount',
                 args: [creatorAddress],
-                chainId: baseSepolia.id,
+                chainId: base.id,
             });
 
             await waitForTransactionReceipt(config, {
@@ -211,7 +211,7 @@ export const AdminDashboard: React.FC = () => {
                         abi: PASSPORT_ABI,
                         functionName: 'adminIncrementEntryCount',
                         args: [entry.wallet_address.toLowerCase() as `0x${string}`],
-                        chainId: baseSepolia.id,
+                        chainId: base.id,
                     });
 
                     await waitForTransactionReceipt(config, {

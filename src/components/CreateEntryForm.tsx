@@ -5,7 +5,7 @@ import { detectPlatform } from '../lib/platform';
 import { generateEntryHash } from '../lib/hashing';
 import { generateContentHash } from '../lib/signatureVerification';
 import { useSignMessage, useSwitchChain, useAccount } from 'wagmi';
-import { baseSepolia } from 'wagmi/chains';
+import { base } from 'wagmi/chains';
 import { HashtagInput } from './HashtagInput';
 import { Link } from 'react-router-dom';
 import { checkPremiumStatus } from '../lib/premium';
@@ -176,7 +176,7 @@ export const CreateEntryForm: React.FC<{ onSuccess: () => void }> = ({ onSuccess
         e.preventDefault();
         
         if (!user) {
-            setError('You need to connect your wallet on Base Sepolia to proceed.');
+            setError('You need to connect your wallet on Base to proceed.');
             showToast('Please connect your wallet to submit an entry. You can connect via the header or use the button below.', 'warning');
             // Scroll to top to show the error
             window.scrollTo({ top: 0, behavior: 'smooth' });
@@ -224,16 +224,16 @@ export const CreateEntryForm: React.FC<{ onSuccess: () => void }> = ({ onSuccess
 
             const payloadHash = await generateEntryHash(user.walletAddress, url, timestamp);
 
-            // 1. Switch to Base Sepolia if needed (for message signing compatibility)
-            if (chain?.id !== baseSepolia.id && switchChainAsync) {
+            // 1. Switch to Base mainnet if needed (for message signing compatibility)
+            if (chain?.id !== base.id && switchChainAsync) {
                 setStatus('switching');
                 try {
-                    await switchChainAsync({ chainId: baseSepolia.id });
+                    await switchChainAsync({ chainId: base.id });
                     // Wait a bit for chain switch to complete
                     await new Promise(resolve => setTimeout(resolve, 500));
                 } catch (switchError: any) {
                     if (switchError.code === 4001) { // User rejected
-                        setError('Please switch to Base Sepolia network to continue.');
+                        setError('Please switch to Base network to continue.');
                         setIsSubmitting(false);
                         setStatus('idle');
                         return;
@@ -251,8 +251,8 @@ export const CreateEntryForm: React.FC<{ onSuccess: () => void }> = ({ onSuccess
                 signature = await signMessageAsync({ message });
             } catch (signError: any) {
                 if (signError.message?.includes('chain') || signError.message?.includes('Chain')) {
-                    setError('Please switch to Base Sepolia network in your wallet and try again.');
-                    showToast('Please switch to Base Sepolia network to sign the message.', 'warning');
+                    setError('Please switch to Base network in your wallet and try again.');
+                    showToast('Please switch to Base network to sign the message.', 'warning');
                 } else if (signError.code === 4001) {
                     setError('Signature cancelled.');
                     showToast('Signature cancelled.', 'info');
@@ -537,11 +537,22 @@ export const CreateEntryForm: React.FC<{ onSuccess: () => void }> = ({ onSuccess
                             <svg className="w-5 h-5 text-primary flex-shrink-0 mt-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" />
                             </svg>
-                            <div>
-                                <p className="text-sm font-bold text-primary mb-1">Wallet Connection Required</p>
-                                <p className="text-xs text-muted-foreground">
-                                    You need to connect your wallet on Base Sepolia to submit entries and verify your content. Use the Connect Wallet button in the header.
+                            <div className="flex-1">
+                                <p className="text-sm font-bold text-primary mb-1">Sign In Required</p>
+                                <p className="text-xs text-muted-foreground mb-3">
+                                    Sign in with social login (no wallet needed!) or connect a wallet to submit entries.
                                 </p>
+                                <div className="flex gap-2">
+                                    <button
+                                        onClick={() => {
+                                            const connectButton = document.querySelector('[data-testid="rk-connect-button"]') as HTMLElement;
+                                            connectButton?.click();
+                                        }}
+                                        className="px-4 py-2 rounded-lg bg-primary hover:bg-primary/90 text-white text-xs font-bold transition-all"
+                                    >
+                                        Connect Wallet
+                                    </button>
+                                </div>
                             </div>
                         </div>
                     </div>

@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { useWriteContract, useReadContract } from 'wagmi';
-import { baseSepolia } from 'wagmi/chains';
+import { base } from 'wagmi/chains';
 import { parseEther } from 'viem';
 import { PASSPORT_CONTRACT_ADDRESS, PASSPORT_ABI } from '../lib/contracts';
 
@@ -24,7 +24,7 @@ export const PassportMintButton: React.FC<PassportMintButtonProps> = ({
         abi: PASSPORT_ABI,
         functionName: 'addressToTokenId',
         args: [walletAddress.toLowerCase() as `0x${string}`],
-        chainId: baseSepolia.id,
+        chainId: base.id,
         query: {
             enabled: !!walletAddress,
         }
@@ -36,7 +36,7 @@ export const PassportMintButton: React.FC<PassportMintButtonProps> = ({
         abi: PASSPORT_ABI,
         functionName: 'passportData',
         args: tokenId && tokenId > 0n ? [tokenId] : undefined,
-        chainId: baseSepolia.id,
+        chainId: base.id,
         query: {
             enabled: !!tokenId && tokenId > 0n,
         }
@@ -68,8 +68,8 @@ export const PassportMintButton: React.FC<PassportMintButtonProps> = ({
                     address: PASSPORT_CONTRACT_ADDRESS,
                     abi: PASSPORT_ABI,
                     functionName: 'mint',
-                    value: 0n, // No fee for minting
-                    chainId: baseSepolia.id,
+                    value: OPERATIONS_FEE, // Operations fee for minting
+                    chainId: base.id,
                 });
                 
                 // After minting, upgrade to match verified entries
@@ -82,7 +82,7 @@ export const PassportMintButton: React.FC<PassportMintButtonProps> = ({
                         functionName: 'incrementEntryCountBy',
                         args: [BigInt(verifiedEntriesCount)],
                         value: upgradeFee,
-                        chainId: baseSepolia.id,
+                        chainId: base.id,
                     });
                     alert(`✅ Passport minted and upgraded to level ${verifiedEntriesCount}!`);
                 } else {
@@ -97,7 +97,7 @@ export const PassportMintButton: React.FC<PassportMintButtonProps> = ({
                     functionName: 'incrementEntryCountBy',
                     args: [BigInt(entriesToAdd)],
                     value: totalFee,
-                    chainId: baseSepolia.id,
+                    chainId: base.id,
                 });
                 alert(`✅ Passport upgraded! Entry count updated from ${currentEntryCount} to ${verifiedEntriesCount}.`);
             } else {
@@ -139,11 +139,6 @@ export const PassportMintButton: React.FC<PassportMintButtonProps> = ({
                             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 10V3L4 14h7v7l9-11h-7z" />
                         </svg>
                         <span>Upgrade to Level {verifiedEntriesCount}</span>
-                        {totalFee > 0n && (
-                            <span className="text-xs opacity-90">
-                                ({(Number(totalFee) / Number(parseEther('1'))).toFixed(4)} ETH)
-                            </span>
-                        )}
                     </>
                 ) : hasPassport ? (
                     <>
@@ -163,11 +158,9 @@ export const PassportMintButton: React.FC<PassportMintButtonProps> = ({
             </button>
             {entriesToAdd > 0 && (
                 <p className="text-xs text-center text-muted-foreground mt-2">
-                    {entriesToAdd} {entriesToAdd === 1 ? 'entry' : 'entries'} ready to upgrade
+                    {entriesToAdd} {entriesToAdd === 1 ? 'entry' : 'entries'} ready to upgrade. Fee: {Number(totalFee) / 1e18} ETH + gas
                 </p>
             )}
         </div>
     );
 };
-
-

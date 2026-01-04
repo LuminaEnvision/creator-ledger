@@ -97,7 +97,7 @@ export const SignatureVerificationModal: React.FC<SignatureVerificationModalProp
                     </div>
                     <div className="flex gap-3">
                         <a
-                            href={`https://sepolia.basescan.org/address/${walletAddress}#code`}
+                            href={`https://basescan.org/address/${walletAddress}#code`}
                             target="_blank"
                             rel="noopener noreferrer"
                             className="flex-1 px-4 py-3 rounded-xl bg-primary/10 hover:bg-primary/20 text-primary font-bold text-sm transition-all flex items-center justify-center gap-2"

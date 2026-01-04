@@ -1,20 +1,42 @@
 # Creator Ledger
 
-> A verifiable, on-chain content tracking system for creators. Track your work, prove ownership, and build your professional portfolio.
+> **On-chain content tracking for creators on Base**  
+> Built for the Base ecosystem with native Farcaster and Base App integration
 
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 [![TypeScript](https://img.shields.io/badge/TypeScript-5.9-blue.svg)](https://www.typescriptlang.org/)
 [![React](https://img.shields.io/badge/React-19.2-blue.svg)](https://react.dev/)
+[![Base](https://img.shields.io/badge/Base-L2-0052FF.svg)](https://base.org)
+[![Farcaster](https://img.shields.io/badge/Farcaster-Enabled-8A63D2.svg)](https://farcaster.xyz)
 
-## 🌟 Features
+## 🌟 What is Creator Ledger?
+
+Creator Ledger is a **verifiable, on-chain content tracking system** that helps creators prove ownership of their work and build professional portfolios. Built specifically for the **Base ecosystem** with native support for **Farcaster** and **Base Mini Apps**.
+
+### Perfect for Base Creators
+
+- 🎯 **Built for Base**: Deployed on Base L2 for low-cost transactions
+- 🔗 **Farcaster Native**: Seamless integration with Farcaster profiles and wallets
+- 📱 **Base App Ready**: Optimized for Base Mini Apps with in-app wallet connection
+- ⛓️ **On-Chain Proof**: Your content ownership is permanently recorded on Base blockchain
+- 🎨 **Professional Portfolios**: Beautiful, shareable creator profiles
+
+## 🚀 Key Features
 
 ### Core Functionality
-- **🔐 Wallet Authentication**: Sign in with MetaMask, Coinbase Wallet, or any Web3 wallet
+- **🔐 Wallet Authentication**: Connect with any Web3 wallet or Farcaster account
 - **📝 Content Ledger**: Submit and track links to your content (X/Twitter, TikTok, YouTube, etc.)
 - **🔍 Platform Detection**: Automatically detects platform from URL
 - **✅ Verification System**: Admin interface for verifying content authenticity
 - **📊 Export Tools**: Download your ledger as CSV or PDF for reporting
 - **🎨 Public Profiles**: Shareable media kit with customizable branding
+
+### On-Chain Features
+- **🪙 Creator Passport NFT**: ERC-721 NFT on Base that represents your creator identity
+- **📈 Entry Tracking**: On-chain entry count that increases with verified content
+- **🔐 Proof of Ownership**: Cryptographic signatures for content verification
+- **⛓️ Base Network**: Deployed on Base (mainnet) and Base Sepolia (testnet)
+- **🔄 Upgradeable Contract**: UUPS proxy pattern allows future upgrades without redeployment
 
 ### Premium Features
 - **📤 Advanced Exports**: CSV and PDF export with full metadata
@@ -23,11 +45,25 @@
 - **🔗 Portfolio Collections**: Create filtered views for different audiences
 - **✨ Custom Branding**: Custom display name, bio, avatar, and banner
 
-### On-Chain Features
-- **🪙 Creator Passport NFT**: ERC-721 NFT that represents your creator identity
-- **📈 Entry Tracking**: On-chain entry count that increases with verified content
-- **🔐 Proof of Ownership**: Cryptographic signatures for content verification
-- **⛓️ Base Network**: Deployed on Base Sepolia (testnet) and Base (mainnet)
+## 🎯 Built for Base & Farcaster
+
+### Base Integration
+- **Base L2 Network**: All transactions happen on Base for low gas fees
+- **Base Account Kit**: Integrated payment processing for premium subscriptions
+- **Base Mini Apps**: Optimized UI/UX following Base design guidelines
+- **Base Sepolia Testing**: Full testnet support for development
+
+### Farcaster Integration
+- **Native Profile Reading**: Automatically displays Farcaster username, display name, and avatar
+- **Farcaster SDK**: Uses `@farcaster/miniapp-sdk` for seamless integration
+- **Wallet Connection**: Automatic wallet connection in Farcaster environment
+- **Profile Display**: Shows Farcaster profiles throughout the app
+
+### Base App Experience
+- **In-App Wallet**: Seamless wallet connection without leaving the app
+- **Base Guidelines Compliant**: Follows Base Mini Apps design and product guidelines
+- **Optimized Onboarding**: Smooth first-time user experience
+- **Mobile-First**: Responsive design optimized for mobile wallets
 
 ## 🏗️ Architecture
 
@@ -44,22 +80,24 @@
 - RainbowKit 2.2 for wallet connection UI
 - Viem 2.43 for low-level Ethereum utilities
 - Base Account Kit for payment processing
+- Farcaster Mini App SDK for Farcaster integration
 
 **Backend:**
 - Supabase (PostgreSQL) for data storage
 - Row Level Security (RLS) for data access control
 
 **Smart Contracts:**
-- Solidity 0.8.x
-- OpenZeppelin Contracts 5.4
+- Solidity 0.8.22
+- OpenZeppelin Contracts 5.4 (Upgradeable)
 - Hardhat for development and deployment
-- Base Sepolia / Base networks
+- UUPS Proxy Pattern for upgradeability
+- Base / Base Sepolia networks
 
 ### System Architecture
 
 ```
 ┌─────────────────────────────────────────────────────────┐
-│                    Frontend (React)                      │
+│              Frontend (React + Farcaster SDK)            │
 │  ┌──────────┐  ┌──────────┐  ┌──────────┐            │
 │  │ Dashboard│  │  Admin   │  │  Pricing │            │
 │  └────┬─────┘  └────┬─────┘  └────┬─────┘            │
@@ -68,30 +106,32 @@
 │                     │                                    │
 │              ┌──────▼──────┐                            │
 │              │  Wagmi/RainbowKit                        │
+│              │  Farcaster SDK                           │
 │              └──────┬──────┘                            │
 └─────────────────────┼────────────────────────────────────┘
                       │
         ┌─────────────┼─────────────┐
         │             │             │
 ┌───────▼──────┐ ┌───▼────┐ ┌──────▼──────┐
-│   Supabase   │ │  Base  │ │  Wallet     │
-│  (PostgreSQL)│ │Network │ │  Providers  │
+│   Supabase   │ │  Base  │ │  Farcaster  │
+│  (PostgreSQL)│ │Network │ │   Wallet    │
 └──────────────┘ └────────┘ └─────────────┘
 ```
 
-### Data Flow
+## 📚 Documentation
 
-1. **User Authentication**: Wallet connects → Signature verification → User record created/updated in Supabase
-2. **Content Submission**: URL submitted → Platform detected → Hash generated → Entry stored in Supabase
-3. **Verification**: Admin verifies entry → Database updated → User can mint/upgrade NFT
-4. **NFT Minting**: User mints passport → Smart contract creates NFT → Entry count tracked on-chain
+- **[Architecture Guide](./docs/ARCHITECTURE.md)** - Detailed system architecture and design decisions
+- **[Contributing Guide](./docs/CONTRIBUTING.md)** - How to contribute to the project
+- **[Upgradeable Contract Guide](./docs/UPGRADEABLE_CONTRACT.md)** - How to deploy and upgrade the smart contract
+- **[Mainnet Readiness](./docs/MAINNET_READINESS.md)** - Checklist and guide for mainnet deployment
+- **[Subscription Setup](./docs/SUBSCRIPTION_SETUP.md)** - Premium subscription configuration
 
 ## 🚀 Getting Started
 
 ### Prerequisites
 
 - Node.js 18+ and npm
-- A Web3 wallet (MetaMask, Coinbase Wallet, etc.)
+- A Web3 wallet (MetaMask, Coinbase Wallet, etc.) or Farcaster account
 - Supabase account (free tier works)
 - WalletConnect Project ID (free from [cloud.walletconnect.com](https://cloud.walletconnect.com))
 
@@ -124,7 +164,9 @@
    
    # Contract (optional, for deployment)
    PRIVATE_KEY=your_private_key
+   BASE_RPC_URL=https://mainnet.base.org
    BASE_SEPOLIA_RPC_URL=https://sepolia.base.org
+   BASESCAN_API_KEY=your_basescan_api_key
    ```
 
 4. **Set up the database**
@@ -140,14 +182,6 @@
 6. **Open your browser**
    Navigate to `http://localhost:5173`
 
-## 📚 Documentation
-
-- **[Architecture Guide](./docs/ARCHITECTURE.md)** - Detailed system architecture
-- **[Admin Setup](./docs/ADMIN_SETUP.md)** - How to set up admin roles
-- **[Premium Features](./docs/PREMIUM_FEATURES.md)** - Premium feature documentation
-- **[Smart Contracts](./docs/SMART_CONTRACTS.md)** - Contract deployment and interaction
-- **[Deployment Guide](./docs/DEPLOYMENT.md)** - Production deployment instructions
-
 ## 🛠️ Development
 
 ### Available Scripts
@@ -162,8 +196,10 @@ npm run preview         # Preview production build
 
 # Smart Contracts
 npm run compile         # Compile contracts
-npm run deploy:base-sepolia  # Deploy to Base Sepolia
-npm run deploy:base    # Deploy to Base mainnet
+npm run deploy:upgradeable:base-sepolia  # Deploy upgradeable to Base Sepolia
+npm run deploy:upgradeable:base         # Deploy upgradeable to Base mainnet
+npm run upgrade:base-sepolia             # Upgrade contract on Base Sepolia
+npm run upgrade:base                    # Upgrade contract on Base mainnet
 
 # Code Quality
 npm run lint            # Run ESLint
@@ -174,12 +210,16 @@ npm run lint            # Run ESLint
 ```
 creator-ledger/
 ├── contracts/          # Solidity smart contracts
-│   └── CreatorPassport.sol
-├── scripts/           # Deployment and utility scripts
+│   ├── CreatorPassport.sol              # Original contract
+│   └── CreatorPassportUpgradeable.sol   # Upgradeable version (recommended)
+├── scripts/            # Deployment and utility scripts
+│   ├── deploy.ts                        # Standard deployment
+│   ├── deploy-upgradeable.ts           # Upgradeable deployment
+│   └── upgrade.ts                      # Contract upgrade script
 ├── src/
 │   ├── components/    # React components
 │   ├── pages/        # Page components
-│   ├── context/      # React contexts (Auth, Theme)
+│   ├── context/      # React contexts (Auth, Theme, Farcaster)
 │   ├── lib/          # Utilities and helpers
 │   └── types/        # TypeScript type definitions
 ├── docs/             # Documentation
@@ -187,39 +227,79 @@ creator-ledger/
 └── supabase_schema.sql  # Database schema
 ```
 
+## 🌐 Deployment
+
+### Frontend Deployment
+
+Deploy to Vercel, Netlify, or any static hosting:
+
+1. Push your code to GitHub
+2. Import the project in your hosting platform
+3. Add environment variables in deployment settings
+4. Deploy!
+
+### Smart Contract Deployment
+
+#### First Deployment (Mainnet)
+
+```bash
+# Deploy upgradeable contract to Base mainnet
+npm run deploy:upgradeable:base
+```
+
+This will:
+- Deploy the implementation contract
+- Deploy the UUPS proxy
+- Initialize the contract
+- Output the proxy address (use this as your contract address)
+
+**Important**: Update `src/lib/contracts.ts` with the proxy address.
+
+#### Future Upgrades
+
+```bash
+# Make changes to CreatorPassportUpgradeable.sol
+npm run compile
+
+# Set PROXY_ADDRESS in .env or scripts/upgrade.ts
+npm run upgrade:base
+```
+
+See [Upgradeable Contract Guide](./docs/UPGRADEABLE_CONTRACT.md) for details.
+
 ## 🔐 Security
 
 - **Row Level Security (RLS)**: All database tables use RLS policies
 - **Wallet Signatures**: Content submissions require cryptographic signatures
 - **Admin Roles**: Separate admin role system in smart contracts
 - **Input Validation**: All user inputs are validated and sanitized
+- **Upgrade Authorization**: Only contract owner can upgrade (consider multi-sig)
 
-## 🧪 Testing
+## 🎯 Target Audience
 
-### Test Premium Features
+### Base Creators
+This project is specifically designed for creators in the **Base ecosystem**:
+- Content creators on Base
+- Farcaster users building their presence
+- Base Mini App developers
+- Creators looking for on-chain proof of work
 
-For testing premium features without payment, add your wallet to the whitelist in `src/lib/premium.ts`:
-
-```typescript
-const PREMIUM_WHITELIST: string[] = [
-    '0xYourWalletAddress'.toLowerCase(),
-];
-```
-
-## 📦 Deployment
-
-### Vercel / Netlify
-
-1. Push your code to GitHub
-2. Import the project in Vercel/Netlify
-3. Add environment variables in deployment settings
-4. Deploy!
-
-See [Deployment Guide](./docs/DEPLOYMENT.md) for detailed instructions.
+### Why Base?
+- **Low Gas Fees**: Base L2 offers significantly lower transaction costs
+- **Ethereum Security**: Inherits security from Ethereum mainnet
+- **Growing Ecosystem**: Base is rapidly growing with strong creator support
+- **Farcaster Integration**: Native Farcaster support makes it perfect for social creators
 
 ## 🤝 Contributing
 
 Contributions are welcome! Please read our [Contributing Guide](./docs/CONTRIBUTING.md) first.
+
+Key areas where contributions are especially welcome:
+- Base Mini Apps optimizations
+- Farcaster integration improvements
+- Additional platform support
+- UI/UX enhancements
+- Documentation improvements
 
 ## 📄 License
 
@@ -227,10 +307,11 @@ This project is licensed under the MIT License - see the [LICENSE](./LICENSE) fi
 
 ## 🙏 Acknowledgments
 
-- [OpenZeppelin](https://openzeppelin.com/) for secure smart contract libraries
-- [Base](https://base.org/) for the L2 network
-- [Supabase](https://supabase.com/) for the backend infrastructure
-- [RainbowKit](https://www.rainbowkit.com/) for wallet connection UI
+- [Base](https://base.org/) - For the amazing L2 network and ecosystem
+- [Farcaster](https://farcaster.xyz/) - For the decentralized social protocol
+- [OpenZeppelin](https://openzeppelin.com/) - For secure smart contract libraries
+- [Supabase](https://supabase.com/) - For the backend infrastructure
+- [RainbowKit](https://www.rainbowkit.com/) - For wallet connection UI
 
 ## 📞 Support
 
@@ -239,4 +320,6 @@ This project is licensed under the MIT License - see the [LICENSE](./LICENSE) fi
 
 ---
 
-**Built with ❤️ for creators**
+**Built with ❤️ for Base creators**
+
+*Ready to track your content on-chain? Start building your creator portfolio on Base today!*

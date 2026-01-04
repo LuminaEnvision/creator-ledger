@@ -8,11 +8,9 @@ import { CustomizeProfileForm } from '../components/CustomizeProfileForm';
 import { Link, useNavigate, useSearchParams } from 'react-router-dom';
 import { exportToCSV, exportToPDF } from '../lib/export';
 // Base Account will be used automatically when available - no explicit connection needed per Base guidelines
-import { DynamicNFT } from '../components/DynamicNFT';
-import { ProNFT } from '../components/ProNFT';
+import { PassportDisplay } from '../components/PassportDisplay';
 import { PassportMintButton } from '../components/PassportMintButton';
 import { PortfolioCollections } from '../components/PortfolioCollections';
-import { NFTImageFrame } from '../components/NFTImageFrame';
 import { isPremiumWhitelisted } from '../lib/premium';
 import { OnboardingFlow } from '../components/OnboardingFlow';
 
@@ -37,12 +35,12 @@ export const Dashboard: React.FC = () => {
     // Base Account is used automatically when available
     // Per Base guidelines: "Use Base Account seamlessly for on-chain actions; no upfront connect flow"
     // Wallet connection is triggered when user tries to submit entry (handled by CreateEntryForm)
-    
+
     // Check for refresh parameter and trigger refresh
     useEffect(() => {
         const refreshParam = searchParams.get('refresh');
         const premiumParam = searchParams.get('premium');
-        
+
         if (refreshParam || premiumParam) {
             console.log('🔄 Refresh triggered from URL params:', { refreshParam, premiumParam });
             // Force immediate refresh
@@ -75,19 +73,19 @@ export const Dashboard: React.FC = () => {
                 // Check if subscription is still active (not expired)
                 const now = new Date();
                 const subscriptionEnd = userData.subscription_end ? new Date(userData.subscription_end) : null;
-                
+
                 // Check if subscription is active (not null/undefined, equals true, and not expired)
                 const hasActiveSubscription = userData.subscription_active === true;
                 const isNotExpired = !subscriptionEnd || subscriptionEnd > now;
                 const isActive = hasActiveSubscription && isNotExpired;
-                
+
                 // Premium status: Active subscription OR legacy premium flag (if no subscription system was used)
                 // OR whitelisted for testing
                 const hasSubscription = userData.subscription_active !== null && userData.subscription_active !== undefined;
                 const dbPremiumStatus = isActive || (!hasSubscription && userData.is_premium === true);
                 const isWhitelisted = isPremiumWhitelisted(user.walletAddress);
                 const premiumStatus = dbPremiumStatus || isWhitelisted;
-                
+
                 console.log('Premium check:', {
                     wallet: user.walletAddress.toLowerCase(),
                     subscription_active: userData.subscription_active,
@@ -105,26 +103,26 @@ export const Dashboard: React.FC = () => {
                     currentIsPremium: isPremium,
                     rawData: userData
                 });
-                
+
                 if (isWhitelisted) {
                     console.log('✅ Premium whitelist active for wallet:', user.walletAddress.toLowerCase());
                 }
-                
+
                 setIsPremium(premiumStatus);
-                
+
                 // Force update if premium status changed
                 if (premiumStatus !== isPremium) {
                     console.log('✅ Premium status changed!', { from: isPremium, to: premiumStatus });
                 }
-                
+
                 // Auto-update if subscription expired
                 if (hasActiveSubscription && subscriptionEnd && subscriptionEnd <= now) {
                     console.log('⚠️ Subscription expired, updating database...');
                     await supabase
                         .from('users')
-                        .update({ 
+                        .update({
                             subscription_active: false,
-                            is_premium: false 
+                            is_premium: false
                         })
                         .eq('wallet_address', user.walletAddress.toLowerCase());
                     setIsPremium(false);
@@ -212,7 +210,7 @@ export const Dashboard: React.FC = () => {
                             </Link>
                         </div>
                         <p className="text-xs text-muted-foreground">
-                            No wallet needed to explore. Connect when you're ready to submit.
+                            Connect your wallet to get started. You can connect via the header or use the button below.
                         </p>
                     </div>
                 </div>
@@ -224,7 +222,7 @@ export const Dashboard: React.FC = () => {
                         <div className="flex items-center gap-2 mb-1">
                             <h2 className="text-xl sm:text-2xl font-bold bg-gradient-to-r from-primary via-accent to-primary bg-clip-text text-transparent">
                                 Dashboard
-                        </h2>
+                            </h2>
                             {isPremium && user && (
                                 <span className="px-2 py-0.5 rounded-lg bg-gradient-to-r from-primary to-accent text-[10px] font-black uppercase tracking-wider text-white shadow-lg shadow-primary/30">
                                     PRO
@@ -239,12 +237,12 @@ export const Dashboard: React.FC = () => {
                         </p>
                         {user && (
                             <div className="flex gap-2 mt-3">
-                            <button
+                                <button
                                     onClick={() => setIsEditingProfile(!isEditingProfile)}
                                     className="px-4 py-2 rounded-lg glass-card text-xs font-bold hover:bg-accent/20 transition-all border border-primary/20 text-primary"
                                 >
                                     {isEditingProfile ? 'Cancel' : 'Customize Profile'}
-                            </button>
+                                </button>
                                 {!isPremium && (
                                     <Link
                                         to="/pricing"
@@ -253,11 +251,11 @@ export const Dashboard: React.FC = () => {
                                         GO PRO
                                     </Link>
                                 )}
-                            <button
+                                <button
                                     onClick={async () => {
                                         console.log('🔄 Manual refresh triggered, current isPremium:', isPremium);
                                         console.log('🔄 Current user wallet:', user?.walletAddress);
-                                        
+
                                         // Force immediate database fetch
                                         if (user) {
                                             const { data: userData, error } = await supabase
@@ -265,9 +263,9 @@ export const Dashboard: React.FC = () => {
                                                 .select('is_premium, subscription_active, subscription_end, wallet_address')
                                                 .eq('wallet_address', user.walletAddress.toLowerCase())
                                                 .maybeSingle();
-                                            
+
                                             console.log('🔄 Manual fetch result:', { userData, error });
-                                            
+
                                             if (userData) {
                                                 const now = new Date();
                                                 const subscriptionEnd = userData.subscription_end ? new Date(userData.subscription_end) : null;
@@ -278,19 +276,19 @@ export const Dashboard: React.FC = () => {
                                                 const dbPremiumStatus = isActive || (!hasSubscription && userData.is_premium === true);
                                                 const isWhitelisted = isPremiumWhitelisted(user.walletAddress);
                                                 const premiumStatus = dbPremiumStatus || isWhitelisted;
-                                                
+
                                                 console.log('🔄 Calculated premium status:', { dbPremiumStatus, isWhitelisted, premiumStatus });
                                                 setIsPremium(premiumStatus);
                                             }
                                         }
-                                        
+
                                         setRefreshTrigger(prev => prev + 1);
                                     }}
                                     className="px-3 py-1.5 rounded-lg glass-card text-[10px] font-bold hover:bg-accent/20 transition-all border border-border/50 text-muted-foreground"
                                     title="Refresh premium status and data"
                                 >
                                     🔄
-                            </button>
+                                </button>
                             </div>
                         )}
                         {isEditingProfile && user && (
@@ -306,30 +304,11 @@ export const Dashboard: React.FC = () => {
                 {user?.walletAddress && (
                     <div className="mt-4 border-t border-border/50">
                         <div className="flex flex-col items-center gap-4 py-6">
-                            <div className="text-center">
-                                <p className="text-lg font-black uppercase tracking-wider text-primary mb-1">Your Creator's Passport</p>
-                                <p className="text-sm text-muted-foreground">Onchain proof of your original works</p>
-                            </div>
-                            
-                            {/* NFT - Simple and Centered */}
-                            <div className="flex justify-center">
-                                {isPremium ? (
-                                    <NFTImageFrame isPro={true} noMargin={true}>
-                                        <ProNFT
-                                            size="lg"
-                                            className="w-full h-full"
-                                        />
-                                    </NFTImageFrame>
-                                ) : (
-                                    <DynamicNFT
-                                        key={`${user.walletAddress}-${refreshTrigger}`}
-                                        walletAddress={user.walletAddress}
-                                        size="lg"
-                                        mode="free"
-                                    />
-                                )}
-                            </div>
-                            
+                            <PassportDisplay
+                                walletAddress={user.walletAddress}
+                                isPremium={isPremium}
+                            />
+
                             <PassportMintButton
                                 walletAddress={user.walletAddress}
                                 verifiedEntriesCount={entries.filter(e => e.verification_status === 'Verified').length}
@@ -396,103 +375,103 @@ export const Dashboard: React.FC = () => {
                 <div className="glass-card p-6 sm:p-8 rounded-2xl">
                     <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 mb-6">
                         <div className="flex items-center gap-3">
-                        <div className="w-10 h-10 rounded-lg bg-gradient-to-br from-primary to-accent flex items-center justify-center">
-                            <svg className="w-5 h-5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
-                            </svg>
+                            <div className="w-10 h-10 rounded-lg bg-gradient-to-br from-primary to-accent flex items-center justify-center">
+                                <svg className="w-5 h-5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                                </svg>
+                            </div>
+                            <h3 className="text-xl font-bold">Your Submissions</h3>
                         </div>
-                        <h3 className="text-xl font-bold">Your Submissions</h3>
-                    </div>
-                    {isPremium && (
-                        <div className="flex gap-3">
-                            <button
-                                onClick={() => {
-                                    exportToCSV(entries);
-                                    setTimeout(() => {
-                                        const showInstructions = confirm(
-                                            '📊 CSV Export Complete!\n\n' +
-                                            'Your CSV file has been downloaded. Here\'s how to use it:\n\n' +
-                                            '✨ Quick Tips:\n' +
-                                            '• Import into Google Sheets or Excel\n' +
-                                            '• Use for portfolio templates on Canva, Notion, or Airtable\n' +
-                                            '• Create beautiful media kits with your verified content\n' +
-                                            '• Share with brands and agencies\n\n' +
-                                            'Would you like to see more detailed instructions?'
-                                        );
-                                        if (showInstructions) {
-                                            window.open('https://www.canva.com/templates/', '_blank');
+                        {isPremium && (
+                            <div className="flex gap-3">
+                                <button
+                                    onClick={() => {
+                                        exportToCSV(entries);
+                                        setTimeout(() => {
+                                            const showInstructions = confirm(
+                                                '📊 CSV Export Complete!\n\n' +
+                                                'Your CSV file has been downloaded. Here\'s how to use it:\n\n' +
+                                                '✨ Quick Tips:\n' +
+                                                '• Import into Google Sheets or Excel\n' +
+                                                '• Use for portfolio templates on Canva, Notion, or Airtable\n' +
+                                                '• Create beautiful media kits with your verified content\n' +
+                                                '• Share with brands and agencies\n\n' +
+                                                'Would you like to see more detailed instructions?'
+                                            );
+                                            if (showInstructions) {
+                                                window.open('https://www.canva.com/templates/', '_blank');
+                                            }
+                                        }, 500);
+                                    }}
+                                    disabled={entries.length === 0}
+                                    className="px-5 py-2.5 rounded-xl glass-card hover:bg-accent/20 text-sm font-semibold transition-all disabled:opacity-50 disabled:cursor-not-allowed hover:scale-105 active:scale-95 flex items-center justify-center gap-2"
+                                    title="Export your content data as CSV"
+                                >
+                                    <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                                    </svg>
+                                    <span>Export CSV</span>
+                                </button>
+                                <button
+                                    onClick={async () => {
+                                        try {
+                                            await exportToPDF(entries);
+                                        } catch (error) {
+                                            console.error('PDF export error:', error);
+                                            alert('Error generating PDF. Please try again.');
                                         }
-                                    }, 500);
-                                }}
-                                disabled={entries.length === 0}
-                                className="px-5 py-2.5 rounded-xl glass-card hover:bg-accent/20 text-sm font-semibold transition-all disabled:opacity-50 disabled:cursor-not-allowed hover:scale-105 active:scale-95 flex items-center justify-center gap-2"
-                                title="Export your content data as CSV"
-                            >
-                                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
-                                </svg>
-                                <span>Export CSV</span>
-                            </button>
-                            <button
-                                onClick={async () => {
-                                    try {
-                                        await exportToPDF(entries);
-                                    } catch (error) {
-                                        console.error('PDF export error:', error);
-                                        alert('Error generating PDF. Please try again.');
-                                    }
-                                }}
-                                disabled={entries.length === 0}
-                                className="px-5 py-2.5 rounded-xl glass-card hover:bg-accent/20 text-sm font-semibold transition-all disabled:opacity-50 disabled:cursor-not-allowed hover:scale-105 active:scale-95 flex items-center justify-center gap-2"
-                                title="Export your content as a beautiful PDF portfolio"
-                            >
-                                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 21h10a2 2 0 002-2V9.414a1 1 0 00-.293-.707l-5.414-5.414A1 1 0 0012.586 3H7a2 2 0 00-2 2v14a2 2 0 002 2z" />
-                                </svg>
-                                <span>Export PDF</span>
-                            </button>
-                        </div>
-                    )}
-                    {!isPremium && (
-                        <div className="flex gap-3">
-                            <button
-                                onClick={() => {
-                                    alert('🔒 Premium Feature\n\nExport your content library as CSV or PDF is available for Pro Creators.\n\nUpgrade to Pro to:\n• Export CSV for portfolio templates\n• Generate beautiful PDF portfolios\n• Remove submission fees');
-                                    navigate('/pricing');
-                                }}
-                                className="px-5 py-2.5 rounded-xl glass-card hover:bg-accent/20 text-sm font-semibold transition-all hover:scale-105 active:scale-95 flex items-center justify-center gap-2 relative group"
-                                title="Premium feature - Upgrade to unlock"
-                            >
-                                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
-                                </svg>
-                                <span>Export CSV</span>
-                                <svg className="w-3 h-3 ml-1 text-primary" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" />
-                                </svg>
-                            </button>
-                            <button
-                                onClick={() => {
-                                    alert('🔒 Premium Feature\n\nExport your content library as CSV or PDF is available for Pro Creators.\n\nUpgrade to Pro to:\n• Export CSV for portfolio templates\n• Generate beautiful PDF portfolios\n• Remove submission fees');
-                                    navigate('/pricing');
-                                }}
-                                className="px-5 py-2.5 rounded-xl glass-card hover:bg-accent/20 text-sm font-semibold transition-all hover:scale-105 active:scale-95 flex items-center justify-center gap-2 relative group"
-                                title="Premium feature - Upgrade to unlock"
-                            >
-                                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 21h10a2 2 0 002-2V9.414a1 1 0 00-.293-.707l-5.414-5.414A1 1 0 0012.586 3H7a2 2 0 00-2 2v14a2 2 0 002 2z" />
-                                </svg>
-                                <span>Export PDF</span>
-                                <svg className="w-3 h-3 ml-1 text-primary" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" />
-                                </svg>
-                            </button>
-                        </div>
-                    )}
-                </div>
-                    <EntryList 
-                        entries={entries} 
-                        isLoading={isLoading} 
+                                    }}
+                                    disabled={entries.length === 0}
+                                    className="px-5 py-2.5 rounded-xl glass-card hover:bg-accent/20 text-sm font-semibold transition-all disabled:opacity-50 disabled:cursor-not-allowed hover:scale-105 active:scale-95 flex items-center justify-center gap-2"
+                                    title="Export your content as a beautiful PDF portfolio"
+                                >
+                                    <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 21h10a2 2 0 002-2V9.414a1 1 0 00-.293-.707l-5.414-5.414A1 1 0 0012.586 3H7a2 2 0 00-2 2v14a2 2 0 002 2z" />
+                                    </svg>
+                                    <span>Export PDF</span>
+                                </button>
+                            </div>
+                        )}
+                        {!isPremium && (
+                            <div className="flex gap-3">
+                                <button
+                                    onClick={() => {
+                                        alert('🔒 Premium Feature\n\nExport your content library as CSV or PDF is available for Pro Creators.\n\nUpgrade to Pro to:\n• Export CSV for portfolio templates\n• Generate beautiful PDF portfolios\n• Remove submission fees');
+                                        navigate('/pricing');
+                                    }}
+                                    className="px-5 py-2.5 rounded-xl glass-card hover:bg-accent/20 text-sm font-semibold transition-all hover:scale-105 active:scale-95 flex items-center justify-center gap-2 relative group"
+                                    title="Premium feature - Upgrade to unlock"
+                                >
+                                    <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                                    </svg>
+                                    <span>Export CSV</span>
+                                    <svg className="w-3 h-3 ml-1 text-primary" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" />
+                                    </svg>
+                                </button>
+                                <button
+                                    onClick={() => {
+                                        alert('🔒 Premium Feature\n\nExport your content library as CSV or PDF is available for Pro Creators.\n\nUpgrade to Pro to:\n• Export CSV for portfolio templates\n• Generate beautiful PDF portfolios\n• Remove submission fees');
+                                        navigate('/pricing');
+                                    }}
+                                    className="px-5 py-2.5 rounded-xl glass-card hover:bg-accent/20 text-sm font-semibold transition-all hover:scale-105 active:scale-95 flex items-center justify-center gap-2 relative group"
+                                    title="Premium feature - Upgrade to unlock"
+                                >
+                                    <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 21h10a2 2 0 002-2V9.414a1 1 0 00-.293-.707l-5.414-5.414A1 1 0 0012.586 3H7a2 2 0 00-2 2v14a2 2 0 002 2z" />
+                                    </svg>
+                                    <span>Export PDF</span>
+                                    <svg className="w-3 h-3 ml-1 text-primary" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" />
+                                    </svg>
+                                </button>
+                            </div>
+                        )}
+                    </div>
+                    <EntryList
+                        entries={entries}
+                        isLoading={isLoading}
                         isPremium={isPremium}
                         currentWalletAddress={user?.walletAddress}
                         onEntryUpdated={() => setRefreshTrigger(prev => prev + 1)}

@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { Modal } from './Modal';
 import { useWriteContract, useAccount, useSwitchChain } from 'wagmi';
-import { baseSepolia } from 'wagmi/chains';
+import { base } from 'wagmi/chains';
 import { parseEther } from 'viem';
 import { waitForTransactionReceipt } from 'wagmi/actions';
 import { PASSPORT_CONTRACT_ADDRESS, PASSPORT_ABI } from '../lib/contracts';
@@ -30,6 +30,7 @@ export const OnChainUpgradeModal: React.FC<OnChainUpgradeModalProps> = ({
     const { switchChainAsync } = useSwitchChain();
     const [isProcessing, setIsProcessing] = useState(false);
     const [status, setStatus] = useState<'idle' | 'switching' | 'processing'>('idle');
+    const CONTENT_REGISTRATION_FEE = parseEther('0.0001'); // 0.0001 ETH per entry
     
     const handleUpgrade = async () => {
         if (!contentHash || !url) {
@@ -39,17 +40,17 @@ export const OnChainUpgradeModal: React.FC<OnChainUpgradeModalProps> = ({
 
         setIsProcessing(true);
         try {
-            // Step 1: Switch to Base Sepolia if needed
-            if (chain?.id !== baseSepolia.id && switchChainAsync) {
+            // Step 1: Switch to Base mainnet if needed
+            if (chain?.id !== base.id && switchChainAsync) {
                 setStatus('switching');
-                showToast('Switching to Base Sepolia network...', 'info');
+                showToast('Switching to Base network...', 'info');
                 try {
-                    await switchChainAsync({ chainId: baseSepolia.id });
+                    await switchChainAsync({ chainId: base.id });
                     // Wait a bit for chain switch to complete
                     await new Promise(resolve => setTimeout(resolve, 1000));
                 } catch (switchError: any) {
                     if (switchError.code === 4001) { // User rejected
-                        showToast('Please switch to Base Sepolia network to continue.', 'warning');
+                        showToast('Please switch to Base network to continue.', 'warning');
                         setIsProcessing(false);
                         setStatus('idle');
                         return;
@@ -77,14 +78,13 @@ export const OnChainUpgradeModal: React.FC<OnChainUpgradeModalProps> = ({
                 abi: PASSPORT_ABI,
                 functionName: 'registerContentHash',
                 args: [contentHashBytes, url],
-                value: parseEther('0.0001'), // 0.0001 ETH fee
-                chainId: baseSepolia.id,
+                value: CONTENT_REGISTRATION_FEE,
+                chainId: base.id,
             });
 
             showToast('Transaction submitted! Waiting for confirmation...', 'info');
 
             // Wait for transaction receipt using wagmi
-            // The hash is already the transaction hash, and we've ensured the chain is correct before calling writeContractAsync
             await waitForTransactionReceipt(config, {
                 hash: hash,
                 timeout: 60000
@@ -123,7 +123,7 @@ export const OnChainUpgradeModal: React.FC<OnChainUpgradeModalProps> = ({
                 showToast(errorMessage, 'warning');
                 shouldClose = true; // Close if already registered
             } else if (err.message?.includes('chain') || err.message?.includes('network') || err.message?.includes('Wrong chain')) {
-                errorMessage = 'Wrong network detected. Please switch to Base Sepolia and try again.';
+                errorMessage = 'Wrong network detected. Please switch to Base and try again.';
                 showToast(errorMessage, 'error');
                 // Don't close on wrong chain - let user switch and retry
             } else {
@@ -199,11 +199,13 @@ export const OnChainUpgradeModal: React.FC<OnChainUpgradeModalProps> = ({
                     <div className="flex items-center justify-between">
                         <div>
                             <p className="font-bold text-foreground">Upgrade Fee</p>
-                            <p className="text-sm text-muted-foreground">One-time payment per entry</p>
+                            <p className="text-sm text-muted-foreground">
+                                One-time payment per entry
+                            </p>
                         </div>
                         <div className="text-right">
                             <p className="text-2xl font-black text-primary">0.0001 ETH</p>
-                            <p className="text-xs text-muted-foreground">Price varies with ETH</p>
+                            <p className="text-xs text-muted-foreground">Plus network gas fees</p>
                         </div>
                     </div>
                 </div>
@@ -255,4 +257,3 @@ export const OnChainUpgradeModal: React.FC<OnChainUpgradeModalProps> = ({
         </Modal>
     );
 };
-

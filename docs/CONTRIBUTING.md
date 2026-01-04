@@ -132,7 +132,7 @@ How was this tested?
 If contributing smart contract changes:
 
 1. **Test Locally**: Use Hardhat local network
-2. **Test on Testnet**: Deploy to Base Sepolia
+2. **Test on Testnet** (Optional): Deploy to Base Sepolia for testing
 3. **Gas Optimization**: Optimize gas usage
 4. **Security Review**: Consider security implications
 5. **Documentation**: Update contract docs

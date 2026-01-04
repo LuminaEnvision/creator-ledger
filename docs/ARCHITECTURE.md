@@ -70,7 +70,7 @@ Creator Ledger is a full-stack Web3 application that combines traditional web te
 - `incrementEntryCountBy(uint256)` - Batch upgrades
 - `addAdmin(address)` - Owner-only admin management
 
-**Network**: Base Sepolia (testnet) / Base (mainnet)
+**Network**: Base (mainnet)
 
 ### 4. Wallet Integration
 
@@ -248,7 +248,7 @@ useWriteContract({
 
 ### Smart Contract Deployment
 
-- **Network**: Base Sepolia (testnet) / Base (mainnet)
+- **Network**: Base (mainnet)
 - **Tool**: Hardhat
 - **Verification**: Contract verification on BaseScan
 - **Management**: Admin scripts for role management

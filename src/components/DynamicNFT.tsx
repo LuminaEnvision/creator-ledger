@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useReadContract } from 'wagmi';
-import { baseSepolia } from 'wagmi/chains';
+import { base } from 'wagmi/chains';
 import { PASSPORT_CONTRACT_ADDRESS, PASSPORT_ABI } from '../lib/contracts';
 
 interface DynamicNFTProps {
@@ -25,7 +25,7 @@ export const DynamicNFT: React.FC<DynamicNFTProps> = ({
         abi: PASSPORT_ABI,
         functionName: 'addressToTokenId',
         args: walletAddress ? [walletAddress.toLowerCase() as `0x${string}`] : undefined,
-        chainId: baseSepolia.id, // Explicitly specify Base Sepolia
+        chainId: base.id, // Explicitly specify Base
         query: {
             enabled: !!walletAddress && walletAddress.startsWith('0x'),
             retry: 2,
@@ -83,7 +83,7 @@ export const DynamicNFT: React.FC<DynamicNFTProps> = ({
         abi: PASSPORT_ABI,
         functionName: 'tokenURI',
         args: tokenId && tokenId > 0n ? [tokenId] : undefined,
-        chainId: baseSepolia.id, // Explicitly specify Base Sepolia
+        chainId: base.id, // Explicitly specify Base
         query: {
             enabled: !!tokenId && tokenId > 0n, // Only fetch if tokenId is valid
             retry: 2,

@@ -7,8 +7,9 @@ import { useConnectModal } from '@rainbow-me/rainbowkit';
 import { useNavigate } from 'react-router-dom';
 import { useAccount } from 'wagmi';
 import { isAddress, getAddress } from 'viem';
-import { DynamicNFT } from '../components/DynamicNFT';
-import { ProNFT } from '../components/ProNFT';
+
+import { FreePassport } from '../components/passports/FreePassport';
+import { PremiumPassport } from '../components/passports/PremiumPassport';
 import { NFTImageFrame } from '../components/NFTImageFrame';
 import { isPremiumWhitelisted } from '../lib/premium';
 
@@ -33,14 +34,14 @@ export const Pricing: React.FC = () => {
                 .select('is_premium, subscription_active, subscription_end')
                 .eq('wallet_address', user.walletAddress.toLowerCase())
                 .single();
-            
+
             if (data) {
                 // Check if subscription is still active (not expired)
                 const now = new Date();
                 const subscriptionEnd = data.subscription_end ? new Date(data.subscription_end) : null;
-                const isActive = data.subscription_active === true && 
+                const isActive = data.subscription_active === true &&
                     (!subscriptionEnd || subscriptionEnd > now);
-                
+
                 // Premium status: Active subscription takes priority over legacy flag
                 // If subscription exists but is expired, user is NOT premium (even if legacy flag is true)
                 // Legacy flag only grants premium if no subscription system was ever used
@@ -50,22 +51,22 @@ export const Pricing: React.FC = () => {
                 const isWhitelisted = user ? isPremiumWhitelisted(user.walletAddress) : false;
                 const premiumStatus = dbPremiumStatus || isWhitelisted;
                 setIsPremium(premiumStatus);
-                
+
                 if (isWhitelisted) {
                     console.log('✅ Premium whitelist active for wallet:', user?.walletAddress.toLowerCase());
                 }
-                
+
                 if (subscriptionEnd) {
                     setSubscriptionEnd(subscriptionEnd);
                 }
-                
+
                 // Auto-update if subscription expired
                 if (data.subscription_active && subscriptionEnd && subscriptionEnd <= now) {
                     await supabase
                         .from('users')
-                        .update({ 
+                        .update({
                             subscription_active: false,
-                            is_premium: false 
+                            is_premium: false
                         })
                         .eq('wallet_address', user.walletAddress.toLowerCase());
                     setIsPremium(false);
@@ -99,7 +100,7 @@ export const Pricing: React.FC = () => {
             subscriptionEnd.setMonth(subscriptionEnd.getMonth() + 1);
 
             const walletAddress = user.walletAddress.toLowerCase();
-            
+
             // First, check if user exists, if not create them
             const { data: existingUser } = await supabase
                 .from('users')
@@ -112,7 +113,7 @@ export const Pricing: React.FC = () => {
                 const { error: createError } = await supabase
                     .from('users')
                     .insert([{ wallet_address: walletAddress }]);
-                
+
                 if (createError) {
                     console.error('Error creating user:', createError);
                     throw new Error('Failed to create user: ' + createError.message);
@@ -122,7 +123,7 @@ export const Pricing: React.FC = () => {
             // Update user premium status and subscription in database (bypass payment for testing)
             const { data: updatedUser, error } = await supabase
                 .from('users')
-                .update({ 
+                .update({
                     is_premium: true,
                     subscription_active: true,
                     subscription_start: now.toISOString(),
@@ -150,26 +151,26 @@ export const Pricing: React.FC = () => {
             });
 
             setIsPremium(true);
-            
+
             // Wait longer for database to commit and propagate
             await new Promise(resolve => setTimeout(resolve, 2500));
-            
+
             // Verify the update worked by fetching again
             const { data: verifyUser } = await supabase
                 .from('users')
                 .select('is_premium, subscription_active, subscription_end')
                 .eq('wallet_address', walletAddress)
                 .single();
-            
+
             console.log('🔍 Verification fetch:', verifyUser);
-            
+
             if (!verifyUser || verifyUser.subscription_active !== true) {
                 console.error('❌ Verification failed! User data:', verifyUser);
                 alert('⚠️ Warning: Premium activation may not have saved correctly. Please refresh the page manually.');
             }
-            
+
             alert(`✅ Test mode: Premium subscription activated until ${subscriptionEnd.toLocaleDateString()}! (No payment required)\n\nRedirecting to Dashboard...`);
-            
+
             // Navigate to dashboard with refresh parameters (stays in-app)
             navigate('/?refresh=' + Date.now() + '&premium=' + Date.now());
         } catch (err: any) {
@@ -189,7 +190,7 @@ export const Pricing: React.FC = () => {
         // Operations address - same as the one receiving submission fees
         // This address receives both submission fees (from free users) and subscription payments
         const OPERATIONS_ADDRESS = '0x7eB8F203167dF3bC14D59536E671528dd97FB72a' as `0x${string}`;
-        
+
         // Validate and format the operations address
         let formattedTreasuryAddress: `0x${string}`;
         try {
@@ -224,7 +225,7 @@ export const Pricing: React.FC = () => {
                 // Update user premium status and subscription in database
                 const { error } = await supabase
                     .from('users')
-                    .update({ 
+                    .update({
                         is_premium: true,
                         subscription_active: true,
                         subscription_start: now.toISOString(),
@@ -251,117 +252,117 @@ export const Pricing: React.FC = () => {
 
     const TierCard = ({ title, price, features, isPro, isActive, image, nftComponent, subscriptionEndDate }: { title: string, price: string, features: string[], isPro?: boolean, isActive?: boolean, image?: string, nftComponent?: React.ReactNode, subscriptionEndDate?: Date | null }) => {
         return (
-        <div className={`relative glass-card p-8 rounded-3xl flex flex-col h-full border-2 transition-all duration-500 ${isPro ? 'border-primary shadow-[0_0_40px_rgba(var(--primary-rgb),0.2)] z-10' : 'border-border/50 hover:border-primary/30'}`}>
+            <div className={`relative glass-card p-8 rounded-3xl flex flex-col h-full border-2 transition-all duration-500 ${isPro ? 'border-primary shadow-[0_0_40px_rgba(var(--primary-rgb),0.2)] z-10' : 'border-border/50 hover:border-primary/30'}`}>
 
-            <div className="mb-8 min-h-[96px] flex flex-col justify-end">
-                <h3 className="text-xl font-bold uppercase tracking-tighter">
-                    {title}
-                </h3>
+                <div className="mb-8 min-h-[96px] flex flex-col justify-end">
+                    <h3 className="text-xl font-bold uppercase tracking-tighter">
+                        {title}
+                    </h3>
 
-                <div className="flex items-baseline gap-1 h-[40px]">
-                    <span className="text-4xl font-black leading-none">
-                        {price}
-                    </span>
+                    <div className="flex items-baseline gap-1 h-[40px]">
+                        <span className="text-4xl font-black leading-none">
+                            {price}
+                        </span>
 
-                    {/* RESERVED SLOT - always takes space for alignment */}
-                    <span className="text-muted-foreground text-sm w-[60px]">
-                        {price !== 'Free' ? '/month' : ''}
-                    </span>
-                </div>
-            </div>
-
-            <NFTImageFrame isPro={isPro}>
-                {nftComponent ? (
-                    <div className="w-full h-full flex items-center justify-center">
-                        {nftComponent}
+                        {/* RESERVED SLOT - always takes space for alignment */}
+                        <span className="text-muted-foreground text-sm w-[60px]">
+                            {price !== 'Free' ? '/month' : ''}
+                        </span>
                     </div>
-                ) : image ? (
-                    <img
-                        src={image}
-                        alt={`${title} NFT`}
-                        className="w-full h-full object-cover"
-                    />
-                ) : null}
-            </NFTImageFrame>
+                </div>
 
-            <ul className="space-y-4 mb-10 flex-1">
-                {features.map((feature, i) => (
-                    <li key={i} className="flex items-start gap-3 text-sm">
-                        <svg className={`w-5 h-5 mt-0.5 shrink-0 ${isPro ? 'text-primary' : 'text-muted-foreground'}`} fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
-                        </svg>
-                        <span className={isPro ? 'text-foreground font-medium' : 'text-muted-foreground'}>{feature}</span>
-                    </li>
-                ))}
-            </ul>
+                <NFTImageFrame isPro={isPro}>
+                    {nftComponent ? (
+                        <div className="w-full h-full flex items-center justify-center">
+                            {nftComponent}
+                        </div>
+                    ) : image ? (
+                        <img
+                            src={image}
+                            alt={`${title} NFT`}
+                            className="w-full h-full object-cover"
+                        />
+                    ) : null}
+                </NFTImageFrame>
 
-            {isActive ? (
-                <div className="w-full space-y-2">
-                    <div className="w-full py-4 rounded-2xl bg-green-500/10 border border-green-500/20 text-green-500 text-center">
-                        <div className="font-bold text-sm mb-1">Current Plan</div>
-                        {subscriptionEndDate && isPro && (
-                            <div className="text-xs text-green-600 dark:text-green-400">
-                                Renews {subscriptionEndDate.toLocaleDateString()}
+                <ul className="space-y-4 mb-10 flex-1">
+                    {features.map((feature, i) => (
+                        <li key={i} className="flex items-start gap-3 text-sm">
+                            <svg className={`w-5 h-5 mt-0.5 shrink-0 ${isPro ? 'text-primary' : 'text-muted-foreground'}`} fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+                            </svg>
+                            <span className={isPro ? 'text-foreground font-medium' : 'text-muted-foreground'}>{feature}</span>
+                        </li>
+                    ))}
+                </ul>
+
+                {isActive ? (
+                    <div className="w-full space-y-2">
+                        <div className="w-full py-4 rounded-2xl bg-green-500/10 border border-green-500/20 text-green-500 text-center">
+                            <div className="font-bold text-sm mb-1">Current Plan</div>
+                            {subscriptionEndDate && isPro && (
+                                <div className="text-xs text-green-600 dark:text-green-400">
+                                    Renews {subscriptionEndDate.toLocaleDateString()}
+                                </div>
+                            )}
+                        </div>
+                        {isPro ? (
+                            <button
+                                onClick={handleUpgrade}
+                                disabled={isProcessing}
+                                className="w-full py-2 rounded-xl bg-primary/10 hover:bg-primary/20 border border-primary/30 text-primary text-xs font-bold uppercase tracking-wider transition-all disabled:opacity-50"
+                            >
+                                {isProcessing ? 'Processing...' : 'Renew Subscription'}
+                            </button>
+                        ) : (
+                            <div className="w-full py-2 rounded-xl bg-secondary/50 text-muted-foreground text-xs font-bold uppercase tracking-wider text-center">
+                                Free Plan Active
                             </div>
                         )}
                     </div>
-                    {isPro ? (
-                        <button
-                            onClick={handleUpgrade}
-                            disabled={isProcessing}
-                            className="w-full py-2 rounded-xl bg-primary/10 hover:bg-primary/20 border border-primary/30 text-primary text-xs font-bold uppercase tracking-wider transition-all disabled:opacity-50"
-                        >
-                            {isProcessing ? 'Processing...' : 'Renew Subscription'}
-                        </button>
-                    ) : (
-                        <div className="w-full py-2 rounded-xl bg-secondary/50 text-muted-foreground text-xs font-bold uppercase tracking-wider text-center">
-                            Free Plan Active
-                        </div>
-                    )}
-                </div>
-            ) : isPro ? (
-                <div className="w-full space-y-2">
-                    {/* Test Mode Button - Only show in development */}
-                    {(import.meta.env.DEV || import.meta.env.VITE_ENABLE_TEST_MODE === 'true') && (
-                        <button
-                            onClick={handleTestPremium}
-                            disabled={isProcessing}
-                            className="w-full py-2 rounded-xl bg-yellow-500/10 hover:bg-yellow-500/20 border border-yellow-500/30 text-yellow-600 dark:text-yellow-400 text-xs font-bold uppercase tracking-wider transition-all disabled:opacity-50 disabled:cursor-not-allowed"
-                        >
-                            🧪 Test Premium (No Payment)
-                        </button>
-                    )}
-                    {!isConnected ? (
-                        <button
-                            onClick={() => openConnectModal?.()}
-                            className="w-full py-4 rounded-2xl bg-primary hover:bg-primary/90 text-white font-black uppercase tracking-widest transition-all disabled:opacity-50 disabled:cursor-not-allowed"
-                        >
-                            Connect Wallet to Upgrade
-                        </button>
-                    ) : (
-                        <div>
-                            {isProcessing ? (
-                                <div className="w-full py-4 rounded-2xl bg-primary/50 text-white font-black uppercase tracking-widest text-center cursor-not-allowed">
-                                    Processing payment...
-                                </div>
-                            ) : (
-                                <BasePayButton
-                                    colorScheme="dark"
-                                    onClick={handleUpgrade}
-                                />
-                            )}
-                        </div>
-                    )}
-                </div>
-            ) : (
-                <button
-                    disabled
-                    className="w-full py-4 rounded-2xl bg-secondary text-muted-foreground font-bold text-sm cursor-not-allowed uppercase tracking-wider"
-                >
-                    Already Active
-                </button>
-            )}
-        </div>
+                ) : isPro ? (
+                    <div className="w-full space-y-2">
+                        {/* Test Mode Button - Only show in development */}
+                        {(import.meta.env.DEV || import.meta.env.VITE_ENABLE_TEST_MODE === 'true') && (
+                            <button
+                                onClick={handleTestPremium}
+                                disabled={isProcessing}
+                                className="w-full py-2 rounded-xl bg-yellow-500/10 hover:bg-yellow-500/20 border border-yellow-500/30 text-yellow-600 dark:text-yellow-400 text-xs font-bold uppercase tracking-wider transition-all disabled:opacity-50 disabled:cursor-not-allowed"
+                            >
+                                🧪 Test Premium (No Payment)
+                            </button>
+                        )}
+                        {!isConnected ? (
+                            <button
+                                onClick={() => openConnectModal?.()}
+                                className="w-full py-4 rounded-2xl bg-primary hover:bg-primary/90 text-white font-black uppercase tracking-widest transition-all disabled:opacity-50 disabled:cursor-not-allowed"
+                            >
+                                Connect Wallet to Upgrade
+                            </button>
+                        ) : (
+                            <div>
+                                {isProcessing ? (
+                                    <div className="w-full py-4 rounded-2xl bg-primary/50 text-white font-black uppercase tracking-widest text-center cursor-not-allowed">
+                                        Processing payment...
+                                    </div>
+                                ) : (
+                                    <BasePayButton
+                                        colorScheme="dark"
+                                        onClick={handleUpgrade}
+                                    />
+                                )}
+                            </div>
+                        )}
+                    </div>
+                ) : (
+                    <button
+                        disabled
+                        className="w-full py-4 rounded-2xl bg-secondary text-muted-foreground font-bold text-sm cursor-not-allowed uppercase tracking-wider"
+                    >
+                        Already Active
+                    </button>
+                )}
+            </div>
         );
     };
 
@@ -383,10 +384,11 @@ export const Pricing: React.FC = () => {
                     price="Free"
                     isActive={!isPremium && !!user}
                     nftComponent={
-                        <DynamicNFT 
-                            walletAddress={user?.walletAddress || '0x520e40e346ea85d72661fce3ba3f81cb2c560d84'}
+                        <FreePassport
+                            walletAddress={user?.walletAddress || '0x520...c560'}
+                            entryCount={12}
                             size="lg"
-                            className="w-full h-full"
+                            className="w-full h-full transform scale-90"
                         />
                     }
                     subscriptionEndDate={null}
@@ -404,9 +406,12 @@ export const Pricing: React.FC = () => {
                     isPro={true}
                     isActive={isPremium}
                     nftComponent={
-                        <ProNFT 
+                        <PremiumPassport
+                            walletAddress={user?.walletAddress || '0x520...c560'}
+                            entryCount={248}
+                            username="YOU"
                             size="lg"
-                            className="w-full h-full"
+                            className="w-full h-full transform scale-90"
                         />
                     }
                     subscriptionEndDate={subscriptionEnd}
@@ -429,7 +434,7 @@ export const Pricing: React.FC = () => {
                         <h2 className="text-2xl font-bold uppercase tracking-tight">Need a Custom Solution?</h2>
                         <p className="text-slate-400 font-medium">For agencies managing 10+ creators, we offer enterprise pricing and bulk verification.</p>
                     </div>
-                    <a 
+                    <a
                         href="mailto:crtrledger@gmail.com?subject=Enterprise Pricing Inquiry"
                         className="px-8 py-4 bg-foreground text-background rounded-2xl font-black uppercase tracking-widest hover:scale-105 active:scale-95 transition-all inline-block text-center"
                     >

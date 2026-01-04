@@ -61,7 +61,7 @@ export const TermsOfService: React.FC = () => {
                         <div className="mt-4 p-4 bg-primary/5 border border-primary/20 rounded-lg">
                             <p className="font-semibold text-foreground mb-2">Onchain Verification (Optional)</p>
                             <p className="text-sm">
-                                After verification, you can optionally upgrade entries to onchain storage for 0.0001 ETH. 
+                                After verification, you can optionally upgrade entries to onchain storage for 0.0001 ETH (plus network gas fees). 
                                 This registers your content hash on the Base blockchain, providing:
                             </p>
                             <ul className="list-disc list-inside space-y-1 ml-4 mt-2 text-sm">
@@ -82,7 +82,7 @@ export const TermsOfService: React.FC = () => {
                             <h3 className="text-lg font-semibold mb-2 text-foreground">Where Your Data is Stored</h3>
                             <ul className="list-disc list-inside space-y-1 ml-4">
                                 <li><strong>Database:</strong> Supabase (PostgreSQL) - hosted on secure cloud infrastructure</li>
-                                <li><strong>Blockchain:</strong> Base Sepolia (testnet) / Base (mainnet) - NFT metadata and entry counts stored onchain</li>
+                                <li><strong>Blockchain:</strong> Base (mainnet) - NFT metadata and entry counts stored onchain</li>
                                 <li><strong>Content URLs:</strong> Only links are stored, not the actual content files</li>
                             </ul>
                         </div>
@@ -173,12 +173,11 @@ export const TermsOfService: React.FC = () => {
                         <div>
                             <h3 className="text-lg font-semibold mb-2 text-foreground">Free Tier</h3>
                             <ul className="list-disc list-inside space-y-1 ml-4">
-                                <li>Pay 0.00025 ETH per entry submission to cover operations costs (plus network gas fees)</li>
-                                <li>Operations fee goes to: <code className="bg-muted px-1.5 py-0.5 rounded text-xs">0x7eB8F203167dF3bC14D59536E671528dd97FB72a</code></li>
+                                <li>0.00025 ETH per entry submission to cover on-chain verification costs (plus network gas fees)</li>
                                 <li>Basic profile customization (display name, bio)</li>
                                 <li>URL-based image links only (no file uploads)</li>
                                 <li>Export features not available</li>
-                                <li>Optional onchain upgrade: 0.0001 ETH per entry to register content hash onchain on Base (provides stronger proof with transaction hash)</li>
+                                <li>Optional onchain upgrade: 0.0001 ETH per entry to register content hash onchain on Base (plus network gas fees)</li>
                             </ul>
                         </div>
                         <div>
@@ -197,7 +196,7 @@ export const TermsOfService: React.FC = () => {
                                 <li><strong className="text-foreground">Export features</strong> - Download your ledger as CSV or PDF</li>
                                 <li><strong className="text-foreground">Pro NFT styling</strong> - Enhanced Creator's Passport NFT display</li>
                                 <li><strong className="text-foreground">Premium UI elements</strong> - Access to all premium features</li>
-                                <li><strong className="text-foreground">Onchain upgrades included</strong> - No additional fee for onchain content hash registration (normally 0.0001 ETH per entry)</li>
+                                <li><strong className="text-foreground">No submission fees</strong> - Unlimited entry submissions without per-entry charges</li>
                             </ul>
                             <p className="mt-3 text-xs italic">Subscriptions are managed through Base Pay. Payment is required monthly to maintain Pro status. You can cancel or renew at any time from the Pricing page.</p>
                         </div>

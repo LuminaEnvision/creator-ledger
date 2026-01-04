@@ -1,19 +1,28 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { ConnectButton } from '@rainbow-me/rainbowkit';
 import { useFarcaster } from '../context/FarcasterContext';
 import { getEnvironment } from '../lib/environment';
 import { useAccount } from 'wagmi';
 
 export const WalletConnect: React.FC = () => {
-    const { isAvailable: isFarcasterAvailable, user: farcasterUser } = useFarcaster();
-    const { isConnected, address } = useAccount();
+    const { isAvailable: isFarcasterAvailable, user: farcasterUser, connectWallet: farcasterConnectWallet, isLoading: farcasterLoading } = useFarcaster();
+    const { isConnected } = useAccount();
     const env = getEnvironment();
+    const [isConnecting, setIsConnecting] = useState(false);
 
-    // Only show wallet connect if user is already connected
-    // Per Base guidelines: "Do not show a connect button on first load"
-    // Wallet connection should be triggered when needed (e.g., submitting entry)
+    const handleFarcasterConnect = async () => {
+        if (!farcasterConnectWallet) return;
+        setIsConnecting(true);
+        try {
+            await farcasterConnectWallet();
+        } catch (err) {
+            console.error('Failed to connect wallet:', err);
+        } finally {
+            setIsConnecting(false);
+        }
+    };
 
-    // Show user info if available in current environment
+    // In Farcaster environment: show profile and connect button when disconnected
     if (env.isFarcaster && isFarcasterAvailable && farcasterUser) {
         return (
             <div className="flex items-center gap-3">
@@ -27,8 +36,16 @@ export const WalletConnect: React.FC = () => {
                 <span className="text-sm font-medium hidden sm:inline">
                     {farcasterUser.displayName || farcasterUser.username || 'User'}
                 </span>
-                {/* Only show connect if not connected - but this should be rare on first load */}
-                {!isConnected && address && (
+                {/* Show connect button when disconnected */}
+                {!isConnected ? (
+                    <button
+                        onClick={handleFarcasterConnect}
+                        disabled={isConnecting || farcasterLoading}
+                        className="px-4 py-2 rounded-lg bg-primary hover:bg-primary/90 text-white text-sm font-medium transition-all disabled:opacity-50 disabled:cursor-not-allowed"
+                    >
+                        {isConnecting || farcasterLoading ? 'Connecting...' : 'Connect Wallet'}
+                    </button>
+                ) : (
                     <ConnectButton
                         showBalance={false}
                         chainStatus="icon"
@@ -42,22 +59,15 @@ export const WalletConnect: React.FC = () => {
         );
     }
 
-    // Only show connect button if already connected (for account management)
-    // Or if user explicitly needs to connect (handled by CreateEntryForm)
-    if (isConnected || address) {
-        return (
-            <ConnectButton
-                showBalance={false}
-                chainStatus="icon"
-                accountStatus={{
-                    smallScreen: 'avatar',
-                    largeScreen: 'full',
-                }}
-            />
-        );
-    }
-
-    // Don't show connect button on first load per Base guidelines
-    // Connection will be prompted when user tries to submit entry
-    return null;
+    // For non-Farcaster environments: always show ConnectButton
+    return (
+        <ConnectButton
+            showBalance={false}
+            chainStatus="icon"
+            accountStatus={{
+                smallScreen: 'avatar',
+                largeScreen: 'full',
+            }}
+        />
+    );
 };

@@ -206,7 +206,7 @@ export const EntryList: React.FC<EntryListProps> = ({
                                 {/* Transaction Link - If available */}
                                 {(entry as any).tx_hash && (
                                     <a
-                                        href={`https://sepolia.basescan.org/tx/${(entry as any).tx_hash}`}
+                                        href={`https://basescan.org/tx/${(entry as any).tx_hash}`}
                                         target="_blank"
                                         rel="noopener noreferrer"
                                         className="flex items-center gap-1.5 text-[10px] text-primary hover:text-primary/80 transition-colors group/tx"
