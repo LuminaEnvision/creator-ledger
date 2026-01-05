@@ -152,7 +152,7 @@ export const OnChainUpgradeModal: React.FC<OnChainUpgradeModalProps> = ({
         >
             <div className="space-y-6">
                 {/* Benefits Section */}
-                <div className="p-6 rounded-xl bg-primary/5 border border-primary/20">
+                <div className="p-6 rounded-xl bg-background/95 backdrop-blur-sm border border-primary/30 shadow-lg">
                     <h3 className="text-lg font-bold mb-4 text-foreground">Why Upgrade to Onchain Storage?</h3>
                     <div className="space-y-3">
                         <div className="flex items-start gap-3">
@@ -161,7 +161,7 @@ export const OnChainUpgradeModal: React.FC<OnChainUpgradeModalProps> = ({
                             </svg>
                             <div>
                                 <p className="font-semibold text-foreground">Immutable Timestamp</p>
-                                <p className="text-sm text-muted-foreground">Your claim is permanently recorded on the blockchain with a verifiable timestamp that cannot be altered.</p>
+                                <p className="text-sm text-foreground/80">Your claim is permanently recorded on the blockchain with a verifiable timestamp that cannot be altered.</p>
                             </div>
                         </div>
                         <div className="flex items-start gap-3">
@@ -170,7 +170,7 @@ export const OnChainUpgradeModal: React.FC<OnChainUpgradeModalProps> = ({
                             </svg>
                             <div>
                                 <p className="font-semibold text-foreground">Prevent Duplicate Claims</p>
-                                <p className="text-sm text-muted-foreground">Once registered onchain, no one else can claim the same content, protecting your ownership across the entire network.</p>
+                                <p className="text-sm text-foreground/80">Once registered onchain, no one else can claim the same content, protecting your ownership across the entire network.</p>
                             </div>
                         </div>
                         <div className="flex items-start gap-3">
@@ -179,7 +179,7 @@ export const OnChainUpgradeModal: React.FC<OnChainUpgradeModalProps> = ({
                             </svg>
                             <div>
                                 <p className="font-semibold text-foreground">Stronger Proof for Funders</p>
-                                <p className="text-sm text-muted-foreground">Brands and sponsors can verify your claim directly on BaseScan, providing maximum credibility for partnerships.</p>
+                                <p className="text-sm text-foreground/80">Brands and sponsors can verify your claim directly on BaseScan, providing maximum credibility for partnerships.</p>
                             </div>
                         </div>
                         <div className="flex items-start gap-3">
@@ -188,34 +188,34 @@ export const OnChainUpgradeModal: React.FC<OnChainUpgradeModalProps> = ({
                             </svg>
                             <div>
                                 <p className="font-semibold text-foreground">Transaction Hash Verification</p>
-                                <p className="text-sm text-muted-foreground">Get a transaction hash that links directly to BaseScan, making it easy for anyone to verify your claim independently.</p>
+                                <p className="text-sm text-foreground/80">Get a transaction hash that links directly to BaseScan, making it easy for anyone to verify your claim independently.</p>
                             </div>
                         </div>
                     </div>
                 </div>
 
                 {/* Cost Information */}
-                <div className="p-4 rounded-xl bg-secondary/50 border border-border">
+                <div className="p-4 rounded-xl bg-background/90 backdrop-blur-sm border border-border shadow-md">
                     <div className="flex items-center justify-between">
                         <div>
                             <p className="font-bold text-foreground">Upgrade Fee</p>
-                            <p className="text-sm text-muted-foreground">
+                            <p className="text-sm text-foreground/70">
                                 One-time payment per entry
                             </p>
                         </div>
                         <div className="text-right">
                             <p className="text-2xl font-black text-primary">0.0001 ETH</p>
-                            <p className="text-xs text-muted-foreground">Plus network gas fees</p>
+                            <p className="text-xs text-foreground/70">Plus network gas fees</p>
                         </div>
                     </div>
                 </div>
 
                 {/* Current Status */}
-                <div className="p-4 rounded-xl bg-muted/50 border border-border">
-                    <p className="text-sm text-muted-foreground mb-2">
+                <div className="p-4 rounded-xl bg-background/90 backdrop-blur-sm border border-border shadow-md">
+                    <p className="text-sm text-foreground/90 mb-2">
                         <strong className="text-foreground">Current Status:</strong> Your entry is stored in our database with a cryptographic signature.
                     </p>
-                    <p className="text-sm text-muted-foreground">
+                    <p className="text-sm text-foreground/90">
                         <strong className="text-foreground">After Upgrade:</strong> Your entry will be permanently recorded onchain on Base.
                     </p>
                 </div>
@@ -250,7 +250,7 @@ export const OnChainUpgradeModal: React.FC<OnChainUpgradeModalProps> = ({
                     </button>
                 </div>
 
-                <p className="text-xs text-center text-muted-foreground">
+                <p className="text-xs text-center text-foreground/70">
                     You can upgrade this entry to onchain storage at any time from your dashboard.
                 </p>
             </div>

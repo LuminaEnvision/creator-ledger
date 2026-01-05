@@ -30,12 +30,19 @@ export const WalletConnect: React.FC = () => {
                     <img 
                         src={farcasterUser.pfpUrl} 
                         alt={farcasterUser.username || 'User'} 
-                        className="w-8 h-8 rounded-full"
+                        className="w-10 h-10 rounded-full border-2 border-primary/30 shadow-lg"
                     />
                 )}
-                <span className="text-sm font-medium hidden sm:inline">
-                    {farcasterUser.displayName || farcasterUser.username || 'User'}
-                </span>
+                <div className="flex flex-col">
+                    <span className="text-sm font-semibold text-foreground">
+                        {farcasterUser.displayName || farcasterUser.username || 'User'}
+                    </span>
+                    {farcasterUser.fid && (
+                        <span className="text-xs text-muted-foreground">
+                            FID: {farcasterUser.fid}
+                        </span>
+                    )}
+                </div>
                 {/* Show connect button when disconnected */}
                 {!isConnected ? (
                     <button

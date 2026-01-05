@@ -11,6 +11,7 @@ interface ProfileDisplayProps {
     showLink?: boolean;
     size?: 'sm' | 'md' | 'lg';
     className?: string;
+    showFid?: boolean;
 }
 
 export const ProfileDisplay: React.FC<ProfileDisplayProps> = ({
@@ -18,7 +19,8 @@ export const ProfileDisplay: React.FC<ProfileDisplayProps> = ({
     showAvatar = true,
     showLink = false,
     size = 'md',
-    className = ''
+    className = '',
+    showFid = false
 }) => {
     const [profile, setProfile] = useState<any>(null);
     const [isLoading, setIsLoading] = useState(true);
@@ -115,7 +117,7 @@ export const ProfileDisplay: React.FC<ProfileDisplayProps> = ({
                     <img 
                         src={avatarUrl} 
                         alt={displayName}
-                        className={`${sizeClasses[size].avatar} rounded-full object-cover`}
+                        className={`${sizeClasses[size].avatar} rounded-full object-cover border-2 border-primary/20`}
                     />
                 ) : (
                     <div className={`${sizeClasses[size].avatar} rounded-full bg-gradient-to-br from-primary to-accent flex items-center justify-center text-white font-bold ${sizeClasses[size].text}`}>
@@ -123,9 +125,16 @@ export const ProfileDisplay: React.FC<ProfileDisplayProps> = ({
                     </div>
                 )
             )}
-            <span className={`${sizeClasses[size].text} font-medium ${(isFarcasterUser && farcasterUser?.displayName) || profile?.display_name ? 'text-foreground' : 'text-muted-foreground'}`}>
-                {displayName}
-            </span>
+            <div className="flex flex-col">
+                <span className={`${sizeClasses[size].text} font-medium ${(isFarcasterUser && farcasterUser?.displayName) || profile?.display_name ? 'text-foreground' : 'text-muted-foreground'}`}>
+                    {displayName}
+                </span>
+                {showFid && isFarcasterUser && farcasterUser?.fid && (
+                    <span className="text-xs text-muted-foreground">
+                        FID: {farcasterUser.fid}
+                    </span>
+                )}
+            </div>
         </div>
     );
 
