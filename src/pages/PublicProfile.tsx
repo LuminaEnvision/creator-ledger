@@ -328,7 +328,11 @@ export const PublicProfile: React.FC = () => {
                     <div className="flex items-center gap-2 mb-4">
                         <div className="h-0.5 w-8 bg-primary rounded-full"></div>
                         <h2 className="text-lg md:text-xl font-bold">
-                            {searchParams.get('filter') ? 'Filtered Portfolio' : 'Verified Media'}
+                            {searchParams.get('filter') 
+                                ? 'Filtered Portfolio' 
+                                : (user && user.walletAddress.toLowerCase() === address?.toLowerCase())
+                                    ? 'Your Content'
+                                    : 'Verified Media'}
                         </h2>
                         {searchParams.get('filter') && (
                             <span className="text-xs text-muted-foreground">

@@ -207,7 +207,11 @@ export const TermsOfService: React.FC = () => {
                 <section>
                     <h2 className="text-2xl font-bold mb-4">Questions & Support</h2>
                     <p className="text-muted-foreground">
-                        If you have questions about these terms or need to report content violations, please contact the administrators through the platform.
+                        If you have questions about these terms or need to report content violations, please contact the administrators via email{' '}
+                        <a href="mailto:crtrledger@gmail.com" className="text-primary hover:underline font-semibold">
+                            crtrledger@gmail.com
+                        </a>
+                        .
                     </p>
                 </section>
 

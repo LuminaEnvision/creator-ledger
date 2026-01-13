@@ -96,7 +96,7 @@ export const EntryList: React.FC<EntryListProps> = ({
                         <div className="absolute top-3 left-3 z-10 flex gap-2">
                             {entry.verification_status === 'Unverified' && (
                                 <div className="px-2.5 py-1 rounded-full bg-yellow-500/80 backdrop-blur-lg border border-yellow-400/50 text-white shadow-lg">
-                                    <span className="text-[9px] font-black uppercase tracking-widest">Pending Review</span>
+                                    <span className="text-[9px] font-black uppercase tracking-widest">Unverified</span>
                                 </div>
                             )}
                             {entry.verification_status === 'Verified' && (

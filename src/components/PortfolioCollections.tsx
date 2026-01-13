@@ -102,6 +102,9 @@ export const PortfolioCollections: React.FC<PortfolioCollectionsProps> = ({
             localStorage.setItem(key, JSON.stringify(newCollections));
             console.log('Saved collections:', newCollections, 'to key:', key);
             setCollections(newCollections);
+            
+            // Dispatch custom event to notify parent components
+            window.dispatchEvent(new Event('collectionsUpdated'));
         } catch (error) {
             console.error('Error saving collections:', error);
             alert('Failed to save collection. Please try again.');

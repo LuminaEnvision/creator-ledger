@@ -48,7 +48,7 @@ function App() {
               </div>
             </header>
 
-            <main className="container mx-auto px-4 sm:px-6 lg:px-8 py-6 sm:py-8 pb-20 sm:pb-24">
+            <main className="container mx-auto px-4 sm:px-6 lg:px-8 py-6 sm:py-8 pb-24 sm:pb-24">
               <Routes>
                 <Route path="/" element={<Dashboard />} />
                 <Route path="/pricing" element={<Pricing />} />

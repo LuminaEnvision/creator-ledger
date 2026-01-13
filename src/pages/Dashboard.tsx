@@ -14,6 +14,7 @@ import { PortfolioCollections } from '../components/PortfolioCollections';
 import { isPremiumWhitelisted } from '../lib/premium';
 import { OnboardingFlow } from '../components/OnboardingFlow';
 import { Notifications } from '../components/Notifications';
+import { CollapsibleSection } from '../components/CollapsibleSection';
 
 export const Dashboard: React.FC = () => {
     const { user } = useAuth();
@@ -24,6 +25,7 @@ export const Dashboard: React.FC = () => {
     const [isPremium, setIsPremium] = useState(false);
     const [refreshTrigger, setRefreshTrigger] = useState(0);
     const [isEditingProfile, setIsEditingProfile] = useState(false);
+    const [collectionsCount, setCollectionsCount] = useState(0);
     const [showOnboarding, setShowOnboarding] = useState(() => {
         // Show onboarding only once per session
         if (typeof window !== 'undefined') {
@@ -32,6 +34,48 @@ export const Dashboard: React.FC = () => {
         }
         return false;
     });
+
+    // Check for existing collections in localStorage
+    const updateCollectionsCount = () => {
+        if (user?.walletAddress) {
+            const normalizedAddress = user.walletAddress.toLowerCase();
+            const stored = localStorage.getItem(`collections_${normalizedAddress}`);
+            if (stored) {
+                try {
+                    const parsed = JSON.parse(stored);
+                    setCollectionsCount(parsed.length || 0);
+                } catch (e) {
+                    setCollectionsCount(0);
+                }
+            } else {
+                setCollectionsCount(0);
+            }
+        }
+    };
+
+    useEffect(() => {
+        updateCollectionsCount();
+        
+        // Listen for storage changes (when collections are created/deleted)
+        const handleStorageChange = (e: StorageEvent) => {
+            if (user?.walletAddress && e.key === `collections_${user.walletAddress.toLowerCase()}`) {
+                updateCollectionsCount();
+            }
+        };
+        
+        window.addEventListener('storage', handleStorageChange);
+        
+        // Also listen for custom events (for same-tab updates)
+        const handleCustomStorage = () => {
+            updateCollectionsCount();
+        };
+        window.addEventListener('collectionsUpdated', handleCustomStorage);
+        
+        return () => {
+            window.removeEventListener('storage', handleStorageChange);
+            window.removeEventListener('collectionsUpdated', handleCustomStorage);
+        };
+    }, [user?.walletAddress]);
 
     // Base Account is used automatically when available
     // Per Base guidelines: "Use Base Account seamlessly for on-chain actions; no upfront connect flow"
@@ -359,10 +403,21 @@ export const Dashboard: React.FC = () => {
 
                         {/* Portfolio Collections - Optional Filtered Views */}
                         <div className="mt-4 pt-4 border-t border-border/30">
-                            <PortfolioCollections
-                                entries={entries}
-                                walletAddress={user.walletAddress}
-                            />
+                            <CollapsibleSection
+                                title="Portfolio Collections"
+                                defaultOpen={collectionsCount > 0}
+                                badge={collectionsCount > 0 ? collectionsCount : undefined}
+                                icon={
+                                    <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10" />
+                                    </svg>
+                                }
+                            >
+                                <PortfolioCollections
+                                    entries={entries}
+                                    walletAddress={user.walletAddress}
+                                />
+                            </CollapsibleSection>
                         </div>
                     </>
                 )}
@@ -371,22 +426,37 @@ export const Dashboard: React.FC = () => {
             {/* Notifications for verified content and endorsements */}
             {user && <Notifications />}
 
-            <div id="entry-form">
-                <CreateEntryForm onSuccess={() => setRefreshTrigger(prev => prev + 1)} />
-            </div>
-
+            {/* New Ledger Entry - Collapsible */}
             {user && (
-                <div className="glass-card p-6 sm:p-8 rounded-2xl">
-                    <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 mb-6">
-                        <div className="flex items-center gap-3">
-                            <div className="w-10 h-10 rounded-lg bg-gradient-to-br from-primary to-accent flex items-center justify-center">
-                                <svg className="w-5 h-5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
-                                </svg>
-                            </div>
-                            <h3 className="text-xl font-bold">Your Submissions</h3>
-                        </div>
-                        {isPremium && (
+                <CollapsibleSection
+                    title="New Ledger Entry"
+                    defaultOpen={false}
+                    icon={
+                        <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 6v6m0 0v6m0-6h6m-6 0H6" />
+                        </svg>
+                    }
+                    className="mb-4"
+                >
+                    <div id="entry-form">
+                        <CreateEntryForm onSuccess={() => setRefreshTrigger(prev => prev + 1)} />
+                    </div>
+                </CollapsibleSection>
+            )}
+
+            {/* Your Submissions - Collapsible */}
+            {user && (
+                <CollapsibleSection
+                    title="Your Submissions"
+                    defaultOpen={true}
+                    icon={
+                        <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                        </svg>
+                    }
+                >
+                        <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 mb-6">
+                            {isPremium && (
                             <div className="flex gap-3">
                                 <button
                                     onClick={() => {
@@ -472,15 +542,15 @@ export const Dashboard: React.FC = () => {
                                 </button>
                             </div>
                         )}
-                    </div>
-                    <EntryList
-                        entries={entries}
-                        isLoading={isLoading}
-                        isPremium={isPremium}
-                        currentWalletAddress={user?.walletAddress}
-                        onEntryUpdated={() => setRefreshTrigger(prev => prev + 1)}
-                    />
-                </div>
+                        </div>
+                        <EntryList
+                            entries={entries}
+                            isLoading={isLoading}
+                            isPremium={isPremium}
+                            currentWalletAddress={user?.walletAddress}
+                            onEntryUpdated={() => setRefreshTrigger(prev => prev + 1)}
+                        />
+                </CollapsibleSection>
             )}
 
         </div>

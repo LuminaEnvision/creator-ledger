@@ -49,6 +49,7 @@ export const CreateEntryForm: React.FC<{ onSuccess: () => void }> = ({ onSuccess
         siteName?: string;
         publishedAt?: string; // Publication date from metadata
     }>({});
+    const [manualPublishedDate, setManualPublishedDate] = useState<string>(''); // Manual date input
 
     // Check premium status
     useEffect(() => {
@@ -81,6 +82,7 @@ export const CreateEntryForm: React.FC<{ onSuccess: () => void }> = ({ onSuccess
         const fetchMetadata = async () => {
             if (!url || !url.startsWith('http')) {
                 setMetadata({});
+                setManualPublishedDate('');
                 return;
             }
 
@@ -98,6 +100,9 @@ export const CreateEntryForm: React.FC<{ onSuccess: () => void }> = ({ onSuccess
                         const parsedDate = new Date(data.data.date);
                         if (!isNaN(parsedDate.getTime())) {
                             publishedAt = parsedDate.toISOString();
+                            // Auto-fill the date field if available
+                            const dateStr = parsedDate.toISOString().split('T')[0];
+                            setManualPublishedDate(dateStr);
                         }
                     }
 
@@ -180,6 +185,20 @@ export const CreateEntryForm: React.FC<{ onSuccess: () => void }> = ({ onSuccess
             showToast('Please connect your wallet to submit an entry. You can connect via the header or use the button below.', 'warning');
             // Scroll to top to show the error
             window.scrollTo({ top: 0, behavior: 'smooth' });
+            return;
+        }
+
+        // Validate that date of creation is provided
+        const finalPublishedDate = manualPublishedDate || metadata.publishedAt;
+        if (!finalPublishedDate) {
+            setError('Date of Creation is required. Please enter the date when the content was originally created.');
+            showToast('Date of Creation is required. Please enter the creation date.', 'error');
+            // Scroll to date field
+            const dateInput = document.querySelector('input[type="date"]') as HTMLElement;
+            if (dateInput) {
+                dateInput.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                dateInput.focus();
+            }
             return;
         }
 
@@ -289,7 +308,9 @@ export const CreateEntryForm: React.FC<{ onSuccess: () => void }> = ({ onSuccess
                         description,
                         campaign_tag: hashtags.map(tag => tag.replace(/^#/, '')).join(', '),
                         timestamp,
-                        content_published_at: metadata.publishedAt || null, // Actual publication date
+                        content_published_at: manualPublishedDate 
+                            ? new Date(manualPublishedDate).toISOString() 
+                            : (metadata.publishedAt ? new Date(metadata.publishedAt).toISOString() : null), // Manual date takes priority, then metadata
                         payload_hash: payloadHash,
                         content_hash: contentHash, // For duplicate detection
                         verification_status: 'Unverified', // Requires admin verification
@@ -325,6 +346,7 @@ export const CreateEntryForm: React.FC<{ onSuccess: () => void }> = ({ onSuccess
             setCustomImageUrl('');
             setCustomImageFile(null);
             setCustomImagePreview(null);
+            setManualPublishedDate('');
             if (customImageInputRef.current) customImageInputRef.current.value = '';
             setMetadata({});
             setStatus('idle');
@@ -440,6 +462,30 @@ export const CreateEntryForm: React.FC<{ onSuccess: () => void }> = ({ onSuccess
                             Press <kbd className="px-1.5 py-0.5 bg-muted rounded text-xs">Space</kbd>, <kbd className="px-1.5 py-0.5 bg-muted rounded text-xs">,</kbd> or <kbd className="px-1.5 py-0.5 bg-muted rounded text-xs">Enter</kbd> to add a tag.
                         </p>
                     </div>
+                    <div>
+                        <label className="block text-sm font-semibold mb-2 flex items-center gap-2">
+                            <svg className="w-4 h-4 text-primary" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
+                            </svg>
+                            Date of Creation
+                            <span className="ml-1 text-xs text-red-400">*</span>
+                        </label>
+                        <input
+                            type="date"
+                            value={manualPublishedDate}
+                            onChange={(e) => setManualPublishedDate(e.target.value)}
+                            required
+                            className="w-full px-4 py-3 rounded-xl glass-card text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-primary/50 transition-all font-medium"
+                        />
+                        <p className="mt-2 text-xs text-muted-foreground">
+                            {metadata.publishedAt 
+                                ? `Auto-detected: ${new Date(metadata.publishedAt).toLocaleDateString()}. You can override this date if needed.` 
+                                : 'Enter the creation date manually. Verifiers will compare the date on the original post.'}
+                        </p>
+                    </div>
+                </div>
+
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-5">
                     <div>
                         <label className="block text-sm font-semibold mb-2 flex items-center gap-2">
                             <svg className="w-4 h-4 text-primary" fill="none" stroke="currentColor" viewBox="0 0 24 24">
