@@ -148,53 +148,7 @@ export const AdminDashboard: React.FC = () => {
         setProcessingEntryId(id);
 
         try {
-            const creatorAddress = entry.wallet_address.toLowerCase() as `0x${string}`;
-            
-            // Step 1: Check if creator has a passport
-            const tokenId = await readContract(config, {
-                address: PASSPORT_CONTRACT_ADDRESS,
-                abi: PASSPORT_ABI,
-                functionName: 'addressToTokenId',
-                args: [creatorAddress],
-                chainId: base.id,
-            });
-
-            const hasPassport = tokenId && tokenId > 0n;
-
-            // Step 2: Mint passport if user doesn't have one
-            if (!hasPassport) {
-                showToast('Minting passport for creator...', 'info');
-                const mintTx = await writeContractAsync({
-                    address: PASSPORT_CONTRACT_ADDRESS,
-                    abi: PASSPORT_ABI,
-                    functionName: 'mintFor',
-                    args: [creatorAddress],
-                    chainId: base.id,
-                });
-                
-                await waitForTransactionReceipt(config, {
-                    hash: mintTx,
-                    timeout: 60000
-                });
-                showToast('✅ Passport minted!', 'success');
-            }
-
-            // Step 3: Increment entry count
-            showToast('Incrementing entry count...', 'info');
-            const incrementTx = await writeContractAsync({
-                address: PASSPORT_CONTRACT_ADDRESS,
-                abi: PASSPORT_ABI,
-                functionName: 'adminIncrementEntryCount',
-                args: [creatorAddress],
-                chainId: base.id,
-            });
-
-            await waitForTransactionReceipt(config, {
-                hash: incrementTx,
-                timeout: 60000
-            });
-
-            // Step 4: Update database status
+            // Only update database verification status - user will mint/upgrade their own passport
             const { error: dbError } = await supabase
                 .from('ledger_entries')
                 .update({ verification_status: 'Verified' })
@@ -202,50 +156,32 @@ export const AdminDashboard: React.FC = () => {
 
             if (dbError) {
                 console.error('Error updating database:', dbError);
-                showToast('On-chain operations succeeded but database update failed. Please contact support.', 'warning');
-            } else {
-                // Update local state
-                setEntries(prev => prev.map(e => e.id === id ? { ...e, verification_status: 'Verified' } : e));
-                showToast('✅ Entry verified and NFT updated!', 'success');
+                showToast('Failed to verify entry. Please try again.', 'error');
+                return;
             }
+
+            // Create notification for the creator
+            const { error: notifError } = await supabase
+                .from('user_notifications')
+                .insert({
+                    wallet_address: entry.wallet_address.toLowerCase(),
+                    type: 'verified',
+                    entry_id: id,
+                    message: 'Your content was verified! Claim your Creator Passport level.',
+                    read: false
+                });
+
+            if (notifError) {
+                console.error('Error creating notification:', notifError);
+                // Don't fail the verification if notification fails
+            }
+
+            // Update local state
+            setEntries(prev => prev.map(e => e.id === id ? { ...e, verification_status: 'Verified' } : e));
+            showToast('✅ Entry verified! User will be notified to claim their passport.', 'success');
         } catch (err: any) {
             console.error('Error in verification process:', err);
-            if (err.message?.includes('User rejected') || err.code === 4001) {
-                showToast('Transaction cancelled.', 'info');
-            } else if (err.message?.includes('Not an admin')) {
-                showToast('Admin not registered in contract. Please contact contract owner.', 'error');
-            } else if (err.message?.includes('already has a passport')) {
-                // User already has passport, just increment
-                try {
-                    showToast('Incrementing entry count...', 'info');
-                    const incrementTx = await writeContractAsync({
-                        address: PASSPORT_CONTRACT_ADDRESS,
-                        abi: PASSPORT_ABI,
-                        functionName: 'adminIncrementEntryCount',
-                        args: [entry.wallet_address.toLowerCase() as `0x${string}`],
-                        chainId: base.id,
-                    });
-
-                    await waitForTransactionReceipt(config, {
-                        hash: incrementTx,
-                        timeout: 60000
-                    });
-
-                    const { error: dbError } = await supabase
-                        .from('ledger_entries')
-                        .update({ verification_status: 'Verified' })
-                        .eq('id', id);
-
-                    if (!dbError) {
-                        setEntries(prev => prev.map(e => e.id === id ? { ...e, verification_status: 'Verified' } : e));
-                        showToast('✅ Entry verified and NFT updated!', 'success');
-                    }
-                } catch (retryErr: any) {
-                    showToast(`Failed to increment entry count: ${retryErr.message || 'Unknown error'}`, 'error');
-                }
-            } else {
-                showToast(`Verification error: ${err.message || 'Please try again.'}`, 'error');
-            }
+            showToast('Failed to verify entry. Please try again.', 'error');
         } finally {
             setProcessingEntryId(null);
         }

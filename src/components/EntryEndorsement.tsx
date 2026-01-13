@@ -184,6 +184,37 @@ export const EntryEndorsement: React.FC<EntryEndorsementProps> = ({
                     }
                     return prev;
                 });
+
+                // Create notification for the entry owner (only for new endorsements, not updates)
+                if (!existingVote) {
+                    // Get entry owner wallet address
+                    const { data: entry } = await supabase
+                        .from('ledger_entries')
+                        .select('wallet_address')
+                        .eq('id', entryId)
+                        .single();
+
+                    if (entry && entry.wallet_address.toLowerCase() !== user.walletAddress.toLowerCase()) {
+                        // Format endorser address (try ENS, fallback to shortened address)
+                        const endorserDisplay = user.walletAddress.slice(0, 6) + '...' + user.walletAddress.slice(-4);
+                        
+                        const { error: notifError } = await supabase
+                            .from('user_notifications')
+                            .insert({
+                                wallet_address: entry.wallet_address.toLowerCase(),
+                                type: 'endorsement',
+                                entry_id: entryId,
+                                endorser_wallet: user.walletAddress.toLowerCase(),
+                                message: `Your content was endorsed by ${endorserDisplay}`,
+                                read: false
+                            });
+
+                        if (notifError) {
+                            console.error('Error creating endorsement notification:', notifError);
+                            // Don't fail the endorsement if notification fails
+                        }
+                    }
+                }
             } else {
                 setDisputes(prev => prev + 1);
                 setEndorsements(prev => {

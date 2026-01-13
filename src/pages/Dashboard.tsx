@@ -13,6 +13,7 @@ import { PassportMintButton } from '../components/PassportMintButton';
 import { PortfolioCollections } from '../components/PortfolioCollections';
 import { isPremiumWhitelisted } from '../lib/premium';
 import { OnboardingFlow } from '../components/OnboardingFlow';
+import { Notifications } from '../components/Notifications';
 
 export const Dashboard: React.FC = () => {
     const { user } = useAuth();
@@ -366,6 +367,9 @@ export const Dashboard: React.FC = () => {
                     </>
                 )}
             </div>
+
+            {/* Notifications for verified content and endorsements */}
+            {user && <Notifications />}
 
             <div id="entry-form">
                 <CreateEntryForm onSuccess={() => setRefreshTrigger(prev => prev + 1)} />
