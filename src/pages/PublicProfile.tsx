@@ -7,6 +7,7 @@ import { useEnsName } from 'wagmi';
 import { mainnet } from 'wagmi/chains';
 import { PassportDisplay } from '../components/PassportDisplay';
 import { useAuth } from '../context/AuthContext';
+import { useToast } from '../hooks/useToast';
 
 export const PublicProfile: React.FC = () => {
     const { address } = useParams<{ address: string }>();
@@ -19,6 +20,7 @@ export const PublicProfile: React.FC = () => {
     const [isLoading, setIsLoading] = useState(true);
     const [refreshKey, setRefreshKey] = useState(0);
     const [showPassport, setShowPassport] = useState(false);
+    const { showToast } = useToast();
 
     // Only fetch ENS name if address is valid, and handle errors gracefully
     const { data: ensName, error: ensError } = useEnsName({
@@ -49,11 +51,20 @@ export const PublicProfile: React.FC = () => {
                 const normalizedAddress = address.toLowerCase();
 
                 // Fetch profile info
-                const { data: profileData } = await supabase
+                const { data: profileData, error: profileError } = await supabase
                     .from('profiles')
                     .select('*')
                     .eq('wallet_address', normalizedAddress)
                     .maybeSingle();
+
+                if (profileError && profileError.code !== 'PGRST116') {
+                    // PGRST116 is "not found" which is expected for users without profiles
+                    if (profileError.code === 'NOT_FOUND' || profileError.message?.includes('NOT_FOUND')) {
+                        console.warn('Profiles table not found or RLS issue:', profileError.message);
+                    } else {
+                        console.error('Error fetching profile:', profileError);
+                    }
+                }
 
                 setProfile(profileData);
 
@@ -64,7 +75,19 @@ export const PublicProfile: React.FC = () => {
                     .eq('wallet_address', normalizedAddress)
                     .maybeSingle();
 
-                if (userData) {
+                if (userError) {
+                    // PGRST116 is "not found" which is expected for users not in database
+                    if (userError.code === 'PGRST116') {
+                        // User doesn't exist yet - this is fine
+                        setIsPremium(false);
+                    } else if (userError.code === 'NOT_FOUND' || userError.message?.includes('NOT_FOUND')) {
+                        console.warn('Users table not found or RLS issue:', userError.message);
+                        setIsPremium(false);
+                    } else {
+                        console.error('Error fetching user data:', userError);
+                        setIsPremium(false);
+                    }
+                } else if (userData) {
                     // Check if subscription is still active (not expired)
                     const now = new Date();
                     const subscriptionEnd = userData.subscription_end ? new Date(userData.subscription_end) : null;
@@ -80,8 +103,8 @@ export const PublicProfile: React.FC = () => {
                     // Note: Public profiles don't use whitelist (only for logged-in users)
                     const premiumStatus = dbPremiumStatus;
                     setIsPremium(premiumStatus);
-                } else if (userError && userError.code !== 'PGRST116') {
-                    console.error('Error fetching user data:', userError);
+                } else {
+                    setIsPremium(false);
                 }
 
                 // Check if current user is viewing their own profile
@@ -101,10 +124,16 @@ export const PublicProfile: React.FC = () => {
                 const { data: entriesData, error: entriesError } = await query
                     .order('timestamp', { ascending: false });
 
-                if (!entriesError) {
-                    setEntries(entriesData || []);
+                if (entriesError) {
+                    if (entriesError.code === 'NOT_FOUND' || entriesError.message?.includes('NOT_FOUND')) {
+                        console.warn('Ledger entries table not found or RLS issue:', entriesError.message);
+                        setEntries([]);
+                    } else {
+                        console.error('Error fetching entries:', entriesError);
+                        setEntries([]);
+                    }
                 } else {
-                    console.error('Error fetching entries:', entriesError);
+                    setEntries(entriesData || []);
                 }
             } catch (err) {
                 console.error('Error fetching public data:', err);
@@ -243,6 +272,45 @@ export const PublicProfile: React.FC = () => {
                                 <p className="text-xs md:text-sm font-mono text-muted-foreground uppercase tracking-wide">
                                     {subtitle}
                                 </p>
+                            )}
+                            {/* Copy Address Button - Always visible when address exists */}
+                            {address && (
+                                <div className="flex items-center gap-2 justify-center mt-2">
+                                    <button
+                                        onClick={async () => {
+                                            try {
+                                                await navigator.clipboard.writeText(address);
+                                                showToast('Address copied to clipboard!', 'success');
+                                            } catch (err) {
+                                                console.error('Failed to copy address:', err);
+                                                showToast('Failed to copy address', 'error');
+                                            }
+                                        }}
+                                        className="flex items-center gap-2 px-4 py-2 rounded-lg bg-primary/10 hover:bg-primary/20 transition-colors text-primary border border-primary/30 text-xs font-semibold"
+                                        title={`Click to copy full address: ${address}`}
+                                        aria-label="Copy wallet address"
+                                    >
+                                        <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z" />
+                                        </svg>
+                                        <span className="font-mono">Copy Address</span>
+                                    </button>
+                                    <span 
+                                        onClick={async () => {
+                                            try {
+                                                await navigator.clipboard.writeText(address);
+                                                showToast('Address copied to clipboard!', 'success');
+                                            } catch (err) {
+                                                console.error('Failed to copy address:', err);
+                                                showToast('Failed to copy address', 'error');
+                                            }
+                                        }}
+                                        className="font-mono text-xs text-muted-foreground hover:text-foreground cursor-pointer select-all"
+                                        title={`Click to copy: ${address}`}
+                                    >
+                                        {address}
+                                    </span>
+                                </div>
                             )}
                         </div>
 

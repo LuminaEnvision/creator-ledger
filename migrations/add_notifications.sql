@@ -2,7 +2,7 @@
 CREATE TABLE IF NOT EXISTS user_notifications (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     wallet_address TEXT NOT NULL,
-    type TEXT NOT NULL CHECK (type IN ('verified', 'endorsement')),
+    type TEXT NOT NULL CHECK (type IN ('verified', 'endorsement', 'subscription_expired')),
     entry_id UUID REFERENCES ledger_entries(id) ON DELETE CASCADE,
     endorser_wallet TEXT, -- For endorsement notifications
     message TEXT,
@@ -37,6 +37,6 @@ CREATE POLICY "Users can update own notifications"
 
 -- Comments
 COMMENT ON TABLE user_notifications IS 'Notifications for users about verified content and endorsements';
-COMMENT ON COLUMN user_notifications.type IS 'Type: verified (content verified) or endorsement (someone endorsed your content)';
+COMMENT ON COLUMN user_notifications.type IS 'Type: verified (content verified), endorsement (someone endorsed your content), or subscription_expired (subscription has expired)';
 COMMENT ON COLUMN user_notifications.endorser_wallet IS 'Wallet address of the person who endorsed (for endorsement type)';
 

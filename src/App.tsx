@@ -11,6 +11,7 @@ import { PublicProfile } from './pages/PublicProfile';
 import { TermsOfService } from './pages/TermsOfService';
 import { VerifySignature } from './pages/VerifySignature';
 import { FooterMenu } from './components/FooterMenu';
+import { AppInstallPrompt } from './components/AppInstallPrompt';
 
 import { useEffect } from 'react';
 import { sdk } from '@farcaster/miniapp-sdk';
@@ -48,7 +49,7 @@ function App() {
               </div>
             </header>
 
-            <main className="container mx-auto px-4 sm:px-6 lg:px-8 py-6 sm:py-8 pb-24 sm:pb-24">
+            <main className="container mx-auto px-4 sm:px-6 lg:px-8 py-6 sm:py-8">
               <Routes>
                 <Route path="/" element={<Dashboard />} />
                 <Route path="/pricing" element={<Pricing />} />
@@ -60,6 +61,7 @@ function App() {
             </main>
 
             <FooterMenu />
+            <AppInstallPrompt />
           </div>
         </Router>
         </ToastProvider>

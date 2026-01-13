@@ -64,10 +64,10 @@ export const AdminDashboard: React.FC = () => {
                     adminWallet: user.walletAddress,
                     normalizedWallet: normalizedAddress,
                     isContractAdmin: isContractAdmin,
-                    message: 'mintFor and incrementEntryCount will fail - admin must be added to contract by owner'
+                    message: 'Admin must be added to contract by owner to verify entries'
                 });
             } else if (isContractAdmin === true) {
-                console.log('AdminDashboard: Admin wallet is registered in contract - mintFor will work');
+                console.log('AdminDashboard: Admin wallet is registered in contract - verification will work');
             } else if (isContractAdmin === undefined) {
                 console.log('AdminDashboard: Admin status check is still loading...');
             }
@@ -268,7 +268,7 @@ export const AdminDashboard: React.FC = () => {
                         </svg>
                         <div className="flex-1">
                             <p className="text-sm text-green-300/90">
-                                ✓ Admin wallet is registered in contract. You can verify entries and mint NFTs.
+                                ✓ Admin wallet is registered in contract. You can verify entries. Users will mint their own NFTs after verification.
                             </p>
                         </div>
                     </div>
@@ -469,7 +469,7 @@ export const AdminDashboard: React.FC = () => {
                                                         disabled={processingEntryId === entry.id}
                                                         className="text-green-600 hover:text-green-700 dark:text-green-400 dark:hover:text-green-300 font-medium transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
                                                     >
-                                                        {processingEntryId === entry.id ? 'Verifying & Minting NFT...' : 'Verify'}
+                                                        {processingEntryId === entry.id ? 'Verifying...' : 'Verify'}
                                                     </button>
                                                     <button
                                                         onClick={() => handleReject(entry.id)}

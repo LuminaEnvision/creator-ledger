@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { useAuth } from '../context/AuthContext';
 import { supabase } from '../lib/supabase';
 import { useNavigate } from 'react-router-dom';
+import { Link } from 'react-router-dom';
 import { PassportMintButton } from './PassportMintButton';
 import { useReadContract } from 'wagmi';
 import { PASSPORT_CONTRACT_ADDRESS, PASSPORT_ABI } from '../lib/contracts';
@@ -9,8 +10,8 @@ import { base } from 'wagmi/chains';
 
 interface Notification {
     id: string;
-    type: 'verified' | 'endorsement';
-    entry_id: string;
+    type: 'verified' | 'endorsement' | 'subscription_expired';
+    entry_id?: string;
     endorser_wallet?: string;
     message: string;
     read: boolean;
@@ -84,7 +85,48 @@ export const Notifications: React.FC = () => {
             return;
         }
 
+        const checkSubscriptionExpiry = async () => {
+            // Check if subscription has expired and create notification if needed
+            const { data: userData } = await supabase
+                .from('users')
+                .select('subscription_active, subscription_end')
+                .eq('wallet_address', user.walletAddress.toLowerCase())
+                .maybeSingle();
+
+            if (userData && userData.subscription_active && userData.subscription_end) {
+                const now = new Date();
+                const subscriptionEnd = new Date(userData.subscription_end);
+                
+                // If subscription expired in the last 7 days and no notification exists
+                if (subscriptionEnd < now && subscriptionEnd > new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000)) {
+                    // Check if notification already exists
+                    const { data: existingNotif } = await supabase
+                        .from('user_notifications')
+                        .select('id')
+                        .eq('wallet_address', user.walletAddress.toLowerCase())
+                        .eq('type', 'subscription_expired')
+                        .eq('read', false)
+                        .maybeSingle();
+
+                    if (!existingNotif) {
+                        // Create subscription expiry notification
+                        await supabase
+                            .from('user_notifications')
+                            .insert({
+                                wallet_address: user.walletAddress.toLowerCase(),
+                                type: 'subscription_expired',
+                                message: 'Your subscription has expired. Renew now to continue enjoying Pro features!',
+                                read: false
+                            });
+                    }
+                }
+            }
+        };
+
         const fetchNotifications = async () => {
+            // Check for expired subscriptions first
+            await checkSubscriptionExpiry();
+
             const { data, error } = await supabase
                 .from('user_notifications')
                 .select('*')
@@ -180,6 +222,34 @@ export const Notifications: React.FC = () => {
                 </div>
             )}
 
+            {/* Subscription Expired Notification */}
+            {notifications.filter(n => n.type === 'subscription_expired' && !n.read).map(notification => (
+                <div key={notification.id} className="rounded-lg border border-yellow-500/50 bg-yellow-500/10 p-4">
+                    <div className="flex items-start gap-3">
+                        <div className="w-10 h-10 rounded-full bg-yellow-500/20 flex items-center justify-center flex-shrink-0">
+                            <svg className="w-5 h-5 text-yellow-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
+                            </svg>
+                        </div>
+                        <div className="flex-1">
+                            <h3 className="text-sm font-semibold text-yellow-400 mb-1">
+                                Subscription Expired
+                            </h3>
+                            <p className="text-sm text-foreground/80 mb-3">
+                                {notification.message}
+                            </p>
+                            <Link
+                                to="/pricing"
+                                onClick={() => markAsRead(notification.id)}
+                                className="inline-block px-4 py-2 rounded-lg bg-yellow-500 text-white text-xs font-bold hover:bg-yellow-600 transition-colors"
+                            >
+                                Renew Subscription
+                            </Link>
+                        </div>
+                    </div>
+                </div>
+            ))}
+
             {/* Endorsement Notifications */}
             {notifications.filter(n => n.type === 'endorsement' && !n.read).length > 0 && (
                 <div className="space-y-2">
@@ -193,7 +263,9 @@ export const Notifications: React.FC = () => {
                                 className="rounded-lg border border-border bg-background/50 p-3 hover:bg-background/80 transition-colors cursor-pointer"
                                 onClick={() => {
                                     markAsRead(notification.id);
-                                    navigate(`/entry/${notification.entry_id}`);
+                                    if (notification.entry_id) {
+                                        navigate(`/entry/${notification.entry_id}`);
+                                    }
                                 }}
                             >
                                 <p className="text-sm text-foreground/90">{notification.message}</p>

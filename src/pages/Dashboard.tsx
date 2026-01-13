@@ -212,7 +212,7 @@ export const Dashboard: React.FC = () => {
     // Users will be prompted to connect wallet when they try to submit an entry
 
     return (
-        <div className={`space-y-4 max-w-4xl mx-auto px-3 ${isPremium ? 'premium-bg' : ''}`}>
+        <div className={`space-y-4 max-w-4xl mx-auto px-3 ${isPremium ? 'premium-bg' : ''} pb-20`}>
             {!user && showOnboarding && (
                 <OnboardingFlow onComplete={() => {
                     setShowOnboarding(false);
@@ -422,6 +422,9 @@ export const Dashboard: React.FC = () => {
                     </>
                 )}
             </div>
+
+            {/* Footer spacer - ensures footer is visible after first section */}
+            <div className="h-20 flex-shrink-0"></div>
 
             {/* Notifications for verified content and endorsements */}
             {user && <Notifications />}

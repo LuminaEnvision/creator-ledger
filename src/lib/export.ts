@@ -91,7 +91,7 @@ export const exportToPDF = async (data: ExportEntry[], filename: string = 'ledge
             `Platform: ${entry.platform}`,
             `Date: ${entry.content_published_at 
                 ? new Date(entry.content_published_at).toLocaleDateString() 
-                : new Date(entry.timestamp).toLocaleDateString() + ' (submitted)'}`,
+                : new Date(entry.timestamp).toLocaleDateString()}`,
             `Status: ${entry.verification_status}`,
             entry.campaign_tag ? `Tags: ${entry.campaign_tag}` : null,
         ].filter(Boolean);

@@ -198,7 +198,7 @@ export const EntryList: React.FC<EntryListProps> = ({
                                                 day: 'numeric',
                                                 hour: '2-digit',
                                                 minute: '2-digit'
-                                            }) + ' (submitted)'
+                                            })
                                         }
                                     </span>
                                 </div>
