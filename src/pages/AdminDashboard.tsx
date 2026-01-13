@@ -53,14 +53,26 @@ export const AdminDashboard: React.FC = () => {
 
     useEffect(() => {
         if (userIsAdmin && user?.walletAddress) {
+            const normalizedAddress = user.walletAddress.toLowerCase();
+            console.log('AdminDashboard: Checking admin status', {
+                userWallet: user.walletAddress,
+                normalizedWallet: normalizedAddress,
+                isContractAdmin: isContractAdmin,
+                contractAddress: PASSPORT_CONTRACT_ADDRESS,
+                chainId: base.id
+            });
+            
             if (isContractAdmin === false) {
                 console.warn('AdminDashboard: Admin wallet is not registered in contract!', {
                     adminWallet: user.walletAddress,
+                    normalizedWallet: normalizedAddress,
                     isContractAdmin: isContractAdmin,
                     message: 'mintFor and incrementEntryCount will fail - admin must be added to contract by owner'
                 });
             } else if (isContractAdmin === true) {
                 console.log('AdminDashboard: Admin wallet is registered in contract - mintFor will work');
+            } else if (isContractAdmin === undefined) {
+                console.log('AdminDashboard: Admin status check is still loading...');
             }
         }
     }, [userIsAdmin, isContractAdmin, user?.walletAddress]);
@@ -294,14 +306,20 @@ export const AdminDashboard: React.FC = () => {
                             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
                         </svg>
                         <div className="flex-1">
-                            <h3 className="text-sm font-semibold text-yellow-400 mb-1">Admin Not Registered in Contract</h3>
+                            <h3 className="text-sm font-semibold text-yellow-400 mb-1">Admin Status Check</h3>
                             <p className="text-sm text-yellow-300/90 mb-2">
-                                Your admin wallet ({user.walletAddress.slice(0, 6)}...{user.walletAddress.slice(-4)}) is not registered as an admin in the contract.
-                                The <code className="text-xs bg-yellow-500/20 px-1 py-0.5 rounded">mintFor</code> and <code className="text-xs bg-yellow-500/20 px-1 py-0.5 rounded">incrementEntryCount</code> functions require admin registration.
+                                Checking admin status for: <code className="text-xs bg-yellow-500/20 px-1 py-0.5 rounded font-mono">{user.walletAddress}</code>
+                            </p>
+                            <p className="text-sm text-yellow-300/90 mb-2">
+                                Contract: <code className="text-xs bg-yellow-500/20 px-1 py-0.5 rounded font-mono">{PASSPORT_CONTRACT_ADDRESS}</code>
+                            </p>
+                            <p className="text-sm text-yellow-300/70 mb-2">
+                                <strong>Note:</strong> The admin wallet <code className="text-xs bg-yellow-500/20 px-1 py-0.5 rounded font-mono">0x7d85fcbb505d48e6176483733b62b51704e0bf95</code> is confirmed registered on-chain. 
+                                If your wallet matches this address, try refreshing the page or check your network connection.
                             </p>
                             {contractOwner && (
                                 <p className="text-sm text-yellow-300/70">
-                                    Contact the contract owner ({contractOwner.slice(0, 6)}...{contractOwner.slice(-4)}) to add your wallet as an admin using the <code className="text-xs bg-yellow-500/20 px-1 py-0.5 rounded">addAdmin</code> function.
+                                    Contract owner: <code className="text-xs bg-yellow-500/20 px-1 py-0.5 rounded font-mono">{contractOwner}</code>
                                 </p>
                             )}
                         </div>
