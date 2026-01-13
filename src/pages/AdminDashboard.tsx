@@ -3,11 +3,9 @@ import { useAuth } from '../context/AuthContext';
 import { supabase } from '../lib/supabase';
 import type { LedgerEntry } from '../types';
 import { isAdmin as checkIsAdmin } from '../lib/admin';
-import { useReadContract, useWriteContract } from 'wagmi';
+import { useReadContract } from 'wagmi';
 import { base } from 'wagmi/chains';
-import { waitForTransactionReceipt, readContract } from 'wagmi/actions';
 import { PASSPORT_CONTRACT_ADDRESS, PASSPORT_ABI } from '../lib/contracts';
-import { config } from '../wagmi';
 import { useToast } from '../hooks/useToast';
 import { ProfileDisplay } from '../components/ProfileDisplay';
 
@@ -22,7 +20,6 @@ export const AdminDashboard: React.FC = () => {
     const [entries, setEntries] = useState<LedgerEntry[]>([]);
     const [processingEntryId, setProcessingEntryId] = useState<string | null>(null);
     const [duplicateGroups, setDuplicateGroups] = useState<DuplicateGroup[]>([]);
-    const { writeContractAsync } = useWriteContract();
     const { showToast } = useToast();
 
     // Check if user is admin (frontend check)

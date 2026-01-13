@@ -35,8 +35,6 @@ export const Notifications: React.FC = () => {
         }
     });
 
-    const hasPassport = tokenId && tokenId > 0n;
-
     // Count all verified entries for the user
     const [verifiedEntriesCount, setVerifiedEntriesCount] = useState(0);
     const [passportEntryCount, setPassportEntryCount] = useState(0);
@@ -66,7 +64,7 @@ export const Notifications: React.FC = () => {
         }
 
         const fetchVerifiedCount = async () => {
-            const { data, error, count } = await supabase
+            const { error, count } = await supabase
                 .from('ledger_entries')
                 .select('*', { count: 'exact', head: true })
                 .eq('wallet_address', user.walletAddress.toLowerCase())
@@ -166,15 +164,17 @@ export const Notifications: React.FC = () => {
                             <p className="text-sm text-foreground/80 mb-3">
                                 You have {entriesToClaim} verified {entriesToClaim === 1 ? 'entry' : 'entries'} ready to claim. Claim your Creator Passport level now!
                             </p>
-                            <PassportMintButton 
-                                walletAddress={user.walletAddress}
-                                verifiedEntriesCount={verifiedEntriesCount}
-                                onSuccess={() => {
-                                    // Mark verified notifications as read
-                                    const verifiedNotifications = notifications.filter(n => n.type === 'verified' && !n.read);
-                                    verifiedNotifications.forEach(n => markAsRead(n.id));
-                                }}
-                            />
+                            {user?.walletAddress && (
+                                <PassportMintButton 
+                                    walletAddress={user.walletAddress}
+                                    verifiedEntriesCount={verifiedEntriesCount}
+                                    onSuccess={() => {
+                                        // Mark verified notifications as read
+                                        const verifiedNotifications = notifications.filter(n => n.type === 'verified' && !n.read);
+                                        verifiedNotifications.forEach(n => markAsRead(n.id));
+                                    }}
+                                />
+                            )}
                         </div>
                     </div>
                 </div>
