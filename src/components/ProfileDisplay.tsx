@@ -4,6 +4,7 @@ import { useEnsName } from 'wagmi';
 import { mainnet } from 'wagmi/chains';
 import { Link } from 'react-router-dom';
 import { useFarcaster } from '../context/FarcasterContext';
+import { checkPremiumStatus } from '../lib/premium';
 
 interface ProfileDisplayProps {
     walletAddress: string;
@@ -12,6 +13,7 @@ interface ProfileDisplayProps {
     size?: 'sm' | 'md' | 'lg';
     className?: string;
     showFid?: boolean;
+    isPremium?: boolean; // Optional prop to pass premium status directly
 }
 
 export const ProfileDisplay: React.FC<ProfileDisplayProps> = ({
@@ -20,10 +22,12 @@ export const ProfileDisplay: React.FC<ProfileDisplayProps> = ({
     showLink = false,
     size = 'md',
     className = '',
-    showFid = false
+    showFid = false,
+    isPremium: propIsPremium
 }) => {
     const [profile, setProfile] = useState<any>(null);
     const [isLoading, setIsLoading] = useState(true);
+    const [isPremium, setIsPremium] = useState(false);
     const { user: farcasterUser } = useFarcaster();
 
     // Fetch ENS name
@@ -66,13 +70,28 @@ export const ProfileDisplay: React.FC<ProfileDisplayProps> = ({
             }
 
             try {
-                const { data } = await supabase
+                // Fetch profile data
+                const { data: profileData } = await supabase
                     .from('profiles')
                     .select('display_name, avatar_url')
                     .eq('wallet_address', walletAddress.toLowerCase())
                     .maybeSingle();
 
-                setProfile(data);
+                setProfile(profileData);
+
+                // Fetch premium status if not provided as prop
+                if (propIsPremium === undefined) {
+                    const { data: userData } = await supabase
+                        .from('users')
+                        .select('is_premium, subscription_active, subscription_end')
+                        .eq('wallet_address', walletAddress.toLowerCase())
+                        .maybeSingle();
+
+                    const premiumStatus = checkPremiumStatus(userData, walletAddress);
+                    setIsPremium(premiumStatus);
+                } else {
+                    setIsPremium(propIsPremium);
+                }
             } catch (err) {
                 console.error('Error fetching profile:', err);
             } finally {
@@ -81,7 +100,7 @@ export const ProfileDisplay: React.FC<ProfileDisplayProps> = ({
         };
 
         fetchProfile();
-    }, [walletAddress]);
+    }, [walletAddress, propIsPremium]);
 
     if (isLoading) {
         return (
@@ -126,9 +145,21 @@ export const ProfileDisplay: React.FC<ProfileDisplayProps> = ({
                 )
             )}
             <div className="flex flex-col">
-                <span className={`${sizeClasses[size].text} font-medium ${(isFarcasterUser && farcasterUser?.displayName) || profile?.display_name ? 'text-foreground' : 'text-muted-foreground'}`}>
-                    {displayName}
-                </span>
+                <div className="flex items-center gap-1.5">
+                    <span className={`${sizeClasses[size].text} font-medium ${(isFarcasterUser && farcasterUser?.displayName) || profile?.display_name ? 'text-foreground' : 'text-muted-foreground'}`}>
+                        {displayName}
+                    </span>
+                    {isPremium && (
+                        <svg 
+                            className={`${size === 'sm' ? 'w-3 h-3' : size === 'md' ? 'w-4 h-4' : 'w-5 h-5'} text-primary`} 
+                            fill="currentColor" 
+                            viewBox="0 0 20 20"
+                            title="Verified Pro Creator"
+                        >
+                            <path fillRule="evenodd" d="M6.267 3.455a3.066 3.066 0 001.745-.723 3.066 3.066 0 013.976 0 3.066 3.066 0 001.745.723 3.066 3.066 0 012.812 2.812c.051.643.304 1.254.723 1.745a3.066 3.066 0 010 3.976 3.066 3.066 0 00-.723 1.745 3.066 3.066 0 01-2.812 2.812 3.066 3.066 0 00-1.745.723 3.066 3.066 0 01-3.976 0 3.066 3.066 0 00-1.745-.723 3.066 3.066 0 01-2.812-2.812 3.066 3.066 0 00-.723-1.745 3.066 3.066 0 010-3.976 3.066 3.066 0 00.723-1.745 3.066 3.066 0 012.812-2.812zm7.44 5.252a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clipRule="evenodd" />
+                        </svg>
+                    )}
+                </div>
                 {showFid && isFarcasterUser && farcasterUser?.fid && (
                     <span className="text-xs text-muted-foreground">
                         FID: {farcasterUser.fid}

@@ -2,7 +2,7 @@
 
 ## Overview
 
-Pro Creator membership is now a **monthly recurring subscription** (15 USDC/month) instead of a one-time payment.
+Pro Creator membership is now a **monthly recurring subscription** (9 USDC/month) instead of a one-time payment.
 
 ## Database Migration
 
@@ -21,7 +21,7 @@ This adds:
 ## How It Works
 
 1. **Payment Flow:**
-   - User pays 15 USDC via Base Pay
+   - User pays 9 USDC via Base Pay
    - Subscription is set for 30 days from payment date
    - `subscription_active = true`, `is_premium = true`
 

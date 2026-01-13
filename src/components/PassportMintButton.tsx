@@ -48,7 +48,7 @@ export const PassportMintButton: React.FC<PassportMintButtonProps> = ({
     // Calculate how many entries need to be added
     const currentEntryCount = passportData ? Number(passportData[0]) : 0;
     const entriesToAdd = Math.max(0, verifiedEntriesCount - currentEntryCount);
-    const OPERATIONS_FEE = parseEther('0.00025'); // 0.00025 ETH per entry
+    const OPERATIONS_FEE = parseEther('0.00001'); // ~$0.03 per entry (approximately 3 cents)
     const totalFee = entriesToAdd > 0 ? OPERATIONS_FEE * BigInt(entriesToAdd) : 0n;
 
     // Don't show button if no verified entries

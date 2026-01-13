@@ -15,6 +15,7 @@
     "deploy:upgradeable:base": "hardhat run scripts/deploy-upgradeable.ts --network base",
     "upgrade:base-sepolia": "hardhat run scripts/upgrade.ts --network baseSepolia",
     "upgrade:base": "hardhat run scripts/upgrade.ts --network base",
+    "add-admin:base": "hardhat run scripts/add-admin.ts --network base",
     "verify": "hardhat verify"
   },
   "dependencies": {

@@ -28,10 +28,10 @@ contract CreatorPassportUpgradeable is
     
     // Operations fee address (treasury)
     address public constant OPERATIONS_ADDRESS = 0x7eB8F203167dF3bC14D59536E671528dd97FB72a;
-    uint256 public constant OPERATIONS_FEE = 0.00025 ether; // 0.00025 ETH per entry
+    uint256 public constant OPERATIONS_FEE = 0.00001 ether; // ~$0.03 per entry (approximately 3 cents)
     
     // Content hash registration fee
-    uint256 public constant CONTENT_REGISTRATION_FEE = 0.0001 ether; // 0.0001 ETH per entry
+    uint256 public constant CONTENT_REGISTRATION_FEE = 0.00001 ether; // ~$0.03 per entry (approximately 3 cents)
     
     // Content hash storage
     struct ContentRecord {

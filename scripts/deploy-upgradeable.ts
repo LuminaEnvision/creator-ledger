@@ -62,7 +62,7 @@ async function main() {
     
     // Verify expected values
     const expectedAddress = "0x7eB8F203167dF3bC14D59536E671528dd97FB72a";
-    const expectedFee = ethers.parseEther("0.00025");
+    const expectedFee = ethers.parseEther("0.00001");
     
     if (operationsAddress.toLowerCase() !== expectedAddress.toLowerCase()) {
       console.warn("⚠️  WARNING: Operations address mismatch!");
@@ -77,7 +77,7 @@ async function main() {
       console.warn("   Expected:", ethers.formatEther(expectedFee), "ETH");
       console.warn("   Got:", ethers.formatEther(operationsFee), "ETH");
     } else {
-      console.log("✅ Operations fee verified (0.00025 ETH)");
+      console.log("✅ Operations fee verified (0.00001 ETH ~$0.03)");
     }
   } catch (error: any) {
     console.warn("\n⚠️  Could not verify contract constants (this is normal if contract just deployed):");
@@ -85,7 +85,7 @@ async function main() {
     console.warn("   You can verify manually on Basescan or try again in a few seconds");
     console.log("\n📋 Expected values:");
     console.log("   Operations Address: 0x7eB8F203167dF3bC14D59536E671528dd97FB72a");
-    console.log("   Operations Fee: 0.00025 ETH");
+    console.log("   Operations Fee: 0.00001 ETH (~$0.03)");
   }
   
   if (network.name !== "hardhat" && network.name !== "localhost") {

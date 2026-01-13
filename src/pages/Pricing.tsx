@@ -211,7 +211,7 @@ export const Pricing: React.FC = () => {
             // Use Base Pay SDK to process payment
             // Note: Base Pay SDK expects the address to be a valid Ethereum address
             const result = await pay({
-                amount: '15.00',
+                amount: '9.00',
                 to: formattedTreasuryAddress,
                 testnet: true // Set to false for mainnet
             });
@@ -402,7 +402,7 @@ export const Pricing: React.FC = () => {
                 />
                 <TierCard
                     title="Pro Creator"
-                    price="15 USDC"
+                    price="9 USDC"
                     isPro={true}
                     isActive={isPremium}
                     nftComponent={

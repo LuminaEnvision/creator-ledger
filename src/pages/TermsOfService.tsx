@@ -61,7 +61,7 @@ export const TermsOfService: React.FC = () => {
                         <div className="mt-4 p-4 bg-primary/5 border border-primary/20 rounded-lg">
                             <p className="font-semibold text-foreground mb-2">Onchain Verification (Optional)</p>
                             <p className="text-sm">
-                                After verification, you can optionally upgrade entries to onchain storage for 0.0001 ETH (plus network gas fees). 
+                                After verification, you can optionally upgrade entries to onchain storage for approximately $0.03 (plus network gas fees). 
                                 This registers your content hash on the Base blockchain, providing:
                             </p>
                             <ul className="list-disc list-inside space-y-1 ml-4 mt-2 text-sm">
@@ -173,16 +173,16 @@ export const TermsOfService: React.FC = () => {
                         <div>
                             <h3 className="text-lg font-semibold mb-2 text-foreground">Free Tier</h3>
                             <ul className="list-disc list-inside space-y-1 ml-4">
-                                <li>0.00025 ETH per entry submission to cover on-chain verification costs (plus network gas fees)</li>
+                                <li>~$0.03 per entry submission to cover on-chain verification costs (plus network gas fees)</li>
                                 <li>Basic profile customization (display name, bio)</li>
                                 <li>URL-based image links only (no file uploads)</li>
                                 <li>Export features not available</li>
-                                <li>Optional onchain upgrade: 0.0001 ETH per entry to register content hash onchain on Base (plus network gas fees)</li>
+                                <li>Optional onchain upgrade: ~$0.03 per entry to register content hash onchain on Base (plus network gas fees)</li>
                             </ul>
                         </div>
                         <div>
                             <h3 className="text-lg font-semibold mb-2 text-foreground">Pro Tier (Premium Subscription)</h3>
-                            <p className="mb-2"><strong className="text-foreground">Monthly subscription:</strong> 15 USDC per month</p>
+                            <p className="mb-2"><strong className="text-foreground">Monthly subscription:</strong> 9 USDC per month</p>
                             <p className="mb-2"><strong className="text-foreground">Benefits include:</strong></p>
                             <ul className="list-disc list-inside space-y-1 ml-4">
                                 <li><strong className="text-foreground">No submission fees</strong> - Unlimited entry submissions without per-entry charges</li>

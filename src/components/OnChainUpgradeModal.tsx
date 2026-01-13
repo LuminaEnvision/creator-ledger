@@ -30,7 +30,7 @@ export const OnChainUpgradeModal: React.FC<OnChainUpgradeModalProps> = ({
     const { switchChainAsync } = useSwitchChain();
     const [isProcessing, setIsProcessing] = useState(false);
     const [status, setStatus] = useState<'idle' | 'switching' | 'processing'>('idle');
-    const CONTENT_REGISTRATION_FEE = parseEther('0.0001'); // 0.0001 ETH per entry
+    const CONTENT_REGISTRATION_FEE = parseEther('0.00001'); // ~$0.03 per entry (approximately 3 cents)
     
     const handleUpgrade = async () => {
         if (!contentHash || !url) {
@@ -204,7 +204,7 @@ export const OnChainUpgradeModal: React.FC<OnChainUpgradeModalProps> = ({
                             </p>
                         </div>
                         <div className="text-right">
-                            <p className="text-2xl font-black text-primary">0.0001 ETH</p>
+                            <p className="text-2xl font-black text-primary">~$0.03</p>
                             <p className="text-xs text-foreground/70">Plus network gas fees</p>
                         </div>
                     </div>

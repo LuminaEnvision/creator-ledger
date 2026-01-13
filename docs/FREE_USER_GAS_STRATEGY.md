@@ -17,7 +17,7 @@ Free users need to pay gas for on-chain operations:
    - **Frequency**: Per verified entry
 
 3. **Content Hash Registration** (`registerContentHash()`)
-   - **Registration Fee**: 0.0001 ETH (~$0.24)
+   - **Registration Fee**: 0.00001 ETH (~$0.03)
    - **Gas Cost**: ~$0.01 - $0.05 (user pays)
    - **Frequency**: Optional, per entry
 
@@ -26,8 +26,8 @@ Free users need to pay gas for on-chain operations:
 **Example: User with 5 verified entries**
 - NFT Mint: $0.03 (gas only)
 - 5 Entry Upgrades: $3.00 (operations) + $0.15 (gas) = $3.15
-- Optional: 5 Content Hash Registrations: $1.20 (fees) + $0.15 (gas) = $1.35
-- **Total: ~$4.18 - $4.53**
+- Optional: 5 Content Hash Registrations: $0.15 (fees) + $0.15 (gas) = $0.30
+- **Total: ~$3.33 - $3.68**
 
 ## Options for Handling Free User Gas
 
