@@ -276,6 +276,9 @@ export const PublicProfile: React.FC = () => {
                             {/* Copy Address Button - Always visible when address exists */}
                             {address && (
                                 <div className="flex items-center gap-2 justify-center mt-2">
+                                    <span className="font-mono text-xs text-muted-foreground">
+                                        {address.slice(0, 6)}...{address.slice(-4)}
+                                    </span>
                                     <button
                                         onClick={async () => {
                                             try {
@@ -286,30 +289,15 @@ export const PublicProfile: React.FC = () => {
                                                 showToast('Failed to copy address', 'error');
                                             }
                                         }}
-                                        className="flex items-center gap-2 px-4 py-2 rounded-lg bg-primary/10 hover:bg-primary/20 transition-colors text-primary border border-primary/30 text-xs font-semibold"
+                                        className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-primary/10 hover:bg-primary/20 transition-colors text-primary border border-primary/30 text-xs font-semibold"
                                         title={`Click to copy full address: ${address}`}
                                         aria-label="Copy wallet address"
                                     >
-                                        <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                        <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z" />
                                         </svg>
-                                        <span className="font-mono">Copy Address</span>
+                                        <span>Copy</span>
                                     </button>
-                                    <span 
-                                        onClick={async () => {
-                                            try {
-                                                await navigator.clipboard.writeText(address);
-                                                showToast('Address copied to clipboard!', 'success');
-                                            } catch (err) {
-                                                console.error('Failed to copy address:', err);
-                                                showToast('Failed to copy address', 'error');
-                                            }
-                                        }}
-                                        className="font-mono text-xs text-muted-foreground hover:text-foreground cursor-pointer select-all"
-                                        title={`Click to copy: ${address}`}
-                                    >
-                                        {address}
-                                    </span>
                                 </div>
                             )}
                         </div>
