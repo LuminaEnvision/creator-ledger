@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { useAuth } from '../context/AuthContext';
-import { supabase } from '../lib/supabase';
+import { edgeFunctions } from '../lib/edgeFunctions';
+import { supabase } from '../lib/supabase'; // Keep for storage operations only
 import { detectPlatform } from '../lib/platform';
 import { generateEntryHash } from '../lib/hashing';
 import { generateContentHash } from '../lib/signatureVerification';
@@ -294,47 +295,31 @@ export const CreateEntryForm: React.FC<{ onSuccess: () => void }> = ({ onSuccess
                 setIsUploading(false);
             }
 
-            // 3. Save to Supabase - Status will be 'Unverified' until admin approves
+            // 3. Save to Supabase via Edge Function - Status will be 'Unverified' until admin approves
             // NFT will be minted/updated when admin verifies the entry
             setStatus('saving');
 
-            const { error: insertError } = await supabase
-                .from('ledger_entries')
-                .insert([
-                    {
-                        wallet_address: user.walletAddress.toLowerCase(),
-                        url,
-                        platform,
-                        description,
-                        campaign_tag: hashtags.map(tag => tag.replace(/^#/, '')).join(', '),
-                        timestamp,
-                        content_published_at: manualPublishedDate 
-                            ? new Date(manualPublishedDate).toISOString() 
-                            : (metadata.publishedAt ? new Date(metadata.publishedAt).toISOString() : null), // Manual date takes priority, then metadata
-                        payload_hash: payloadHash,
-                        content_hash: contentHash, // For duplicate detection
-                        verification_status: 'Unverified', // Requires admin verification
-                        title: metadata.title || null,
-                        image_url: metadata.image || null,
-                        custom_image_url: finalCustomImageUrl || null,
-                        site_name: metadata.siteName || null,
-                        signature: signature
-                    }
-                ]);
+            const { entry } = await edgeFunctions.createEntry({
+                wallet_address: user.walletAddress.toLowerCase(),
+                url,
+                platform,
+                description,
+                campaign_tag: hashtags.map(tag => tag.replace(/^#/, '')).join(', '),
+                timestamp,
+                content_published_at: manualPublishedDate 
+                    ? new Date(manualPublishedDate).toISOString() 
+                    : (metadata.publishedAt ? new Date(metadata.publishedAt).toISOString() : null),
+                payload_hash: payloadHash,
+                content_hash: contentHash,
+                verification_status: 'Unverified',
+                title: metadata.title || null,
+                image_url: metadata.image || null,
+                custom_image_url: finalCustomImageUrl || null,
+                site_name: metadata.siteName || null,
+                signature: signature
+            });
 
-            if (insertError) throw insertError;
-
-            // Get the inserted entry ID
-            const { data: insertedEntries } = await supabase
-                .from('ledger_entries')
-                .select('id')
-                .eq('wallet_address', user.walletAddress.toLowerCase())
-                .eq('payload_hash', payloadHash)
-                .order('timestamp', { ascending: false })
-                .limit(1)
-                .single();
-
-            const entryId = insertedEntries?.id;
+            const entryId = entry?.id;
 
             // Save URL and contentHash before clearing form state
             const submittedUrl = url;

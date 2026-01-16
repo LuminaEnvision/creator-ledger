@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useAuth } from '../context/AuthContext';
-import { supabase } from '../lib/supabase';
+import { edgeFunctions } from '../lib/edgeFunctions';
 import { BasePayButton } from '@base-org/account-ui/react';
 import { pay } from '@base-org/account';
 import { useConnectModal } from '@rainbow-me/rainbowkit';
@@ -132,11 +132,6 @@ export const Pricing: React.FC = () => {
                 .eq('wallet_address', walletAddress)
                 .select()
                 .single();
-
-            if (error) {
-                console.error('❌ Database update error:', error);
-                throw error;
-            }
 
             if (!updatedUser) {
                 throw new Error('Update succeeded but no data returned');

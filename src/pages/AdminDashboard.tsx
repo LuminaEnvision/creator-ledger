@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useAuth } from '../context/AuthContext';
-import { supabase } from '../lib/supabase';
+import { edgeFunctions } from '../lib/edgeFunctions';
 import type { LedgerEntry } from '../types';
 import { isAdmin as checkIsAdmin } from '../lib/admin';
 import { useReadContract } from 'wagmi';

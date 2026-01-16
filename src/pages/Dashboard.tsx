@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useAuth } from '../context/AuthContext';
-import { supabase } from '../lib/supabase';
+import { edgeFunctions } from '../lib/edgeFunctions';
 import { CreateEntryForm } from '../components/CreateEntryForm';
 import { EntryList } from '../components/EntryList';
 import type { LedgerEntry } from '../types';
@@ -105,33 +105,22 @@ export const Dashboard: React.FC = () => {
 
             const walletAddress = user.walletAddress.toLowerCase();
 
-            // Parallelize independent fetches to eliminate waterfall
+            // Use Edge Functions instead of direct database access
             // (async-parallel: Use Promise.all() for independent operations)
-            const [userResult, entriesResult] = await Promise.all([
-                supabase
-                    .from('users')
-                    .select('is_premium, subscription_active, subscription_end')
-                    .eq('wallet_address', walletAddress)
-                    .maybeSingle(),
-                supabase
-                    .from('ledger_entries')
-                    .select('*')
-                    .eq('wallet_address', walletAddress)
-                    .order('timestamp', { ascending: false })
-            ]);
+            try {
+                const [userResult, entriesResult] = await Promise.all([
+                    edgeFunctions.getUser(),
+                    edgeFunctions.getEntries({ wallet_address: walletAddress, only_verified: false })
+                ]);
 
-            const { data: userData, error: userError } = userResult;
-            const { data: entriesData, error: entriesError } = entriesResult;
+                const { user: userData } = userResult;
+                const { entries: entriesData } = entriesResult;
 
-            if (userError) {
-                console.error('Error fetching user data:', userError);
-            }
+                if (entriesData) {
+                    setEntries(entriesData || []);
+                }
 
-            if (entriesError) {
-                console.error('Error fetching entries:', entriesError);
-            } else {
-                setEntries(entriesData || []);
-            }
+                if (userData) {
 
             if (userData) {
                 // Check if subscription is still active (not expired)
@@ -182,19 +171,21 @@ export const Dashboard: React.FC = () => {
                 // Auto-update if subscription expired
                 if (hasActiveSubscription && subscriptionEnd && subscriptionEnd <= now) {
                     console.log('⚠️ Subscription expired, updating database...');
-                    await supabase
-                        .from('users')
-                        .update({
-                            subscription_active: false,
-                            is_premium: false
-                        })
-                        .eq('wallet_address', walletAddress);
+                    await edgeFunctions.updateUser({
+                        subscription_active: false,
+                        is_premium: false
+                    });
                     setIsPremium(false);
                 }
-            } else {
-                console.warn('⚠️ No user data found for wallet:', walletAddress);
-                console.warn('⚠️ This might mean the user doesn\'t exist in the database yet.');
-                console.warn('⚠️ Try clicking "Test Premium" again, or the user will be created on first entry submission.');
+                } else {
+                    console.warn('⚠️ No user data found for wallet:', walletAddress);
+                    console.warn('⚠️ This might mean the user doesn\'t exist in the database yet.');
+                    console.warn('⚠️ Try clicking "Test Premium" again, or the user will be created on first entry submission.');
+                    setIsPremium(false);
+                }
+            } catch (error: any) {
+                console.error('Error fetching user data via Edge Functions:', error);
+                // Fallback: Set premium to false if Edge Function fails
                 setIsPremium(false);
             }
 
@@ -310,29 +301,29 @@ export const Dashboard: React.FC = () => {
                                         console.log('🔄 Manual refresh triggered, current isPremium:', isPremium);
                                         console.log('🔄 Current user wallet:', user?.walletAddress);
 
-                                        // Force immediate database fetch
+                                        // Force immediate database fetch via Edge Function
                                         if (user) {
-                                            const { data: userData, error } = await supabase
-                                                .from('users')
-                                                .select('is_premium, subscription_active, subscription_end, wallet_address')
-                                                .eq('wallet_address', user.walletAddress.toLowerCase())
-                                                .maybeSingle();
+                                            try {
+                                                const { user: userData } = await edgeFunctions.getUser();
+                                                
+                                                console.log('🔄 Manual fetch result:', { userData });
 
-                                            console.log('🔄 Manual fetch result:', { userData, error });
+                                                if (userData) {
+                                                    const now = new Date();
+                                                    const subscriptionEnd = userData.subscription_end ? new Date(userData.subscription_end) : null;
+                                                    const hasActiveSubscription = userData.subscription_active === true;
+                                                    const isNotExpired = !subscriptionEnd || subscriptionEnd > now;
+                                                    const isActive = hasActiveSubscription && isNotExpired;
+                                                    const hasSubscription = userData.subscription_active !== null && userData.subscription_active !== undefined;
+                                                    const dbPremiumStatus = isActive || (!hasSubscription && userData.is_premium === true);
+                                                    const isWhitelisted = isPremiumWhitelisted(user.walletAddress);
+                                                    const premiumStatus = dbPremiumStatus || isWhitelisted;
 
-                                            if (userData) {
-                                                const now = new Date();
-                                                const subscriptionEnd = userData.subscription_end ? new Date(userData.subscription_end) : null;
-                                                const hasActiveSubscription = userData.subscription_active === true;
-                                                const isNotExpired = !subscriptionEnd || subscriptionEnd > now;
-                                                const isActive = hasActiveSubscription && isNotExpired;
-                                                const hasSubscription = userData.subscription_active !== null && userData.subscription_active !== undefined;
-                                                const dbPremiumStatus = isActive || (!hasSubscription && userData.is_premium === true);
-                                                const isWhitelisted = isPremiumWhitelisted(user.walletAddress);
-                                                const premiumStatus = dbPremiumStatus || isWhitelisted;
-
-                                                console.log('🔄 Calculated premium status:', { dbPremiumStatus, isWhitelisted, premiumStatus });
-                                                setIsPremium(premiumStatus);
+                                                    console.log('🔄 Calculated premium status:', { dbPremiumStatus, isWhitelisted, premiumStatus });
+                                                    setIsPremium(premiumStatus);
+                                                }
+                                            } catch (err: any) {
+                                                console.error('Error refreshing user data:', err);
                                             }
                                         }
 

@@ -15,18 +15,12 @@ if (!SUPABASE_URL) {
 
 /**
  * Get the current user's Supabase Auth token
- * This requires Supabase Auth to be set up with wallet-based authentication
+ * Token expiration and refresh is handled automatically by Supabase Auth
  */
 async function getAuthToken(): Promise<string | null> {
-  // TODO: Replace with actual Supabase Auth token retrieval
-  // For now, this is a placeholder that needs to be implemented
-  // Example:
-  // const { data: { session } } = await supabase.auth.getSession()
-  // return session?.access_token || null
-  
-  // Temporary: Return null to indicate auth is not yet set up
-  // Once Supabase Auth is integrated, this should return the actual token
-  return null
+  // Import dynamically to avoid circular dependencies
+  const { getAuthToken: getToken } = await import('./supabaseAuth')
+  return getToken()
 }
 
 /**

@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import { useParams, useSearchParams } from 'react-router-dom';
-import { supabase } from '../lib/supabase';
+import { edgeFunctions } from '../lib/edgeFunctions';
 import { EntryList } from '../components/EntryList';
 import type { LedgerEntry } from '../types';
 import { useEnsName } from 'wagmi';
