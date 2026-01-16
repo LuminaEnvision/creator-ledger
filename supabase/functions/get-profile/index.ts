@@ -44,6 +44,12 @@ serve(async (req) => {
     return successResponse({ profile: profile || null })
   } catch (error: any) {
     console.error('Error in get-profile:', error)
+    
+    // Immediately return 403 for authentication errors (best practice: return 403 immediately for invalid tokens)
+    if (error.message?.includes('UNAUTHORIZED') || error.message?.includes('Missing') || error.message?.includes('Invalid') || error.message?.includes('expired')) {
+      return errorResponse('Unauthorized', 403)
+    }
+    
     return errorResponse(error.message || 'Internal server error', 500)
   }
 })

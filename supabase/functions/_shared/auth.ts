@@ -2,14 +2,18 @@ import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.89.0'
 
 /**
  * Authenticates the user from the request headers
- * Supports both Supabase Auth tokens and wallet signatures (for migration)
- * Returns the authenticated user's wallet address or throws an error
+ * 
+ * IMPORTANT: Token expiration and refresh is handled automatically by Supabase Auth.
+ * This function verifies the token and extracts the wallet address.
+ * 
+ * Returns the authenticated user's wallet address or throws an error that should result in 403
  */
 export async function authenticateUser(req: Request): Promise<string> {
   const authHeader = req.headers.get('Authorization')
   
+  // Immediately return 403 if no authorization header (best practice: return 403 immediately for invalid tokens)
   if (!authHeader || !authHeader.startsWith('Bearer ')) {
-    throw new Error('Missing or invalid authorization header')
+    throw new Error('UNAUTHORIZED: Missing or invalid authorization header')
   }
 
   const token = authHeader.replace('Bearer ', '')
@@ -20,26 +24,32 @@ export async function authenticateUser(req: Request): Promise<string> {
     Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? ''
   )
 
-  // Try to verify as Supabase Auth JWT token first
+  // Verify token - Supabase Auth handles expiration and refresh automatically
+  // We just need to verify the token is valid and extract user info
   try {
     const { data: { user }, error } = await supabaseAdmin.auth.getUser(token)
     
-    if (!error && user) {
-      // Extract wallet address from user metadata
-      const walletAddress = user.user_metadata?.wallet_address || user.user_metadata?.address
-      
-      if (walletAddress) {
-        return walletAddress.toLowerCase()
-      }
+    // Immediately return 403 if token is invalid or expired
+    if (error || !user) {
+      throw new Error('UNAUTHORIZED: Invalid or expired token')
     }
-  } catch (e) {
-    // Token is not a Supabase Auth token, might be a wallet signature
-    // For now, we'll require Supabase Auth tokens
-    // TODO: Remove this fallback once fully migrated to Supabase Auth
+    
+    // Extract wallet address from user metadata
+    const walletAddress = user.user_metadata?.wallet_address || user.user_metadata?.address
+    
+    // Immediately return 403 if wallet address not found
+    if (!walletAddress) {
+      throw new Error('UNAUTHORIZED: Wallet address not found in user metadata')
+    }
+    
+    return walletAddress.toLowerCase()
+  } catch (e: any) {
+    // Re-throw with UNAUTHORIZED prefix to ensure 403 response
+    if (e.message?.includes('UNAUTHORIZED')) {
+      throw e
+    }
+    throw new Error('UNAUTHORIZED: Token verification failed')
   }
-
-  // If token verification fails, throw error
-  throw new Error('Invalid or expired token')
 }
 
 /**
@@ -64,10 +74,17 @@ export function corsHeaders() {
 
 /**
  * Creates an error response
+ * 
+ * IMPORTANT: UNAUTHORIZED errors should always return 403 status
  */
 export function errorResponse(message: string, status: number = 400) {
+  // Ensure authentication errors return 403 (best practice: immediately return 403 for invalid tokens)
+  if (message.includes('UNAUTHORIZED') || message.includes('Unauthorized')) {
+    status = 403
+  }
+  
   return new Response(
-    JSON.stringify({ error: message }),
+    JSON.stringify({ error: message.replace('UNAUTHORIZED: ', '') }),
     { 
       status,
       headers: { ...corsHeaders(), 'Content-Type': 'application/json' }

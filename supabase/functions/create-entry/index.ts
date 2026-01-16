@@ -74,8 +74,8 @@ serve(async (req) => {
   } catch (error: any) {
     console.error('Error in create-entry:', error)
     
-    // Return 403 for authentication errors
-    if (error.message?.includes('Missing') || error.message?.includes('Invalid') || error.message?.includes('expired')) {
+    // Immediately return 403 for authentication errors (best practice: return 403 immediately for invalid tokens)
+    if (error.message?.includes('UNAUTHORIZED') || error.message?.includes('Missing') || error.message?.includes('Invalid') || error.message?.includes('expired')) {
       return errorResponse('Unauthorized', 403)
     }
     

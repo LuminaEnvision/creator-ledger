@@ -77,7 +77,7 @@ serve(async (req) => {
     console.error('Error in admin-verify-entry:', error)
     
     // Return 403 for authentication errors
-    if (error.message?.includes('Missing') || error.message?.includes('Invalid') || error.message?.includes('expired')) {
+    if (error.message?.includes('UNAUTHORIZED') || error.message?.includes('Missing') || error.message?.includes('Invalid') || error.message?.includes('expired')) {
       return errorResponse('Unauthorized', 403)
     }
     

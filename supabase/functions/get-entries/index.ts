@@ -59,7 +59,7 @@ serve(async (req) => {
     console.error('Error in get-entries:', error)
     
     // Return 403 for authentication errors (only if auth was required)
-    if (error.message?.includes('Missing') || error.message?.includes('Invalid') || error.message?.includes('expired')) {
+    if (error.message?.includes('UNAUTHORIZED') || error.message?.includes('Missing') || error.message?.includes('Invalid') || error.message?.includes('expired')) {
       return errorResponse('Unauthorized', 403)
     }
     
