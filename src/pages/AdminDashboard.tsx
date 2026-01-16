@@ -75,15 +75,12 @@ export const AdminDashboard: React.FC = () => {
     }, [userIsAdmin, isContractAdmin, user?.walletAddress]);
 
     const fetchAllEntries = async () => {
-        const { data, error } = await supabase
-            .from('ledger_entries')
-            .select('*')
-            .order('timestamp', { ascending: false });
-
-        if (error) {
-            console.error('Error fetching entries:', error);
-        } else {
-            setEntries(data || []);
+        try {
+            const { entries: entriesData } = await edgeFunctions.adminGetEntries();
+            setEntries(entriesData || []);
+        } catch (err: any) {
+            console.error('Error fetching entries:', err);
+            setEntries([]);
         }
     };
 
@@ -148,11 +145,6 @@ export const AdminDashboard: React.FC = () => {
             // Verify entry via Edge Function (handles notification creation)
             await edgeFunctions.adminVerifyEntry(id);
 
-            if (notifError) {
-                console.error('Error creating notification:', notifError);
-                // Don't fail the verification if notification fails
-            }
-
             // Update local state
             setEntries(prev => prev.map(e => e.id === id ? { ...e, verification_status: 'Verified' } : e));
             showToast('✅ Entry verified! User will be notified to claim their passport.', 'success');
@@ -173,17 +165,10 @@ export const AdminDashboard: React.FC = () => {
             await edgeFunctions.adminRejectEntry(id, reason || undefined);
             showToast('Entry rejected successfully', 'success');
             // Refresh entries list
-            fetchEntries();
-        } catch (error: any) {
-            console.error('Error rejecting entry:', error);
-            showToast(`Failed to reject entry: ${error.message}`, 'error');
-        }
-
-        if (error) {
-            console.error('Error rejecting entry:', error);
-            alert('Failed to reject entry');
-        } else {
-            setEntries(prev => prev.map(e => e.id === id ? { ...e, verification_status: 'Rejected' } : e));
+            fetchAllEntries();
+        } catch (err: any) {
+            console.error('Error rejecting entry:', err);
+            showToast(`Failed to reject entry: ${err.message}`, 'error');
         }
     };
 

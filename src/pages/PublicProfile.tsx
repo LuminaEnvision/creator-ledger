@@ -99,21 +99,19 @@ export const PublicProfile: React.FC = () => {
                 const isOwnProfile = user && user.walletAddress.toLowerCase() === normalizedAddress;
                 
                 // Fetch entries via Edge Function: show all to owner, only verified to public
-                const { entries: entriesData } = await edgeFunctions.getEntries({ 
-                    wallet_address: normalizedAddress,
-                    only_verified: !isOwnProfile 
-                });
-
-                if (entriesError) {
-                    if (entriesError.code === 'NOT_FOUND' || entriesError.message?.includes('NOT_FOUND')) {
-                        console.warn('Ledger entries table not found or RLS issue:', entriesError.message);
-                        setEntries([]);
-                    } else {
-                        console.error('Error fetching entries:', entriesError);
-                        setEntries([]);
-                    }
-                } else {
+                try {
+                    const { entries: entriesData } = await edgeFunctions.getEntries({ 
+                        wallet_address: normalizedAddress,
+                        only_verified: !isOwnProfile 
+                    });
                     setEntries(entriesData || []);
+                } catch (entriesErr: any) {
+                    if (entriesErr.message?.includes('NOT_FOUND')) {
+                        console.warn('Ledger entries table not found or RLS issue:', entriesErr.message);
+                    } else {
+                        console.error('Error fetching entries:', entriesErr);
+                    }
+                    setEntries([]);
                 }
             } catch (err) {
                 console.error('Error fetching public data:', err);

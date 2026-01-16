@@ -121,62 +121,60 @@ export const Dashboard: React.FC = () => {
                 }
 
                 if (userData) {
+                    // Check if subscription is still active (not expired)
+                    const now = new Date();
+                    const subscriptionEnd = userData.subscription_end ? new Date(userData.subscription_end) : null;
 
-            if (userData) {
-                // Check if subscription is still active (not expired)
-                const now = new Date();
-                const subscriptionEnd = userData.subscription_end ? new Date(userData.subscription_end) : null;
+                    // Check if subscription is active (not null/undefined, equals true, and not expired)
+                    const hasActiveSubscription = userData.subscription_active === true;
+                    const isNotExpired = !subscriptionEnd || subscriptionEnd > now;
+                    const isActive = hasActiveSubscription && isNotExpired;
 
-                // Check if subscription is active (not null/undefined, equals true, and not expired)
-                const hasActiveSubscription = userData.subscription_active === true;
-                const isNotExpired = !subscriptionEnd || subscriptionEnd > now;
-                const isActive = hasActiveSubscription && isNotExpired;
+                    // Premium status: Active subscription OR legacy premium flag (if no subscription system was used)
+                    // OR whitelisted for testing
+                    const hasSubscription = userData.subscription_active !== null && userData.subscription_active !== undefined;
+                    const dbPremiumStatus = isActive || (!hasSubscription && userData.is_premium === true);
+                    const isWhitelisted = isPremiumWhitelisted(user.walletAddress);
+                    const premiumStatus = dbPremiumStatus || isWhitelisted;
 
-                // Premium status: Active subscription OR legacy premium flag (if no subscription system was used)
-                // OR whitelisted for testing
-                const hasSubscription = userData.subscription_active !== null && userData.subscription_active !== undefined;
-                const dbPremiumStatus = isActive || (!hasSubscription && userData.is_premium === true);
-                const isWhitelisted = isPremiumWhitelisted(user.walletAddress);
-                const premiumStatus = dbPremiumStatus || isWhitelisted;
-
-                console.log('Premium check:', {
-                    wallet: walletAddress,
-                    subscription_active: userData.subscription_active,
-                    subscription_end: subscriptionEnd?.toISOString(),
-                    subscription_end_parsed: subscriptionEnd,
-                    is_premium: userData.is_premium,
-                    now: now.toISOString(),
-                    hasActiveSubscription,
-                    isNotExpired,
-                    isActive,
-                    hasSubscription,
-                    dbPremiumStatus,
-                    isWhitelisted,
-                    premiumStatus,
-                    currentIsPremium: isPremium,
-                    rawData: userData
-                });
-
-                if (isWhitelisted) {
-                    console.log('✅ Premium whitelist active for wallet:', walletAddress);
-                }
-
-                setIsPremium(premiumStatus);
-
-                // Force update if premium status changed
-                if (premiumStatus !== isPremium) {
-                    console.log('✅ Premium status changed!', { from: isPremium, to: premiumStatus });
-                }
-
-                // Auto-update if subscription expired
-                if (hasActiveSubscription && subscriptionEnd && subscriptionEnd <= now) {
-                    console.log('⚠️ Subscription expired, updating database...');
-                    await edgeFunctions.updateUser({
-                        subscription_active: false,
-                        is_premium: false
+                    console.log('Premium check:', {
+                        wallet: walletAddress,
+                        subscription_active: userData.subscription_active,
+                        subscription_end: subscriptionEnd?.toISOString(),
+                        subscription_end_parsed: subscriptionEnd,
+                        is_premium: userData.is_premium,
+                        now: now.toISOString(),
+                        hasActiveSubscription,
+                        isNotExpired,
+                        isActive,
+                        hasSubscription,
+                        dbPremiumStatus,
+                        isWhitelisted,
+                        premiumStatus,
+                        currentIsPremium: isPremium,
+                        rawData: userData
                     });
-                    setIsPremium(false);
-                }
+
+                    if (isWhitelisted) {
+                        console.log('✅ Premium whitelist active for wallet:', walletAddress);
+                    }
+
+                    setIsPremium(premiumStatus);
+
+                    // Force update if premium status changed
+                    if (premiumStatus !== isPremium) {
+                        console.log('✅ Premium status changed!', { from: isPremium, to: premiumStatus });
+                    }
+
+                    // Auto-update if subscription expired
+                    if (hasActiveSubscription && subscriptionEnd && subscriptionEnd <= now) {
+                        console.log('⚠️ Subscription expired, updating database...');
+                        await edgeFunctions.updateUser({
+                            subscription_active: false,
+                            is_premium: false
+                        });
+                        setIsPremium(false);
+                    }
                 } else {
                     console.warn('⚠️ No user data found for wallet:', walletAddress);
                     console.warn('⚠️ This might mean the user doesn\'t exist in the database yet.');

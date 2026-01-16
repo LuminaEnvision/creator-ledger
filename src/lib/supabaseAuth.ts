@@ -10,7 +10,6 @@
  */
 
 import { supabase } from './supabase'
-import { useSignMessage } from 'wagmi'
 
 const SUPABASE_URL = import.meta.env.VITE_SUPABASE_URL
 

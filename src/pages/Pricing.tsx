@@ -96,46 +96,34 @@ export const Pricing: React.FC = () => {
             const walletAddress = user.walletAddress.toLowerCase();
 
             // First, check if user exists, if not create them
-            const { data: existingUser } = await supabase
-                .from('users')
-                .select('wallet_address')
-                .eq('wallet_address', walletAddress)
-                .maybeSingle();
-
-            if (!existingUser) {
-                // Create user first if they don't exist
-                const { error: createError } = await supabase
-                    .from('users')
-                    .insert([{ wallet_address: walletAddress }]);
-
-                if (createError) {
-                    console.error('Error creating user:', createError);
-                    throw new Error('Failed to create user: ' + createError.message);
+            try {
+                const { user: existingUser } = await edgeFunctions.getUser();
+                if (!existingUser) {
+                    // Create user first if they don't exist
+                    await edgeFunctions.createUser();
+                }
+            } catch (err: any) {
+                // User might not exist, try to create
+                try {
+                    await edgeFunctions.createUser();
+                } catch (createErr: any) {
+                    console.error('Error creating user:', createErr);
+                    throw new Error('Failed to create user: ' + createErr.message);
                 }
             }
 
-            // Update user premium status and subscription in database (bypass payment for testing)
-            const { data: updatedUser, error } = await supabase
-                .from('users')
-                .update({
-                    is_premium: true,
-                    subscription_active: true,
-                    subscription_start: now.toISOString(),
-                    subscription_end: subscriptionEnd.toISOString()
-                })
-                .eq('wallet_address', walletAddress)
-                .select()
-                .single();
-
-            if (!updatedUser) {
-                throw new Error('Update succeeded but no data returned');
-            }
+            // Update user premium status and subscription via Edge Function (bypass payment for testing)
+            await edgeFunctions.updateUser({
+                is_premium: true,
+                subscription_active: true,
+                subscription_start: now.toISOString(),
+                subscription_end: subscriptionEnd.toISOString()
+            });
 
             console.log('✅ Test premium activated:', {
-                updatedUser,
-                is_premium: updatedUser.is_premium,
-                subscription_active: updatedUser.subscription_active,
-                subscription_end: updatedUser.subscription_end,
+                is_premium: true,
+                subscription_active: true,
+                subscription_end: subscriptionEnd.toISOString(),
                 wallet: walletAddress
             });
 

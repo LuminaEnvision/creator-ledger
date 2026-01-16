@@ -167,8 +167,8 @@ export const CustomizeProfileForm: React.FC<{ onUpdate: () => void; onClose: () 
             await edgeFunctions.updateProfile({
                 display_name: displayName,
                 bio: bio,
-                avatar_url: finalAvatarUrl || null,
-                banner_url: finalBannerUrl || null
+                avatar_url: finalAvatarUrl || undefined,
+                banner_url: finalBannerUrl || undefined
             });
             
             // Clear file states

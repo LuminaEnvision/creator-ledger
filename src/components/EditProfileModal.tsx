@@ -41,8 +41,6 @@ export const EditProfileModal: React.FC<{ isOpen: boolean; onClose: () => void; 
                 avatar_url: avatarUrl,
                 banner_url: bannerUrl
             });
-
-            if (error) throw error;
             setMessage({ type: 'success', text: 'Brand profile updated successfully!' });
             onUpdate();
             setTimeout(onClose, 1500);
