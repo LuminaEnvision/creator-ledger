@@ -13,31 +13,27 @@ ALTER TABLE IF EXISTS portfolio_collections ENABLE ROW LEVEL SECURITY;
 
 -- Drop all existing RLS policies
 -- This ensures no direct access from frontend
+-- Query pg_policies to find all existing policies and drop them
 DO $$
 DECLARE
-    r RECORD;
+    policy_record RECORD;
 BEGIN
-    FOR r IN (SELECT tablename FROM pg_tables WHERE schemaname = 'public') LOOP
-        EXECUTE 'DROP POLICY IF EXISTS "Enable all operations" ON ' || quote_ident(r.tablename);
-        EXECUTE 'DROP POLICY IF EXISTS "Users can view own data" ON ' || quote_ident(r.tablename);
-        EXECUTE 'DROP POLICY IF EXISTS "Users can insert own data" ON ' || quote_ident(r.tablename);
-        EXECUTE 'DROP POLICY IF EXISTS "Users can update own data" ON ' || quote_ident(r.tablename);
-        EXECUTE 'DROP POLICY IF EXISTS "Users can delete own data" ON ' || quote_ident(r.tablename);
-        EXECUTE 'DROP POLICY IF EXISTS "Public read access" ON ' || quote_ident(r.tablename);
-        EXECUTE 'DROP POLICY IF EXISTS "Authenticated users can read" ON ' || quote_ident(r.tablename);
-        EXECUTE 'DROP POLICY IF EXISTS "Authenticated users can insert" ON ' || quote_ident(r.tablename);
-        EXECUTE 'DROP POLICY IF EXISTS "Authenticated users can update" ON ' || quote_ident(r.tablename);
-        EXECUTE 'DROP POLICY IF EXISTS "Authenticated users can delete" ON ' || quote_ident(r.tablename);
+    -- Loop through all policies on the target tables
+    FOR policy_record IN 
+        SELECT schemaname, tablename, policyname
+        FROM pg_policies
+        WHERE schemaname = 'public'
+            AND tablename IN ('users', 'ledger_entries', 'profiles', 'entry_endorsements', 'user_notifications', 'portfolio_collections')
+    LOOP
+        -- Drop each policy
+        EXECUTE format('DROP POLICY IF EXISTS %I ON %I.%I', 
+            policy_record.policyname, 
+            policy_record.schemaname, 
+            policy_record.tablename
+        );
+        RAISE NOTICE 'Dropped policy % on table %', policy_record.policyname, policy_record.tablename;
     END LOOP;
 END $$;
-
--- Drop all policies on specific tables
-DROP POLICY IF EXISTS ALL ON users;
-DROP POLICY IF EXISTS ALL ON ledger_entries;
-DROP POLICY IF EXISTS ALL ON profiles;
-DROP POLICY IF EXISTS ALL ON entry_endorsements;
-DROP POLICY IF EXISTS ALL ON user_notifications;
-DROP POLICY IF EXISTS ALL ON portfolio_collections;
 
 -- Verify RLS is enabled (should return 'on' for all tables)
 SELECT 
