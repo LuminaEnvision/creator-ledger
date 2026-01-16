@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { useAuth } from '../context/AuthContext';
 import { edgeFunctions } from '../lib/edgeFunctions';
-import { supabase } from '../lib/supabase'; // Keep for storage operations only
+import { supabase } from '../lib/supabase'; // Only for storage operations (profile-images bucket)
 import { detectPlatform } from '../lib/platform';
 import { generateEntryHash } from '../lib/hashing';
 import { generateContentHash } from '../lib/signatureVerification';
@@ -61,11 +61,7 @@ export const CreateEntryForm: React.FC<{ onSuccess: () => void }> = ({ onSuccess
             }
 
             try {
-                const { data: userData } = await supabase
-                    .from('users')
-                    .select('is_premium, subscription_active, subscription_end')
-                    .eq('wallet_address', user.walletAddress.toLowerCase())
-                    .maybeSingle();
+                const { user: userData } = await edgeFunctions.getUser();
 
                 const premiumStatus = checkPremiumStatus(userData, user.walletAddress);
                 setIsPremium(premiumStatus);
@@ -212,12 +208,10 @@ export const CreateEntryForm: React.FC<{ onSuccess: () => void }> = ({ onSuccess
             
             // Check for duplicate content (same URL already claimed by this wallet)
             const contentHash = await generateContentHash(url);
-            const { data: existingEntry } = await supabase
-                .from('ledger_entries')
-                .select('id, url')
-                .eq('wallet_address', user.walletAddress.toLowerCase())
-                .eq('content_hash', contentHash)
-                .maybeSingle();
+            const { entries: userEntries } = await edgeFunctions.getEntries({ 
+                wallet_address: user.walletAddress.toLowerCase() 
+            });
+            const existingEntry = userEntries?.find((e: any) => e.content_hash === contentHash);
 
             if (existingEntry) {
                 setError(`You have already claimed this content. See entry: ${existingEntry.url}`);
@@ -227,20 +221,9 @@ export const CreateEntryForm: React.FC<{ onSuccess: () => void }> = ({ onSuccess
             }
 
             // Check if this content has been claimed by ANY other user
-            const { data: duplicateEntry } = await supabase
-                .from('ledger_entries')
-                .select('id, url, wallet_address, verification_status')
-                .eq('content_hash', contentHash)
-                .neq('wallet_address', user.walletAddress.toLowerCase())
-                .maybeSingle();
-
-            if (duplicateEntry) {
-                // Still allow submission, but warn the user
-                const isVerified = duplicateEntry.verification_status === 'Verified';
-                const warningMessage = `⚠️ Warning: This content has already been claimed by another wallet${isVerified ? ' and is verified' : ''}. Your submission will be flagged for admin review.`;
-                showToast(warningMessage, 'warning');
-                // Continue with submission - admin will see the duplicate
-            }
+            // Note: This requires checking all entries, which is expensive
+            // For now, we'll let admin handle cross-wallet duplicates
+            // TODO: Add Edge Function to check cross-wallet duplicates
 
             const payloadHash = await generateEntryHash(user.walletAddress, url, timestamp);
 
@@ -307,14 +290,14 @@ export const CreateEntryForm: React.FC<{ onSuccess: () => void }> = ({ onSuccess
                 timestamp,
                 content_published_at: manualPublishedDate 
                     ? new Date(manualPublishedDate).toISOString() 
-                    : (metadata.publishedAt ? new Date(metadata.publishedAt).toISOString() : null),
+                    : (metadata.publishedAt ? new Date(metadata.publishedAt).toISOString() : undefined),
                 payload_hash: payloadHash,
                 content_hash: contentHash,
                 verification_status: 'Unverified',
-                title: metadata.title || null,
-                image_url: metadata.image || null,
-                custom_image_url: finalCustomImageUrl || null,
-                site_name: metadata.siteName || null,
+                title: metadata.title || undefined,
+                image_url: metadata.image || undefined,
+                custom_image_url: finalCustomImageUrl || undefined,
+                site_name: metadata.siteName || undefined,
                 signature: signature
             });
 

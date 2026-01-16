@@ -3,7 +3,7 @@ import { ConnectButton } from '@rainbow-me/rainbowkit';
 import { useFarcaster } from '../context/FarcasterContext';
 import { getEnvironment } from '../lib/environment';
 import { useAccount } from 'wagmi';
-import { supabase } from '../lib/supabase';
+import { edgeFunctions } from '../lib/edgeFunctions';
 import { checkPremiumStatus } from '../lib/premium';
 import { useAuth } from '../context/AuthContext';
 
@@ -25,11 +25,7 @@ export const WalletConnect: React.FC = () => {
             }
 
             try {
-                const { data: userData } = await supabase
-                    .from('users')
-                    .select('is_premium, subscription_active, subscription_end')
-                    .eq('wallet_address', walletAddress.toLowerCase())
-                    .maybeSingle();
+                const { user: userData } = await edgeFunctions.getUser();
 
                 const premiumStatus = checkPremiumStatus(userData, walletAddress);
                 setIsPremium(premiumStatus);

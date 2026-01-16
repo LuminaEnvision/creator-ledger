@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { supabase } from '../lib/supabase';
+import { edgeFunctions } from '../lib/edgeFunctions';
 import { useAuth } from '../context/AuthContext';
 
 export const EditProfileModal: React.FC<{ isOpen: boolean; onClose: () => void; onUpdate: () => void; buttonPosition?: { top: number; left: number } | null }> = ({ isOpen, onClose, onUpdate, buttonPosition }) => {
@@ -14,11 +14,8 @@ export const EditProfileModal: React.FC<{ isOpen: boolean; onClose: () => void; 
     useEffect(() => {
         const fetchProfile = async () => {
             if (!user || !isOpen) return;
-            const { data } = await supabase
-                .from('profiles')
-                .select('*')
-                .eq('wallet_address', user.walletAddress.toLowerCase())
-                .maybeSingle();
+            const { profile: profileData } = await edgeFunctions.getProfile();
+            const data = profileData;
 
             if (data) {
                 setDisplayName(data.display_name || '');
@@ -38,16 +35,12 @@ export const EditProfileModal: React.FC<{ isOpen: boolean; onClose: () => void; 
         setMessage(null);
 
         try {
-            const { error } = await supabase
-                .from('profiles')
-                .upsert({
-                    wallet_address: user.walletAddress.toLowerCase(),
-                    display_name: displayName,
-                    bio: bio,
-                    avatar_url: avatarUrl,
-                    banner_url: bannerUrl,
-                    updated_at: new Date().toISOString()
-                });
+            await edgeFunctions.updateProfile({
+                display_name: displayName,
+                bio: bio,
+                avatar_url: avatarUrl,
+                banner_url: bannerUrl
+            });
 
             if (error) throw error;
             setMessage({ type: 'success', text: 'Brand profile updated successfully!' });

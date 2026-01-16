@@ -81,9 +81,10 @@ export const TermsOfService: React.FC = () => {
                         <div>
                             <h3 className="text-lg font-semibold mb-2 text-foreground">Where Your Data is Stored</h3>
                             <ul className="list-disc list-inside space-y-1 ml-4">
-                                <li><strong>Database:</strong> Supabase (PostgreSQL) - hosted on secure cloud infrastructure</li>
+                                <li><strong>Database:</strong> Supabase (PostgreSQL) - hosted on secure cloud infrastructure, accessed only through authenticated Edge Functions</li>
                                 <li><strong>Blockchain:</strong> Base (mainnet) - NFT metadata and entry counts stored onchain</li>
                                 <li><strong>Content URLs:</strong> Only links are stored, not the actual content files</li>
+                                <li><strong>Edge Functions:</strong> All database operations are processed through secure Edge Functions with authentication</li>
                             </ul>
                         </div>
 

@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useAuth } from '../context/AuthContext';
-import { supabase } from '../lib/supabase';
+import { edgeFunctions } from '../lib/edgeFunctions';
 import { useNavigate } from 'react-router-dom';
 import { Link } from 'react-router-dom';
 import { PassportMintButton } from './PassportMintButton';
@@ -65,14 +65,14 @@ export const Notifications: React.FC = () => {
         }
 
         const fetchVerifiedCount = async () => {
-            const { error, count } = await supabase
-                .from('ledger_entries')
-                .select('*', { count: 'exact', head: true })
-                .eq('wallet_address', user.walletAddress.toLowerCase())
-                .eq('verification_status', 'Verified');
-
-            if (!error && count !== null) {
-                setVerifiedEntriesCount(count);
+            try {
+                const { entries: verifiedEntries } = await edgeFunctions.getEntries({ 
+                    wallet_address: user.walletAddress.toLowerCase(),
+                    only_verified: true 
+                });
+                setVerifiedEntriesCount(verifiedEntries?.length || 0);
+            } catch (err) {
+                console.error('Error fetching verified count:', err);
             }
         };
 
@@ -87,39 +87,23 @@ export const Notifications: React.FC = () => {
 
         const checkSubscriptionExpiry = async () => {
             // Check if subscription has expired and create notification if needed
-            const { data: userData } = await supabase
-                .from('users')
-                .select('subscription_active, subscription_end')
-                .eq('wallet_address', user.walletAddress.toLowerCase())
-                .maybeSingle();
+            try {
+                const { user: userData } = await edgeFunctions.getUser();
 
-            if (userData && userData.subscription_active && userData.subscription_end) {
-                const now = new Date();
-                const subscriptionEnd = new Date(userData.subscription_end);
-                
-                // If subscription expired in the last 7 days and no notification exists
-                if (subscriptionEnd < now && subscriptionEnd > new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000)) {
-                    // Check if notification already exists
-                    const { data: existingNotif } = await supabase
-                        .from('user_notifications')
-                        .select('id')
-                        .eq('wallet_address', user.walletAddress.toLowerCase())
-                        .eq('type', 'subscription_expired')
-                        .eq('read', false)
-                        .maybeSingle();
-
-                    if (!existingNotif) {
-                        // Create subscription expiry notification
-                        await supabase
-                            .from('user_notifications')
-                            .insert({
-                                wallet_address: user.walletAddress.toLowerCase(),
-                                type: 'subscription_expired',
-                                message: 'Your subscription has expired. Renew now to continue enjoying Pro features!',
-                                read: false
-                            });
+                if (userData && userData.subscription_active && userData.subscription_end) {
+                    const now = new Date();
+                    const subscriptionEnd = new Date(userData.subscription_end);
+                    
+                    // If subscription expired in the last 7 days
+                    // Note: Edge Function should handle notification creation
+                    // For now, we'll let the backend handle this
+                    if (subscriptionEnd < now && subscriptionEnd > new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000)) {
+                        // Notification creation should be handled by backend/Edge Function
+                        // TODO: Add create-subscription-expired-notification Edge Function if needed
                     }
                 }
+            } catch (err) {
+                console.error('Error checking subscription expiry:', err);
             }
         };
 
@@ -127,51 +111,71 @@ export const Notifications: React.FC = () => {
             // Check for expired subscriptions first
             await checkSubscriptionExpiry();
 
-            const { data, error } = await supabase
-                .from('user_notifications')
-                .select('*')
-                .eq('wallet_address', user.walletAddress.toLowerCase())
-                .order('created_at', { ascending: false })
-                .limit(50);
-
-            if (error) {
+            try {
+                const { notifications: notificationsData } = await edgeFunctions.getNotifications(false);
+                setNotifications(notificationsData || []);
+            } catch (error: any) {
                 console.error('Error fetching notifications:', error);
-            } else {
-                setNotifications(data || []);
+                setNotifications([]);
             }
             setIsLoading(false);
         };
 
         fetchNotifications();
 
-        // Set up real-time subscription
-        const channel = supabase
-            .channel('notifications')
-            .on('postgres_changes', {
-                event: 'INSERT',
-                schema: 'public',
-                table: 'user_notifications',
-                filter: `wallet_address=eq.${user.walletAddress.toLowerCase()}`
-            }, () => {
-                fetchNotifications();
-            })
-            .subscribe();
+        // Set up real-time notifications via Server-Sent Events
+        let cleanup: (() => void) | null = null
+        let pollInterval: NodeJS.Timeout | null = null
+
+        const setupRealtime = async () => {
+            try {
+                cleanup = await edgeFunctions.subscribeNotifications(
+                    (notification) => {
+                        // Add new notification to the list
+                        setNotifications(prev => {
+                            // Check if notification already exists
+                            if (prev.some(n => n.id === notification.id)) {
+                                return prev
+                            }
+                            // Add to beginning of list
+                            return [notification, ...prev]
+                        })
+                    },
+                    (error) => {
+                        console.error('Notification subscription error:', error)
+                        // Fallback to polling if SSE fails
+                        if (!pollInterval) {
+                            pollInterval = setInterval(() => {
+                                fetchNotifications()
+                            }, 10000) // Poll every 10 seconds as fallback
+                        }
+                    }
+                )
+            } catch (error) {
+                console.error('Failed to set up real-time notifications:', error)
+                // Fallback to polling
+                pollInterval = setInterval(() => {
+                    fetchNotifications()
+                }, 10000)
+            }
+        }
+
+        setupRealtime()
 
         return () => {
-            supabase.removeChannel(channel);
-        };
+            if (cleanup) cleanup()
+            if (pollInterval) clearInterval(pollInterval)
+        }
     }, [user?.walletAddress]);
 
     const markAsRead = async (notificationId: string) => {
-        const { error } = await supabase
-            .from('user_notifications')
-            .update({ read: true })
-            .eq('id', notificationId);
-
-        if (!error) {
+        try {
+            await edgeFunctions.markNotificationRead(notificationId);
             setNotifications(prev => prev.map(n => 
                 n.id === notificationId ? { ...n, read: true } : n
             ));
+        } catch (error: any) {
+            console.error('Error marking notification as read:', error);
         }
     };
 

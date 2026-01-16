@@ -23,9 +23,15 @@ Creator Ledger is a full-stack Web3 application that combines traditional web te
 - `PublicProfile.tsx` - Public-facing creator profiles
 - `DynamicNFT.tsx` - On-chain NFT display component
 
-### 2. Backend (Supabase)
+### 2. Backend (Supabase Edge Functions)
 
-**Technology**: PostgreSQL + Supabase
+**Technology**: PostgreSQL + Supabase + Edge Functions
+
+**Architecture**:
+- **Edge Functions**: All database operations go through authenticated Edge Functions
+- **Supabase Auth**: Wallet-based authentication with JWT tokens
+- **Service Role Key**: Only Edge Functions can access database (frontend cannot)
+- **RLS Enabled**: Row Level Security enabled but NO policies (database closed)
 
 **Database Schema**:
 
@@ -46,9 +52,10 @@ Creator Ledger is a full-stack Web3 application that combines traditional web te
 - Custom theme settings
 
 **Security**:
-- Row Level Security (RLS) enabled on all tables
-- Policies ensure users can only access their own data
-- Public read access for verified entries
+- Row Level Security (RLS) enabled on all tables with NO policies
+- Database is closed to direct frontend access
+- All access goes through Edge Functions (using service role key)
+- Edge Functions authenticate users via Supabase Auth JWT tokens
 
 ### 3. Smart Contracts
 
@@ -149,9 +156,11 @@ Pro NFT Styling Applied
 ### Authentication
 
 1. **Wallet Connection**: User connects wallet via RainbowKit
-2. **Signature Verification**: Content submissions require cryptographic signatures
-3. **Session Management**: Wallet address stored in React context
-4. **Database Security**: RLS policies enforce data access
+2. **Wallet Signature**: User signs message with wallet
+3. **Supabase Auth**: Edge Function creates/updates Supabase Auth user with wallet in metadata
+4. **JWT Token**: Token returned and stored, automatically refreshes
+5. **Edge Function Auth**: All Edge Functions verify JWT token and extract wallet address
+6. **Database Security**: RLS enabled with NO policies - only Edge Functions (service role) can access
 
 ### Authorization
 
@@ -178,23 +187,46 @@ Pro NFT Styling Applied
 
 ### Backend State
 
-- **Supabase**: Primary data store
+- **Supabase**: Primary data store (accessed only via Edge Functions)
 - **Smart Contracts**: On-chain state (NFT ownership, entry counts)
-- **Real-time**: Supabase real-time subscriptions (optional)
+- **Real-time**: Server-Sent Events (SSE) for notifications via Edge Functions
 
 ## API Integration
 
-### Supabase Client
+### Edge Functions
+
+All database operations go through Edge Functions:
 
 ```typescript
-// Authentication
-supabase.auth.signInWithWallet()
+// User Operations
+edgeFunctions.getUser()
+edgeFunctions.createUser()
+edgeFunctions.updateUser()
 
-// Data Operations
-supabase.from('ledger_entries').insert()
-supabase.from('users').update()
-supabase.from('profiles').select()
+// Entry Operations
+edgeFunctions.createEntry({ url, platform, ... })
+edgeFunctions.getEntries({ wallet_address, only_verified })
+
+// Profile Operations
+edgeFunctions.getProfile(walletAddress)
+edgeFunctions.updateProfile({ display_name, bio, ... })
+
+// Endorsement Operations
+edgeFunctions.voteEntry({ entry_id, vote_type, signature })
+edgeFunctions.getEndorsements(entryId)
+
+// Notification Operations
+edgeFunctions.getNotifications()
+edgeFunctions.markNotificationRead(notificationId)
+edgeFunctions.subscribeNotifications(onNotification, onError)
+
+// Admin Operations
+edgeFunctions.adminGetEntries()
+edgeFunctions.adminVerifyEntry(entryId)
+edgeFunctions.adminRejectEntry(entryId, reason)
 ```
+
+**Note**: Direct `supabase.from()` calls are blocked by RLS. Only Edge Functions can access the database.
 
 ### Smart Contract Interaction
 
@@ -229,7 +261,8 @@ useWriteContract({
 
 - **Indexing**: Database indexes on frequently queried fields
 - **Pagination**: Large result sets paginated
-- **RLS Efficiency**: Policies optimized for query performance
+- **Edge Functions**: Server-side logic reduces client-side processing
+- **Service Role**: Direct database access (bypasses RLS) for performance
 
 ### Blockchain Optimization
 
@@ -327,7 +360,6 @@ useWriteContract({
 ---
 
 For more specific documentation, see:
-- [Admin Setup](./ADMIN_SETUP.md)
-- [Smart Contracts](./SMART_CONTRACTS.md)
-- [Deployment Guide](./DEPLOYMENT.md)
+- [Contributing Guide](./CONTRIBUTING.md)
+- [Edge Functions Setup](../supabase/functions/README.md)
 

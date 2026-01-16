@@ -6,7 +6,7 @@ import { parseEther } from 'viem';
 import { waitForTransactionReceipt } from 'wagmi/actions';
 import { PASSPORT_CONTRACT_ADDRESS, PASSPORT_ABI } from '../lib/contracts';
 import { useToast } from '../hooks/useToast';
-import { supabase } from '../lib/supabase';
+import { edgeFunctions } from '../lib/edgeFunctions';
 import { config } from '../wagmi';
 
 interface OnChainUpgradeModalProps {
@@ -93,21 +93,20 @@ export const OnChainUpgradeModal: React.FC<OnChainUpgradeModalProps> = ({
             // Use the hash directly as the transaction hash
             const txHash = hash;
 
-            // Update database with transaction hash
-            const { error: updateError } = await supabase
-                .from('ledger_entries')
-                .update({ tx_hash: txHash })
-                .eq('id', entryId);
-
-            if (updateError) {
-                console.error('Error updating tx_hash:', updateError);
-                showToast('Transaction confirmed but failed to update database. Please contact support.', 'warning');
-            } else {
+            // Update database with transaction hash via Edge Function
+            try {
+                await edgeFunctions.updateEntry({
+                    entry_id: entryId,
+                    tx_hash: txHash
+                });
                 showToast('✅ Entry upgraded to onchain storage!', 'success');
                 // Small delay to ensure database update is visible
                 setTimeout(() => {
                     onClose();
                 }, 500);
+            } catch (updateError: any) {
+                console.error('Error updating tx_hash:', updateError);
+                showToast('Transaction confirmed but failed to update database. Please contact support.', 'warning');
             }
         } catch (err: any) {
             console.error('Error upgrading to onchain:', err);

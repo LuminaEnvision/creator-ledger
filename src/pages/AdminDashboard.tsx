@@ -145,28 +145,8 @@ export const AdminDashboard: React.FC = () => {
         setProcessingEntryId(id);
 
         try {
-            // Only update database verification status - user will mint/upgrade their own passport
-            const { error: dbError } = await supabase
-                .from('ledger_entries')
-                .update({ verification_status: 'Verified' })
-                .eq('id', id);
-
-            if (dbError) {
-                console.error('Error updating database:', dbError);
-                showToast('Failed to verify entry. Please try again.', 'error');
-                return;
-            }
-
-            // Create notification for the creator
-            const { error: notifError } = await supabase
-                .from('user_notifications')
-                .insert({
-                    wallet_address: entry.wallet_address.toLowerCase(),
-                    type: 'verified',
-                    entry_id: id,
-                    message: 'Your content was verified! Claim your Creator Passport level.',
-                    read: false
-                });
+            // Verify entry via Edge Function (handles notification creation)
+            await edgeFunctions.adminVerifyEntry(id);
 
             if (notifError) {
                 console.error('Error creating notification:', notifError);
@@ -188,10 +168,16 @@ export const AdminDashboard: React.FC = () => {
         const reason = prompt('Please provide a reason for rejection (optional):');
         if (reason === null) return; // User cancelled
 
-        const { error } = await supabase
-            .from('ledger_entries')
-            .update({ verification_status: 'Rejected' })
-            .eq('id', id);
+        // Reject entry via Edge Function
+        try {
+            await edgeFunctions.adminRejectEntry(id, reason || undefined);
+            showToast('Entry rejected successfully', 'success');
+            // Refresh entries list
+            fetchEntries();
+        } catch (error: any) {
+            console.error('Error rejecting entry:', error);
+            showToast(`Failed to reject entry: ${error.message}`, 'error');
+        }
 
         if (error) {
             console.error('Error rejecting entry:', error);

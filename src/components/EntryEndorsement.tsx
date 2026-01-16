@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useAuth } from '../context/AuthContext';
-import { supabase } from '../lib/supabase';
+import { edgeFunctions } from '../lib/edgeFunctions';
 import { useSignMessage } from 'wagmi';
 import { useToast } from '../hooks/useToast';
 import { ProfileDisplay } from './ProfileDisplay';
@@ -40,15 +40,9 @@ export const EntryEndorsement: React.FC<EntryEndorsementProps> = ({
             }
 
             try {
-                const { data } = await supabase
-                    .from('entry_endorsements')
-                    .select('vote_type')
-                    .eq('entry_id', entryId)
-                    .eq('endorser_wallet', user.walletAddress.toLowerCase())
-                    .maybeSingle();
-
-                if (data) {
-                    setUserVote(data.vote_type as 'endorse' | 'dispute');
+                const { userVote: voteData } = await edgeFunctions.getEndorsements(entryId);
+                if (voteData) {
+                    setUserVote(voteData as 'endorse' | 'dispute');
                 }
             } catch (err) {
                 console.error('Error checking user vote:', err);
@@ -64,40 +58,21 @@ export const EntryEndorsement: React.FC<EntryEndorsementProps> = ({
     useEffect(() => {
         const fetchCounts = async () => {
             try {
-                const { count: endorseCount } = await supabase
-                    .from('entry_endorsements')
-                    .select('*', { count: 'exact', head: true })
-                    .eq('entry_id', entryId)
-                    .eq('vote_type', 'endorse');
+                const { endorseCount, disputeCount, endorsers: endorsersData } = await edgeFunctions.getEndorsements(entryId);
 
-                const { count: disputeCount } = await supabase
-                    .from('entry_endorsements')
-                    .select('*', { count: 'exact', head: true })
-                    .eq('entry_id', entryId)
-                    .eq('vote_type', 'dispute');
-
-                if (endorseCount !== null) {
+                if (endorseCount !== null && endorseCount !== undefined) {
                     setEndorsements(endorseCount);
                 }
-                if (disputeCount !== null) {
+                if (disputeCount !== null && disputeCount !== undefined) {
                     setDisputes(disputeCount);
                 }
 
-                // If owner, fetch list of endorsers
-                if (isOwner) {
-                    const { data: endorsersData } = await supabase
-                        .from('entry_endorsements')
-                        .select('endorser_wallet, created_at')
-                        .eq('entry_id', entryId)
-                        .eq('vote_type', 'endorse')
-                        .order('created_at', { ascending: false });
-
-                    if (endorsersData) {
-                        setEndorsers(endorsersData.map(e => ({
-                            wallet: e.endorser_wallet,
-                            timestamp: e.created_at
-                        })));
-                    }
+                // If owner, set list of endorsers
+                if (isOwner && endorsersData) {
+                    setEndorsers(endorsersData.map((e: any) => ({
+                        wallet: e.endorser_wallet,
+                        timestamp: e.created_at
+                    })));
                 }
             } catch (err) {
                 console.error('Error fetching endorsement counts:', err);
@@ -127,105 +102,19 @@ export const EntryEndorsement: React.FC<EntryEndorsementProps> = ({
             
             const signature = await signMessageAsync({ message });
 
-            // Check if user already voted (different vote type)
-            const { data: existingVote } = await supabase
-                .from('entry_endorsements')
-                .select('*')
-                .eq('entry_id', entryId)
-                .eq('endorser_wallet', user.walletAddress.toLowerCase())
-                .maybeSingle();
+            // Vote via Edge Function (handles duplicate checking, updates, and notifications)
+            await edgeFunctions.voteEntry({
+                entry_id: entryId,
+                vote_type: voteType,
+                signature: signature
+            });
 
-            if (existingVote) {
-                if (existingVote.vote_type === voteType) {
-                    showToast(`You have already ${voteType === 'endorse' ? 'endorsed' : 'disputed'} this entry.`, 'info');
-                    setIsLoading(false);
-                    return;
-                } else {
-                    // Update existing vote
-                    const { error } = await supabase
-                        .from('entry_endorsements')
-                        .update({
-                            vote_type: voteType,
-                            signature: signature,
-                            created_at: new Date().toISOString()
-                        })
-                        .eq('entry_id', entryId)
-                        .eq('endorser_wallet', user.walletAddress.toLowerCase());
+            // Refresh counts and user vote
+            const { endorseCount, disputeCount, userVote: newUserVote } = await edgeFunctions.getEndorsements(entryId);
+            if (endorseCount !== null && endorseCount !== undefined) setEndorsements(endorseCount);
+            if (disputeCount !== null && disputeCount !== undefined) setDisputes(disputeCount);
+            if (newUserVote) setUserVote(newUserVote as 'endorse' | 'dispute');
 
-                    if (error) throw error;
-
-                    // Update counts
-                    if (existingVote.vote_type === 'endorse') {
-                        setEndorsements(prev => Math.max(0, prev - 1));
-                    } else {
-                        setDisputes(prev => Math.max(0, prev - 1));
-                    }
-                }
-            } else {
-                // Create new vote
-                const { error } = await supabase
-                    .from('entry_endorsements')
-                    .insert({
-                        entry_id: entryId,
-                        endorser_wallet: user.walletAddress.toLowerCase(),
-                        vote_type: voteType,
-                        signature: signature
-                    });
-
-                if (error) throw error;
-            }
-
-            // Update counts
-            if (voteType === 'endorse') {
-                setEndorsements(prev => prev + 1);
-                setDisputes(prev => {
-                    if (existingVote?.vote_type === 'dispute') {
-                        return Math.max(0, prev - 1);
-                    }
-                    return prev;
-                });
-
-                // Create notification for the entry owner (only for new endorsements, not updates)
-                if (!existingVote) {
-                    // Get entry owner wallet address
-                    const { data: entry } = await supabase
-                        .from('ledger_entries')
-                        .select('wallet_address')
-                        .eq('id', entryId)
-                        .single();
-
-                    if (entry && entry.wallet_address.toLowerCase() !== user.walletAddress.toLowerCase()) {
-                        // Format endorser address (try ENS, fallback to shortened address)
-                        const endorserDisplay = user.walletAddress.slice(0, 6) + '...' + user.walletAddress.slice(-4);
-                        
-                        const { error: notifError } = await supabase
-                            .from('user_notifications')
-                            .insert({
-                                wallet_address: entry.wallet_address.toLowerCase(),
-                                type: 'endorsement',
-                                entry_id: entryId,
-                                endorser_wallet: user.walletAddress.toLowerCase(),
-                                message: `Your content was endorsed by ${endorserDisplay}`,
-                                read: false
-                            });
-
-                        if (notifError) {
-                            console.error('Error creating endorsement notification:', notifError);
-                            // Don't fail the endorsement if notification fails
-                        }
-                    }
-                }
-            } else {
-                setDisputes(prev => prev + 1);
-                setEndorsements(prev => {
-                    if (existingVote?.vote_type === 'endorse') {
-                        return Math.max(0, prev - 1);
-                    }
-                    return prev;
-                });
-            }
-
-            setUserVote(voteType);
             showToast(`Entry ${voteType === 'endorse' ? 'endorsed' : 'disputed'} successfully!`, 'success');
         } catch (err: any) {
             console.error('Error voting:', err);

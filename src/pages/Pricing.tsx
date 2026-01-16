@@ -29,11 +29,8 @@ export const Pricing: React.FC = () => {
                 setIsLoading(false);
                 return;
             }
-            const { data } = await supabase
-                .from('users')
-                .select('is_premium, subscription_active, subscription_end')
-                .eq('wallet_address', user.walletAddress.toLowerCase())
-                .single();
+            const { user: userData } = await edgeFunctions.getUser();
+            const data = userData;
 
             if (data) {
                 // Check if subscription is still active (not expired)
@@ -62,13 +59,10 @@ export const Pricing: React.FC = () => {
 
                 // Auto-update if subscription expired
                 if (data.subscription_active && subscriptionEnd && subscriptionEnd <= now) {
-                    await supabase
-                        .from('users')
-                        .update({
-                            subscription_active: false,
-                            is_premium: false
-                        })
-                        .eq('wallet_address', user.walletAddress.toLowerCase());
+                    await edgeFunctions.updateUser({
+                        subscription_active: false,
+                        is_premium: false
+                    });
                     setIsPremium(false);
                     setSubscriptionEnd(null);
                 }
@@ -151,11 +145,7 @@ export const Pricing: React.FC = () => {
             await new Promise(resolve => setTimeout(resolve, 2500));
 
             // Verify the update worked by fetching again
-            const { data: verifyUser } = await supabase
-                .from('users')
-                .select('is_premium, subscription_active, subscription_end')
-                .eq('wallet_address', walletAddress)
-                .single();
+            const { user: verifyUser } = await edgeFunctions.getUser();
 
             console.log('🔍 Verification fetch:', verifyUser);
 
@@ -217,21 +207,13 @@ export const Pricing: React.FC = () => {
                 const subscriptionEnd = new Date(now);
                 subscriptionEnd.setMonth(subscriptionEnd.getMonth() + 1); // Add 1 month
 
-                // Update user premium status and subscription in database
-                const { error } = await supabase
-                    .from('users')
-                    .update({
-                        is_premium: true,
-                        subscription_active: true,
-                        subscription_start: now.toISOString(),
-                        subscription_end: subscriptionEnd.toISOString()
-                    })
-                    .eq('wallet_address', user.walletAddress.toLowerCase());
-
-                if (error) {
-                    console.error('Database update error:', error);
-                    throw error;
-                }
+                // Update user premium status and subscription via Edge Function
+                await edgeFunctions.updateUser({
+                    is_premium: true,
+                    subscription_active: true,
+                    subscription_start: now.toISOString(),
+                    subscription_end: subscriptionEnd.toISOString()
+                });
 
                 setIsPremium(true);
                 alert(`Success! Your Pro Creator subscription is now active until ${subscriptionEnd.toLocaleDateString()}.`);

@@ -159,6 +159,34 @@ export const edgeFunctions = {
     })
   },
 
+  async getEndorsements(entryId: string) {
+    return callEdgeFunction('get-endorsements', {
+      params: { entry_id: entryId }
+    })
+  },
+
+  // Update entry (for EditEntryModal, OnChainUpgradeModal)
+  async updateEntry(data: {
+    entry_id: string
+    description?: string | null
+    custom_image_url?: string | null
+    campaign_tag?: string | null
+    tx_hash?: string | null
+  }) {
+    return callEdgeFunction('update-entry', {
+      method: 'PATCH',
+      body: data
+    })
+  },
+
+  // Admin operations
+  async adminRejectEntry(entryId: string, reason?: string) {
+    return callEdgeFunction('admin-reject-entry', {
+      method: 'POST',
+      body: { entry_id: entryId, reason }
+    })
+  },
+
   // Notification operations
   async getNotifications(unreadOnly?: boolean) {
     return callEdgeFunction('get-notifications', {
@@ -183,6 +211,45 @@ export const edgeFunctions = {
       method: 'POST',
       body: { entry_id: entryId }
     })
+  },
+
+  // Real-time notifications via Server-Sent Events
+  async subscribeNotifications(onNotification: (notification: any) => void, onError?: (error: Error) => void) {
+    const token = await getAuthToken()
+    if (!token) {
+      onError?.(new Error('No authentication token available'))
+      return () => {}
+    }
+
+    // EventSource doesn't support custom headers, so we pass token as query param
+    // The Edge Function will extract it and validate
+    const url = new URL(`${SUPABASE_URL}/functions/v1/subscribe-notifications`)
+    url.searchParams.append('token', token)
+
+    const eventSource = new EventSource(url.toString())
+
+    eventSource.onmessage = (event) => {
+      try {
+        const data = JSON.parse(event.data)
+        if (data.type === 'notification') {
+          onNotification(data.data)
+        } else if (data.type === 'error') {
+          onError?.(new Error(data.message))
+        }
+      } catch (err) {
+        console.error('Error parsing notification:', err)
+      }
+    }
+
+    eventSource.onerror = (error) => {
+      console.error('EventSource error:', error)
+      onError?.(new Error('Connection error'))
+    }
+
+    // Return cleanup function
+    return () => {
+      eventSource.close()
+    }
   },
 }
 

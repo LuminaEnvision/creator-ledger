@@ -50,44 +50,35 @@ export const PublicProfile: React.FC = () => {
                 // Normalize address to lowercase for consistent queries
                 const normalizedAddress = address.toLowerCase();
 
-                // Fetch profile info
-                const { data: profileData, error: profileError } = await supabase
-                    .from('profiles')
-                    .select('*')
-                    .eq('wallet_address', normalizedAddress)
-                    .maybeSingle();
-
-                if (profileError && profileError.code !== 'PGRST116') {
-                    // PGRST116 is "not found" which is expected for users without profiles
-                    if (profileError.code === 'NOT_FOUND' || profileError.message?.includes('NOT_FOUND')) {
+                // Fetch profile info via Edge Function
+                try {
+                    const { profile: profileData } = await edgeFunctions.getProfile(normalizedAddress);
+                    setProfile(profileData || null);
+                } catch (profileError: any) {
+                    if (profileError.message?.includes('NOT_FOUND')) {
                         console.warn('Profiles table not found or RLS issue:', profileError.message);
                     } else {
                         console.error('Error fetching profile:', profileError);
                     }
+                    setProfile(null);
                 }
 
-                setProfile(profileData);
-
-                // Fetch premium status and subscription
-                const { data: userData, error: userError } = await supabase
-                    .from('users')
-                    .select('is_premium, subscription_active, subscription_end')
-                    .eq('wallet_address', normalizedAddress)
-                    .maybeSingle();
-
-                if (userError) {
-                    // PGRST116 is "not found" which is expected for users not in database
-                    if (userError.code === 'PGRST116') {
-                        // User doesn't exist yet - this is fine
-                        setIsPremium(false);
-                    } else if (userError.code === 'NOT_FOUND' || userError.message?.includes('NOT_FOUND')) {
-                        console.warn('Users table not found or RLS issue:', userError.message);
-                        setIsPremium(false);
-                    } else {
-                        console.error('Error fetching user data:', userError);
-                        setIsPremium(false);
+                // Fetch premium status and subscription via Edge Function
+                // Note: For public profiles, we can't use getUser() as it requires auth
+                // So we'll fetch user data from entries or skip premium check for public
+                let userData = null;
+                try {
+                    // Try to get user data if authenticated
+                    if (user && user.walletAddress.toLowerCase() === normalizedAddress) {
+                        const result = await edgeFunctions.getUser();
+                        userData = result.user;
                     }
-                } else if (userData) {
+                } catch (userError: any) {
+                    // User doesn't exist or not authenticated - this is fine for public profiles
+                    console.warn('Could not fetch user data for public profile:', userError.message);
+                }
+
+                if (userData) {
                     // Check if subscription is still active (not expired)
                     const now = new Date();
                     const subscriptionEnd = userData.subscription_end ? new Date(userData.subscription_end) : null;
@@ -95,9 +86,6 @@ export const PublicProfile: React.FC = () => {
                         (!subscriptionEnd || subscriptionEnd > now);
                     
                     // Premium status: Active subscription takes priority over legacy flag
-                    // If subscription exists but is expired, user is NOT premium (even if legacy flag is true)
-                    // Legacy flag only grants premium if no subscription system was ever used
-                    // OR whitelisted for testing
                     const hasSubscription = userData.subscription_active !== null && userData.subscription_active !== undefined;
                     const dbPremiumStatus = isActive || (!hasSubscription && userData.is_premium === true);
                     // Note: Public profiles don't use whitelist (only for logged-in users)
@@ -110,19 +98,11 @@ export const PublicProfile: React.FC = () => {
                 // Check if current user is viewing their own profile
                 const isOwnProfile = user && user.walletAddress.toLowerCase() === normalizedAddress;
                 
-                // Fetch entries: show all to owner, only verified to public
-                let query = supabase
-                    .from('ledger_entries')
-                    .select('*')
-                    .eq('wallet_address', normalizedAddress);
-                
-                // Only filter by verification status if not viewing own profile
-                if (!isOwnProfile) {
-                    query = query.eq('verification_status', 'Verified');
-                }
-                
-                const { data: entriesData, error: entriesError } = await query
-                    .order('timestamp', { ascending: false });
+                // Fetch entries via Edge Function: show all to owner, only verified to public
+                const { entries: entriesData } = await edgeFunctions.getEntries({ 
+                    wallet_address: normalizedAddress,
+                    only_verified: !isOwnProfile 
+                });
 
                 if (entriesError) {
                     if (entriesError.code === 'NOT_FOUND' || entriesError.message?.includes('NOT_FOUND')) {

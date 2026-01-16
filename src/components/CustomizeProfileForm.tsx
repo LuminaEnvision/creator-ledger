@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { supabase } from '../lib/supabase';
+import { edgeFunctions } from '../lib/edgeFunctions';
+import { supabase } from '../lib/supabase'; // Only for storage operations (profile-images bucket)
 import { useAuth } from '../context/AuthContext';
 import { checkPremiumStatus } from '../lib/premium';
 
@@ -25,29 +26,21 @@ export const CustomizeProfileForm: React.FC<{ onUpdate: () => void; onClose: () 
         const fetchProfile = async () => {
             if (!user) return;
             
-            // Fetch profile data
-            const { data } = await supabase
-                .from('profiles')
-                .select('*')
-                .eq('wallet_address', user.walletAddress.toLowerCase())
-                .maybeSingle();
+            // Fetch profile data via Edge Function
+            const { profile: profileData } = await edgeFunctions.getProfile();
 
-            if (data) {
-                setDisplayName(data.display_name || '');
-                setBio(data.bio || '');
-                setAvatarUrl(data.avatar_url || '');
-                setBannerUrl(data.banner_url || '');
-                if (data.avatar_url) setAvatarPreview(data.avatar_url);
-                if (data.banner_url) setBannerPreview(data.banner_url);
+            if (profileData) {
+                setDisplayName(profileData.display_name || '');
+                setBio(profileData.bio || '');
+                setAvatarUrl(profileData.avatar_url || '');
+                setBannerUrl(profileData.banner_url || '');
+                if (profileData.avatar_url) setAvatarPreview(profileData.avatar_url);
+                if (profileData.banner_url) setBannerPreview(profileData.banner_url);
             }
 
-            // Check premium status
+            // Check premium status via Edge Function
             try {
-                const { data: userData } = await supabase
-                    .from('users')
-                    .select('is_premium, subscription_active, subscription_end')
-                    .eq('wallet_address', user.walletAddress.toLowerCase())
-                    .maybeSingle();
+                const { user: userData } = await edgeFunctions.getUser();
 
                 const premiumStatus = checkPremiumStatus(userData, user.walletAddress);
                 setIsPremium(premiumStatus);
@@ -171,18 +164,12 @@ export const CustomizeProfileForm: React.FC<{ onUpdate: () => void; onClose: () 
             setIsUploading(false);
 
             // Save profile data
-            const { error } = await supabase
-                .from('profiles')
-                .upsert({
-                    wallet_address: user.walletAddress.toLowerCase(),
-                    display_name: displayName,
-                    bio: bio,
-                    avatar_url: finalAvatarUrl || null,
-                    banner_url: finalBannerUrl || null,
-                    updated_at: new Date().toISOString()
-                });
-
-            if (error) throw error;
+            await edgeFunctions.updateProfile({
+                display_name: displayName,
+                bio: bio,
+                avatar_url: finalAvatarUrl || null,
+                banner_url: finalBannerUrl || null
+            });
             
             // Clear file states
             setAvatarFile(null);

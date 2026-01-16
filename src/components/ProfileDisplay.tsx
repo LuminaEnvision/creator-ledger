@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useMemo } from 'react';
-import { supabase } from '../lib/supabase';
+import { edgeFunctions } from '../lib/edgeFunctions';
 import { useEnsName } from 'wagmi';
 import { mainnet } from 'wagmi/chains';
 import { Link } from 'react-router-dom';
@@ -70,25 +70,20 @@ export const ProfileDisplay: React.FC<ProfileDisplayProps> = ({
             }
 
             try {
-                // Fetch profile data
-                const { data: profileData } = await supabase
-                    .from('profiles')
-                    .select('display_name, avatar_url')
-                    .eq('wallet_address', walletAddress.toLowerCase())
-                    .maybeSingle();
-
-                setProfile(profileData);
+                // Fetch profile data via Edge Function
+                const { profile: profileData } = await edgeFunctions.getProfile(walletAddress);
+                setProfile(profileData || null);
 
                 // Fetch premium status if not provided as prop
                 if (propIsPremium === undefined) {
-                    const { data: userData } = await supabase
-                        .from('users')
-                        .select('is_premium, subscription_active, subscription_end')
-                        .eq('wallet_address', walletAddress.toLowerCase())
-                        .maybeSingle();
-
-                    const premiumStatus = checkPremiumStatus(userData, walletAddress);
-                    setIsPremium(premiumStatus);
+                    try {
+                        const { user: userData } = await edgeFunctions.getUser();
+                        const premiumStatus = checkPremiumStatus(userData, walletAddress);
+                        setIsPremium(premiumStatus);
+                    } catch (err) {
+                        console.error('Error fetching premium status:', err);
+                        setIsPremium(false);
+                    }
                 } else {
                     setIsPremium(propIsPremium);
                 }

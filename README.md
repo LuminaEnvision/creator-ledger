@@ -84,7 +84,9 @@ Creator Ledger is a **verifiable, on-chain content tracking system** that helps 
 
 **Backend:**
 - Supabase (PostgreSQL) for data storage
-- Row Level Security (RLS) for data access control
+- Supabase Edge Functions for all database operations
+- Supabase Auth for wallet-based authentication
+- Row Level Security (RLS) enabled with NO policies (database closed)
 
 **Smart Contracts:**
 - Solidity 0.8.22
@@ -122,9 +124,7 @@ Creator Ledger is a **verifiable, on-chain content tracking system** that helps 
 
 - **[Architecture Guide](./docs/ARCHITECTURE.md)** - Detailed system architecture and design decisions
 - **[Contributing Guide](./docs/CONTRIBUTING.md)** - How to contribute to the project
-- **[Upgradeable Contract Guide](./docs/UPGRADEABLE_CONTRACT.md)** - How to deploy and upgrade the smart contract
-- **[Mainnet Readiness](./docs/MAINNET_READINESS.md)** - Checklist and guide for mainnet deployment
-- **[Subscription Setup](./docs/SUBSCRIPTION_SETUP.md)** - Premium subscription configuration
+- **[Edge Functions](./supabase/functions/README.md)** - Edge Functions documentation
 
 ## 🚀 Getting Started
 
@@ -269,10 +269,13 @@ See [Upgradeable Contract Guide](./docs/UPGRADEABLE_CONTRACT.md) for details.
 
 ## 🔐 Security
 
-- **Row Level Security (RLS)**: All database tables use RLS policies
+- **Edge Functions**: All database access goes through authenticated Edge Functions
+- **RLS Enabled**: Row Level Security enabled with NO policies (database closed to frontend)
+- **Supabase Auth**: Wallet-based authentication with JWT tokens (auto-refresh)
+- **Service Role Key**: Only Edge Functions can access database (never exposed to frontend)
 - **Wallet Signatures**: Content submissions require cryptographic signatures
 - **Admin Roles**: Separate admin role system in smart contracts
-- **Input Validation**: All user inputs are validated and sanitized
+- **Input Validation**: All user inputs are validated and sanitized in Edge Functions
 - **Upgrade Authorization**: Only contract owner can upgrade (consider multi-sig)
 
 ## 🎯 Target Audience

@@ -2,7 +2,7 @@ import React from 'react';
 
 import { FreePassport } from './passports/FreePassport';
 import { PremiumPassport } from './passports/PremiumPassport';
-import { supabase } from '../lib/supabase';
+import { edgeFunctions } from '../lib/edgeFunctions';
 
 interface PassportDisplayProps {
     walletAddress: string;
@@ -17,22 +17,13 @@ export const PassportDisplay: React.FC<PassportDisplayProps> = ({ walletAddress,
         const fetchData = async () => {
             if (!walletAddress) return;
 
-            // Fetch entry count
-            const { count } = await supabase
-                .from('ledger_entries')
-                .select('*', { count: 'exact', head: true })
-                .eq('wallet_address', walletAddress);
+            // Fetch entry count via Edge Function
+            const { entries } = await edgeFunctions.getEntries({ wallet_address: walletAddress });
+            if (entries) setEntryCount(entries.length);
 
-            if (count !== null) setEntryCount(count);
-
-            // Fetch profile name
-            const { data } = await supabase
-                .from('profiles')
-                .select('display_name')
-                .eq('wallet_address', walletAddress)
-                .single();
-
-            if (data?.display_name) setUsername(data.display_name);
+            // Fetch profile name via Edge Function
+            const { profile } = await edgeFunctions.getProfile(walletAddress);
+            if (profile?.display_name) setUsername(profile.display_name);
         };
 
         fetchData();

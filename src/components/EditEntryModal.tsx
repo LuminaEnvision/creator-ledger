@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useAuth } from '../context/AuthContext';
-import { supabase } from '../lib/supabase';
+import { edgeFunctions } from '../lib/edgeFunctions';
 import { HashtagInput } from './HashtagInput';
 import { Modal } from './Modal';
 import type { LedgerEntry } from '../types';
@@ -62,17 +62,12 @@ export const EditEntryModal: React.FC<EditEntryModalProps> = ({
                 .map(tag => tag.replace(/^#/, ''))
                 .join(', ');
 
-            const { error: updateError } = await supabase
-                .from('ledger_entries')
-                .update({
-                    description: description || null,
-                    custom_image_url: customImageUrl || null,
-                    campaign_tag: campaignTag || null,
-                })
-                .eq('id', entry.id)
-                .eq('wallet_address', user.walletAddress.toLowerCase());
-
-            if (updateError) throw updateError;
+            await edgeFunctions.updateEntry({
+                entry_id: entry.id,
+                description: description || null,
+                custom_image_url: customImageUrl || null,
+                campaign_tag: campaignTag || null
+            });
 
             onSuccess();
             onClose();
