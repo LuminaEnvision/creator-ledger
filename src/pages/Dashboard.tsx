@@ -103,15 +103,34 @@ export const Dashboard: React.FC = () => {
 
             setIsLoading(true);
 
-            // 1. Fetch user premium status and check subscription
-            const { data: userData, error: userError } = await supabase
-                .from('users')
-                .select('is_premium, subscription_active, subscription_end')
-                .eq('wallet_address', user.walletAddress.toLowerCase())
-                .maybeSingle(); // Use maybeSingle to avoid errors
+            const walletAddress = user.walletAddress.toLowerCase();
+
+            // Parallelize independent fetches to eliminate waterfall
+            // (async-parallel: Use Promise.all() for independent operations)
+            const [userResult, entriesResult] = await Promise.all([
+                supabase
+                    .from('users')
+                    .select('is_premium, subscription_active, subscription_end')
+                    .eq('wallet_address', walletAddress)
+                    .maybeSingle(),
+                supabase
+                    .from('ledger_entries')
+                    .select('*')
+                    .eq('wallet_address', walletAddress)
+                    .order('timestamp', { ascending: false })
+            ]);
+
+            const { data: userData, error: userError } = userResult;
+            const { data: entriesData, error: entriesError } = entriesResult;
 
             if (userError) {
                 console.error('Error fetching user data:', userError);
+            }
+
+            if (entriesError) {
+                console.error('Error fetching entries:', entriesError);
+            } else {
+                setEntries(entriesData || []);
             }
 
             if (userData) {
@@ -132,7 +151,7 @@ export const Dashboard: React.FC = () => {
                 const premiumStatus = dbPremiumStatus || isWhitelisted;
 
                 console.log('Premium check:', {
-                    wallet: user.walletAddress.toLowerCase(),
+                    wallet: walletAddress,
                     subscription_active: userData.subscription_active,
                     subscription_end: subscriptionEnd?.toISOString(),
                     subscription_end_parsed: subscriptionEnd,
@@ -150,7 +169,7 @@ export const Dashboard: React.FC = () => {
                 });
 
                 if (isWhitelisted) {
-                    console.log('✅ Premium whitelist active for wallet:', user.walletAddress.toLowerCase());
+                    console.log('✅ Premium whitelist active for wallet:', walletAddress);
                 }
 
                 setIsPremium(premiumStatus);
@@ -169,33 +188,21 @@ export const Dashboard: React.FC = () => {
                             subscription_active: false,
                             is_premium: false
                         })
-                        .eq('wallet_address', user.walletAddress.toLowerCase());
+                        .eq('wallet_address', walletAddress);
                     setIsPremium(false);
                 }
             } else {
-                console.warn('⚠️ No user data found for wallet:', user.walletAddress.toLowerCase());
+                console.warn('⚠️ No user data found for wallet:', walletAddress);
                 console.warn('⚠️ This might mean the user doesn\'t exist in the database yet.');
                 console.warn('⚠️ Try clicking "Test Premium" again, or the user will be created on first entry submission.');
                 setIsPremium(false);
             }
 
-            // 2. Fetch entries (show all, but unverified will be marked)
-            const { data, error } = await supabase
-                .from('ledger_entries')
-                .select('*')
-                .eq('wallet_address', user.walletAddress.toLowerCase())
-                .order('timestamp', { ascending: false });
-
-            if (error) {
-                console.error('Error fetching entries:', error);
-            } else {
-                setEntries(data || []);
-            }
             setIsLoading(false);
         };
 
         fetchUserData();
-    }, [user, refreshTrigger]);
+    }, [user, refreshTrigger, isPremium]);
 
     // Also refetch when page becomes visible (user might have upgraded in another tab)
     useEffect(() => {
@@ -240,7 +247,8 @@ export const Dashboard: React.FC = () => {
                                         formElement.scrollIntoView({ behavior: 'smooth', block: 'center' });
                                     }
                                 }}
-                                className="px-6 py-3 min-h-[44px] rounded-xl bg-gradient-to-r from-primary to-accent text-white text-base font-bold hover:scale-105 active:scale-95 transition-all shadow-lg shadow-primary/20 flex items-center justify-center gap-2"
+                                className="px-6 py-3 min-h-[44px] rounded-xl bg-gradient-to-r from-primary to-accent text-white text-base font-bold hover:scale-105 active:scale-95 transition-all shadow-lg shadow-primary/20 flex items-center justify-center gap-2 focus:outline-none focus:ring-2 focus:ring-primary focus:ring-offset-2"
+                                aria-label="Submit your first entry to Creator Ledger"
                             >
                                 <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
@@ -284,7 +292,8 @@ export const Dashboard: React.FC = () => {
                             <div className="flex gap-2 mt-3">
                                 <button
                                     onClick={() => setIsEditingProfile(!isEditingProfile)}
-                                    className="px-4 py-2 rounded-lg glass-card text-xs font-bold hover:bg-accent/20 transition-all border border-primary/20 text-primary"
+                                    className="px-4 py-2 rounded-lg glass-card text-xs font-bold hover:bg-accent/20 transition-all border border-primary/20 text-primary min-h-[44px] focus:outline-none focus:ring-2 focus:ring-primary focus:ring-offset-2"
+                                    aria-label={isEditingProfile ? 'Cancel profile editing' : 'Customize profile'}
                                 >
                                     {isEditingProfile ? 'Cancel' : 'Customize Profile'}
                                 </button>
@@ -427,7 +436,7 @@ export const Dashboard: React.FC = () => {
             <div className="h-20 flex-shrink-0"></div>
 
             {/* Notifications for verified content and endorsements */}
-            {user && <Notifications />}
+            {user ? <Notifications /> : null}
 
             {/* New Ledger Entry - Collapsible */}
             {user && (

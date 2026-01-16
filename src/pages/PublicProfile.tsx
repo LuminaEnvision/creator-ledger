@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { useParams, useSearchParams } from 'react-router-dom';
 import { supabase } from '../lib/supabase';
 import { EntryList } from '../components/EntryList';
@@ -180,13 +180,12 @@ export const PublicProfile: React.FC = () => {
 
     // Calculate level - unlimited, matches onchain NFT
     // Level should always reflect total verified entries, not filtered results
-    const calculateLevel = () => {
+    // (rerender-memo: Extract expensive work into memoized values)
+    const level = useMemo(() => {
         const entryCount = entries.length; // Use all entries, not filtered
         if (entryCount === 0) return 1;
         return entryCount; // Unlimited levels
-    };
-
-    const level = calculateLevel();
+    }, [entries.length]);
 
     // Check if current user is viewing their own profile
     const isOwnProfile = user && address && user.walletAddress.toLowerCase() === address.toLowerCase();

@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import type { LedgerEntry } from '../types';
 
 interface PortfolioCollection {
@@ -36,38 +36,41 @@ export const PortfolioCollections: React.FC<PortfolioCollectionsProps> = ({
     }, [entries]);
 
     // Refetch collections when entries change to ensure entry IDs are valid
+    // (rerender-memo: Extract expensive work into memoized values)
+    // (js-set-map-lookups: Use Set/Map for O(1) lookups)
+    const cleanedCollections = useMemo(() => {
+        if (collections.length === 0 || entries.length === 0) {
+            return collections;
+        }
+        
+        // Build Set for O(1) lookups instead of O(n) array.some()
+        const entryIdSet = new Set(entries.map(e => e.id));
+        
+        // Validate and clean up collections with invalid entry IDs
+        return collections.map(collection => {
+            const validEntryIds = collection.entryIds.filter(id => entryIdSet.has(id));
+            
+            if (validEntryIds.length !== collection.entryIds.length) {
+                console.log(`Collection "${collection.name}" had ${collection.entryIds.length - validEntryIds.length} invalid entry IDs, cleaning up...`);
+                return {
+                    ...collection,
+                    entryIds: validEntryIds
+                };
+            }
+            return collection;
+        }).filter(collection => collection.entryIds.length > 0); // Remove empty collections
+    }, [collections, entries]);
+
     useEffect(() => {
-        if (collections.length > 0 && entries.length > 0) {
-            // Validate and clean up collections with invalid entry IDs
-            const cleanedCollections = collections.map(collection => {
-                const validEntryIds = collection.entryIds.filter(id => 
-                    entries.some(e => e.id === id)
-                );
-                
-                if (validEntryIds.length !== collection.entryIds.length) {
-                    console.log(`Collection "${collection.name}" had ${collection.entryIds.length - validEntryIds.length} invalid entry IDs, cleaning up...`);
-                    return {
-                        ...collection,
-                        entryIds: validEntryIds
-                    };
-                }
-                return collection;
-            }).filter(collection => collection.entryIds.length > 0); // Remove empty collections
-            
-            // Only update if there are actual changes to avoid infinite loops
-            const hasChanges = cleanedCollections.length !== collections.length || 
-                collections.some((col, idx) => col.entryIds.length !== cleanedCollections[idx]?.entryIds.length);
-            
-            if (hasChanges) {
-                const normalizedAddress = walletAddress?.toLowerCase() || '';
-                if (normalizedAddress) {
-                    localStorage.setItem(`collections_${normalizedAddress}`, JSON.stringify(cleanedCollections));
-                    setCollections(cleanedCollections);
-                }
+        if (cleanedCollections.length !== collections.length || 
+            collections.some((col, idx) => col.entryIds.length !== cleanedCollections[idx]?.entryIds.length)) {
+            const normalizedAddress = walletAddress?.toLowerCase() || '';
+            if (normalizedAddress) {
+                localStorage.setItem(`collections_${normalizedAddress}`, JSON.stringify(cleanedCollections));
+                setCollections(cleanedCollections);
             }
         }
-        // eslint-disable-next-line react-hooks/exhaustive-deps
-    }, [entries]);
+    }, [cleanedCollections, collections, walletAddress]);
 
     const fetchCollections = async () => {
         try {
