@@ -300,7 +300,6 @@ export const CreateEntryForm: React.FC<{ onSuccess: () => void }> = ({ onSuccess
             setStatus('saving');
 
             const { entry } = await edgeFunctions.createEntry({
-                wallet_address: user.walletAddress.toLowerCase(),
                 url,
                 platform,
                 description,
