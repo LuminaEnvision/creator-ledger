@@ -31,6 +31,9 @@ export async function authenticateUser(req: Request): Promise<string> {
   // Verify environment variables are set
   const projectUrl = Deno.env.get('PROJECT_URL')
   const serviceRoleKey = Deno.env.get('SERVICE_ROLE_KEY')
+  // Try to get anon key from environment or request headers (frontend sends it as apikey)
+  const requestAnonKey = req.headers.get('apikey')
+  const anonKey = requestAnonKey || Deno.env.get('SUPABASE_ANON_KEY') || Deno.env.get('ANON_KEY')
   
   if (!projectUrl || !serviceRoleKey) {
     console.error('❌ Missing environment variables:', { 
@@ -39,21 +42,66 @@ export async function authenticateUser(req: Request): Promise<string> {
     })
     throw new Error('UNAUTHORIZED: Server configuration error')
   }
-  
+
+  // Try to decode JWT to see what's in it (for debugging)
+  try {
+    const parts = token.split('.')
+    if (parts.length === 3) {
+      const payload = JSON.parse(atob(parts[1].replace(/-/g, '+').replace(/_/g, '/')))
+      console.log('🔍 JWT payload:', {
+        sub: payload.sub,
+        aud: payload.aud,
+        iss: payload.iss,
+        exp: payload.exp,
+        iat: payload.iat,
+        email: payload.email,
+        expiresAt: payload.exp ? new Date(payload.exp * 1000).toISOString() : 'unknown',
+        isExpired: payload.exp ? Date.now() > payload.exp * 1000 : 'unknown'
+      })
+    }
+  } catch (decodeError) {
+    console.warn('⚠️ Could not decode JWT:', decodeError)
+  }
+
   // Create Supabase client with service role key for admin operations
   const supabaseAdmin = createClient(projectUrl, serviceRoleKey)
 
   // Verify token - Supabase Auth handles expiration and refresh automatically
   // We just need to verify the token is valid and extract user info
   try {
-    console.log('🔍 Verifying token with Supabase Auth...')
-    const { data: { user }, error } = await supabaseAdmin.auth.getUser(token)
+    console.log('🔍 Verifying token with Supabase Auth (service role)...', {
+      tokenLength: token.length,
+      tokenPrefix: token.substring(0, 50) + '...',
+      tokenSuffix: '...' + token.substring(token.length - 20)
+    })
+    
+    let user, error
+    let verificationMethod = 'service_role'
+    
+    // Try with service role key first
+    const result = await supabaseAdmin.auth.getUser(token)
+    user = result.data?.user
+    error = result.error
+    
+    // If that fails and we have anon key, try with anon key
+    if ((error || !user) && anonKey) {
+      console.log('⚠️ Service role verification failed, trying with anon key...')
+      verificationMethod = 'anon'
+      const supabaseAnon = createClient(projectUrl, anonKey)
+      const anonResult = await supabaseAnon.auth.getUser(token)
+      user = anonResult.data?.user
+      error = anonResult.error
+    }
     
     // Immediately return 403 if token is invalid or expired
     if (error || !user) {
       console.error('❌ Token verification failed:', { 
-        error: error?.message, 
-        hasUser: !!user 
+        verificationMethod,
+        error: error?.message,
+        errorCode: error?.status,
+        errorName: error?.name,
+        hasUser: !!user,
+        fullError: JSON.stringify(error, null, 2)
       })
       throw new Error('UNAUTHORIZED: Invalid or expired token')
     }

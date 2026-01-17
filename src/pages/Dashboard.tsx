@@ -100,26 +100,30 @@ export const Dashboard: React.FC = () => {
 
     useEffect(() => {
         const fetchUserData = async () => {
-            if (!user) return;
-
             setIsLoading(true);
 
-            const walletAddress = user.walletAddress.toLowerCase();
+            // NEW FLOW: Allow browsing without wallet connection
+            // If user is connected, show their entries. If not, show empty state with CTA to connect.
+            const walletAddress = user?.walletAddress?.toLowerCase();
 
             // Use Edge Functions instead of direct database access
             // (async-parallel: Use Promise.all() for independent operations)
             // Note: getEntries works without auth, getUser requires auth
             try {
                 // Always fetch entries (works without auth)
+                // If wallet is connected, show user's entries. If not, show all entries (public view)
                 try {
-                    const entriesResult = await edgeFunctions.getEntries({ wallet_address: walletAddress, only_verified: false });
+                    const entriesResult = walletAddress
+                        ? await edgeFunctions.getEntries({ wallet_address: walletAddress, only_verified: false })
+                        : await edgeFunctions.getEntries({ only_verified: false }); // Public view: show all entries
+                    
                     const { entries: entriesData } = entriesResult;
                     if (entriesData) {
                         setEntries(entriesData || []);
-                        console.log('✅ Loaded entries:', entriesData.length);
+                        console.log('✅ Loaded entries:', entriesData.length, walletAddress ? `for wallet: ${walletAddress}` : '(public view)');
                     } else {
                         setEntries([]);
-                        console.log('ℹ️ No entries found for wallet:', walletAddress);
+                        console.log('ℹ️ No entries found', walletAddress ? `for wallet: ${walletAddress}` : '(public view)');
                     }
                 } catch (entriesError: any) {
                     console.error('❌ Error fetching entries:', entriesError);
@@ -128,14 +132,16 @@ export const Dashboard: React.FC = () => {
                     // Don't throw - allow user to see the dashboard even if entries fail
                 }
                 
-                // Try to get user data (only if authenticated)
+                // Try to get user data (only if authenticated and wallet connected)
                 let userData = null;
-                try {
-                    const userResult = await edgeFunctions.getUser();
-                    userData = userResult.user;
-                } catch (userError: any) {
-                    // User not authenticated yet - that's okay, they can still see entries
-                    console.log('ℹ️ User not authenticated, showing entries only:', userError.message);
+                if (walletAddress) {
+                    try {
+                        const userResult = await edgeFunctions.getUser();
+                        userData = userResult.user;
+                    } catch (userError: any) {
+                        // User not authenticated yet - that's okay, they can still see entries
+                        console.log('ℹ️ User not authenticated, showing entries only:', userError.message);
+                    }
                 }
 
                 if (userData) {
@@ -195,9 +201,13 @@ export const Dashboard: React.FC = () => {
                         setIsPremium(false);
                     }
                 } else {
-                    console.warn('⚠️ No user data found for wallet:', walletAddress);
-                    console.warn('⚠️ This might mean the user doesn\'t exist in the database yet.');
-                    console.warn('⚠️ Try clicking "Test Premium" again, or the user will be created on first entry submission.');
+                    // Only warn if wallet is connected but no user data found
+                    // If no wallet is connected, this is expected (user is browsing publicly)
+                    if (walletAddress) {
+                        console.warn('⚠️ No user data found for wallet:', walletAddress);
+                        console.warn('⚠️ This might mean the user doesn\'t exist in the database yet.');
+                        console.warn('⚠️ Try clicking "Test Premium" again, or the user will be created on first entry submission.');
+                    }
                     setIsPremium(false);
                 }
             } catch (error: any) {
@@ -210,7 +220,7 @@ export const Dashboard: React.FC = () => {
         };
 
         fetchUserData();
-    }, [user, refreshTrigger]); // Removed isPremium to avoid circular dependency - effect sets isPremium, shouldn't depend on it
+    }, [user, refreshTrigger]); // user can be null - that's okay, we handle it
 
     // Also refetch when page becomes visible (user might have upgraded in another tab)
     useEffect(() => {
@@ -461,6 +471,30 @@ export const Dashboard: React.FC = () => {
                     <div id="entry-form">
                         <CreateEntryForm onSuccess={() => setRefreshTrigger(prev => prev + 1)} />
                     </div>
+                </CollapsibleSection>
+            )}
+
+            {/* Public Entries - Show when user is not connected */}
+            {!user && entries.length > 0 && (
+                <CollapsibleSection
+                    title="Verified Entries"
+                    defaultOpen={true}
+                    icon={
+                        <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
+                        </svg>
+                    }
+                >
+                    <div className="mb-4 text-sm text-muted-foreground">
+                        <p>Connect your wallet to submit your own entries and see your full portfolio.</p>
+                    </div>
+                    <EntryList
+                        entries={entries}
+                        isLoading={isLoading}
+                        isPremium={false}
+                        currentWalletAddress={undefined}
+                        onEntryUpdated={() => setRefreshTrigger(prev => prev + 1)}
+                    />
                 </CollapsibleSection>
             )}
 

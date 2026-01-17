@@ -1,0 +1,12 @@
+# Edge Functions that allow public/unauthenticated access
+# These functions handle authentication internally and don't require JWT verification at the gateway level
+
+[functions.get-entries]
+verify_jwt = false
+
+[functions.get-profile]
+verify_jwt = false
+
+[functions.auth-with-wallet]
+verify_jwt = false
+

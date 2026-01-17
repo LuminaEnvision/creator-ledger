@@ -134,6 +134,19 @@ export const PublicProfile: React.FC = () => {
         }
     }, [entries, searchParams]);
 
+    // Use filtered entries if filter is applied, otherwise use all entries
+    const displayEntries = searchParams.get('filter') ? filteredEntries : entries;
+
+    // Calculate level - unlimited, matches onchain NFT
+    // Level should always reflect total verified entries, not filtered results
+    // (rerender-memo: Extract expensive work into memoized values)
+    // CRITICAL: This must be before any early returns to follow Rules of Hooks
+    const level = useMemo(() => {
+        const entryCount = entries.length; // Use all entries, not filtered
+        if (entryCount === 0) return 1;
+        return entryCount; // Unlimited levels
+    }, [entries.length]);
+
     // Note: Removed refreshKey effect that was causing duplicate fetches
     // The fetch effect already depends on [address, refreshKey], and address changes
     // trigger it immediately. The refreshKey increment 100ms later caused a second fetch.
@@ -147,18 +160,6 @@ export const PublicProfile: React.FC = () => {
             </div>
         );
     }
-
-    // Use filtered entries if filter is applied, otherwise use all entries
-    const displayEntries = searchParams.get('filter') ? filteredEntries : entries;
-
-    // Calculate level - unlimited, matches onchain NFT
-    // Level should always reflect total verified entries, not filtered results
-    // (rerender-memo: Extract expensive work into memoized values)
-    const level = useMemo(() => {
-        const entryCount = entries.length; // Use all entries, not filtered
-        if (entryCount === 0) return 1;
-        return entryCount; // Unlimited levels
-    }, [entries.length]);
 
     // Check if current user is viewing their own profile
     const isOwnProfile = user && address && user.walletAddress.toLowerCase() === address.toLowerCase();

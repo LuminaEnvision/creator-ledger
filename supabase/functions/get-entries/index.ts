@@ -1,3 +1,11 @@
+// @ts-ignore - Deno is available in Supabase Edge Functions runtime
+declare const Deno: {
+  env: {
+    get(key: string): string | undefined
+  }
+}
+
+// @ts-ignore - Remote Deno imports work at runtime in Supabase Edge Functions
 import { serve } from 'https://deno.land/std@0.168.0/http/server.ts'
 import { authenticateUser, createAdminClient, errorResponse, successResponse, corsPreflightResponse } from '../_shared/auth.ts'
 
@@ -35,14 +43,21 @@ serve(async (req) => {
   
   // Only attempt authentication if token is present
   // This ensures public requests (no token) work correctly
+  // IMPORTANT: For public reads, invalid tokens should be silently ignored
   if (authHeader && authHeader.startsWith('Bearer ')) {
     try {
       walletAddress = await authenticateUser(req)
       console.log('✅ Authenticated request:', { walletAddress })
-    } catch (authError) {
-      // Token present but invalid - log but don't fail (public access allowed)
-      console.warn('⚠️ Auth token invalid, proceeding as public request:', authError.message)
-      // Continue as public request - don't throw
+    } catch (authError: any) {
+      // Token present but invalid - this is OK for public reads
+      // Log but don't fail - allow public access even with invalid token
+      console.warn('⚠️ Auth token invalid or expired, proceeding as public request:', {
+        error: authError.message,
+        note: 'This is expected for public reads with expired/invalid tokens'
+      })
+      // Explicitly set to null to ensure we treat as public request
+      walletAddress = null
+      // Continue as public request - don't throw, don't return error
     }
   } else {
     console.log('📖 Public request (no auth token)')

@@ -23,9 +23,15 @@ serve(async (req) => {
       try {
         walletAddress = await authenticateUser(req)
         console.log('✅ Authenticated request:', { walletAddress })
-      } catch (authError) {
+      } catch (authError: any) {
         // Token present but invalid - log but don't fail (public access allowed)
-        console.warn('⚠️ Auth token invalid, proceeding as public request:', authError.message)
+        // Explicitly set to null to ensure we treat as public request
+        console.warn('⚠️ Auth token invalid or expired, proceeding as public request:', {
+          error: authError.message,
+          note: 'This is expected for public reads with expired/invalid tokens'
+        })
+        walletAddress = null // Explicitly set to null to ensure public request
+        // Continue as public request - don't throw, don't return error
       }
     } else {
       console.log('📖 Public request (no auth token)')
@@ -71,11 +77,30 @@ serve(async (req) => {
   } catch (error: any) {
     console.error('Error in get-profile:', error)
     
-    // Immediately return 403 for authentication errors (best practice: return 403 immediately for invalid tokens)
-    if (error.message?.includes('UNAUTHORIZED') || error.message?.includes('Missing') || error.message?.includes('Invalid') || error.message?.includes('expired')) {
+    // CRITICAL: get-profile allows public access, so auth errors should not block the request
+    // Check if this is an auth error and if we were trying to authenticate
+    const authHeader = req.headers.get('Authorization')
+    const wasAuthenticatedRequest = authHeader && authHeader.startsWith('Bearer ')
+    const isAuthError = error.message?.includes('UNAUTHORIZED') || 
+                        error.message?.includes('Missing') || 
+                        error.message?.includes('Invalid') || 
+                        error.message?.includes('expired')
+    
+    if (isAuthError && wasAuthenticatedRequest) {
+      // Authenticated request failed - return 403
+      console.warn('⚠️ Authenticated request failed, returning 403')
       return errorResponse('Unauthorized', 403)
     }
     
+    // For public requests with auth errors, log but don't fail
+    // This can happen if someone sends an invalid token - we should ignore it for public reads
+    if (isAuthError && !wasAuthenticatedRequest) {
+      console.warn('⚠️ Auth error on public request (ignoring):', error.message)
+      // Return empty profile instead of error for public reads
+      return successResponse({ profile: null })
+    }
+    
+    // For other errors, return 500
     return errorResponse(error.message || 'Internal server error', 500)
   }
 })

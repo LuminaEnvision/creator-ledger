@@ -355,26 +355,53 @@ export const CreateEntryForm: React.FC<{ onSuccess: () => void }> = ({ onSuccess
             // NFT will be minted/updated when admin verifies the entry
             setStatus('saving');
 
-            const { entry } = await edgeFunctions.createEntry({
+            console.log('📤 Creating entry with data:', {
                 url,
                 platform,
-                description,
-                campaign_tag: hashtags.map(tag => tag.replace(/^#/, '')).join(', '),
-                timestamp,
-                content_published_at: manualPublishedDate 
-                    ? new Date(manualPublishedDate).toISOString() 
-                    : (metadata.publishedAt ? new Date(metadata.publishedAt).toISOString() : undefined),
-                payload_hash: payloadHash,
-                content_hash: contentHash,
-                verification_status: 'unverified',
-                title: metadata.title || undefined,
-                image_url: metadata.image || undefined,
-                custom_image_url: finalCustomImageUrl || undefined,
-                site_name: metadata.siteName || undefined,
-                signature: signature
+                hasDescription: !!description,
+                hasContentHash: !!contentHash,
+                hasPayloadHash: !!payloadHash,
+                hasSignature: !!signature
             });
 
+            let entry;
+            try {
+                const result = await edgeFunctions.createEntry({
+                    url,
+                    platform,
+                    description,
+                    campaign_tag: hashtags.map(tag => tag.replace(/^#/, '')).join(', '),
+                    timestamp,
+                    content_published_at: manualPublishedDate 
+                        ? new Date(manualPublishedDate).toISOString() 
+                        : (metadata.publishedAt ? new Date(metadata.publishedAt).toISOString() : undefined),
+                    payload_hash: payloadHash,
+                    content_hash: contentHash,
+                    verification_status: 'unverified',
+                    title: metadata.title || undefined,
+                    image_url: metadata.image || undefined,
+                    custom_image_url: finalCustomImageUrl || undefined,
+                    site_name: metadata.siteName || undefined,
+                    signature: signature
+                });
+                
+                entry = result.entry;
+                console.log('✅ Entry created successfully:', { entryId: entry?.id, entry });
+            } catch (createError: any) {
+                console.error('❌ Error creating entry:', {
+                    error: createError,
+                    message: createError?.message,
+                    status: createError?.status,
+                    details: createError?.details
+                });
+                throw createError; // Re-throw to be caught by outer catch
+            }
+
             const entryId = entry?.id;
+            
+            if (!entryId) {
+                throw new Error('Entry was created but no ID was returned. Please refresh and check your entries.');
+            }
 
             // Save URL and contentHash before clearing form state
             const submittedUrl = url;

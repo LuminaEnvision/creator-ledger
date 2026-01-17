@@ -9,6 +9,8 @@ interface RainbowAuthState {
     user: User | null;
     isLoading: boolean;
     error: string | null;
+    // Helper function to request authentication when needed (e.g., when submitting entries)
+    requestAuthentication: () => Promise<boolean>;
     // connect/disconnect are handled by RainbowKit UI, so we might not expose them or just keep them as no-ops/wrappers if needed
     // But for compatibility with existing code, let's keep the shape but they might not be used directly
 }
@@ -22,6 +24,35 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     const [isLoading, setIsLoading] = useState<boolean>(false);
     const [error, setError] = useState<string | null>(null);
 
+    // Helper function to request authentication when needed (e.g., when submitting entries)
+    const requestAuthentication = async (): Promise<boolean> => {
+        if (!isConnected || !address) {
+            throw new Error('Wallet not connected. Please connect your wallet first.');
+        }
+
+        if (!signMessageAsync || typeof signMessageAsync !== 'function') {
+            throw new Error('Wallet signing not available. Please reconnect your wallet and try again.');
+        }
+
+        try {
+            const walletAddress = address.toLowerCase();
+            const authResult = await authenticateWithWallet(walletAddress, signMessageAsync);
+            
+            // Update user state with authenticated user
+            if (authResult.user) {
+                setUser({
+                    walletAddress: authResult.user.user_metadata?.wallet_address || walletAddress,
+                    createdAt: authResult.user.created_at || new Date().toISOString(),
+                });
+            }
+            
+            return true;
+        } catch (authError: any) {
+            console.error('Authentication failed:', authError);
+            throw authError;
+        }
+    };
+
     useEffect(() => {
         const syncUser = async () => {
             if (!isConnected || !address) {
@@ -33,33 +64,13 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
             try {
                 const walletAddress = address.toLowerCase();
 
-                // Check if we have a valid auth token
-                let token = await getAuthToken();
+                // NEW FLOW: Don't automatically authenticate with signature
+                // User can browse without signing. Signature will be requested when they try to submit/create entries.
                 
-                // If no token, authenticate with wallet
-                // Only try if signMessageAsync is available and connector is ready
-                // Add additional check: wait a bit for connector to be fully ready
-                if (!token && signMessageAsync && isConnected) {
-                    try {
-                        // Small delay to ensure connector is fully initialized
-                        await new Promise(resolve => setTimeout(resolve, 100))
-                        
-                        const authResult = await authenticateWithWallet(walletAddress, signMessageAsync);
-                        token = authResult.access_token;
-                    } catch (authError: any) {
-                        // Don't log connector errors as warnings - they're expected if connector isn't ready
-                        // Also don't log user cancellation
-                        if (!authError.message?.includes('connector') && 
-                            !authError.message?.includes('getChainId') && 
-                            !authError.message?.includes('cancelled')) {
-                            console.warn('Wallet authentication failed, will try Edge Function:', authError);
-                        }
-                        // Continue to try Edge Function call - it will handle auth
-                    }
-                }
+                // Check if we have a valid auth token (from previous session)
+                const token = await getAuthToken();
 
-                // Use Edge Functions to get/create user (no direct DB access)
-                // Only try if we have a token (user is authenticated)
+                // If we have a token, try to get user data
                 if (token) {
                     try {
                         const { user: userData } = await edgeFunctions.getUser();
@@ -69,30 +80,19 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
                                 walletAddress: userData.wallet_address,
                                 createdAt: userData.created_at,
                             });
-                        } else {
-                            // Create new user via Edge Function
-                            const { user: newUser } = await edgeFunctions.createUser();
-                            setUser({
-                                walletAddress: newUser.wallet_address,
-                                createdAt: newUser.created_at,
-                            });
                         }
                     } catch (edgeError: any) {
-                        console.warn('Edge Function failed:', edgeError);
-                        // If getUser/createUser fails, still set user from wallet (they can view entries)
-                        setUser({
-                            walletAddress: walletAddress,
-                            createdAt: new Date().toISOString(),
-                        });
+                        // Token might be expired or invalid - that's okay, user can still browse
+                        console.log('ℹ️ Token invalid or expired, user can browse without auth:', edgeError.message);
                     }
-                } else {
-                    // No token - user not authenticated yet, but they can still view public data
-                    // Set user from wallet address so they can see entries
-                    setUser({
-                        walletAddress: walletAddress,
-                        createdAt: new Date().toISOString(),
-                    });
                 }
+
+                // Set user from wallet address so they can see entries (even without auth)
+                // This allows browsing without requiring signature
+                setUser({
+                    walletAddress: walletAddress,
+                    createdAt: new Date().toISOString(),
+                });
             } catch (err: any) {
                 setError(err.message);
             } finally {
@@ -101,10 +101,10 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
         };
 
         syncUser();
-    }, [address, isConnected, signMessageAsync]);
+    }, [address, isConnected]);
 
     return (
-        <AuthContext.Provider value={{ user, isLoading, error }}>
+        <AuthContext.Provider value={{ user, isLoading, error, requestAuthentication }}>
             {children}
         </AuthContext.Provider>
     );

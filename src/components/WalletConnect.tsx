@@ -15,7 +15,7 @@ export const WalletConnect: React.FC = () => {
     const [isConnecting, setIsConnecting] = useState(false);
     const [isPremium, setIsPremium] = useState(false);
 
-    // Check premium status
+    // Check premium status (only if user is authenticated)
     useEffect(() => {
         const checkPremium = async () => {
             const walletAddress = user?.walletAddress || address;
@@ -25,13 +25,21 @@ export const WalletConnect: React.FC = () => {
             }
 
             try {
+                // getUser requires authentication - only call if user is authenticated
+                // If not authenticated, premium status will be false (default)
                 const { user: userData } = await edgeFunctions.getUser();
 
                 const premiumStatus = checkPremiumStatus(userData, walletAddress);
                 setIsPremium(premiumStatus);
-            } catch (err) {
-                console.error('Error checking premium status:', err);
-                setIsPremium(false);
+            } catch (err: any) {
+                // Silently ignore auth errors - user might not be authenticated yet
+                if (err.message?.includes('Authentication required')) {
+                    console.log('ℹ️ User not authenticated, premium status unavailable');
+                    setIsPremium(false);
+                } else {
+                    console.error('Error checking premium status:', err);
+                    setIsPremium(false);
+                }
             }
         };
 

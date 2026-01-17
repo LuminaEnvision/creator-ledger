@@ -85,10 +85,21 @@ export async function authenticateWithWallet(
   }
 
   // Send to Edge Function for verification and token generation
+  console.log('📤 Sending auth request to Edge Function:', {
+    walletAddress,
+    signatureLength: signature.length,
+    messageLength: message.length,
+    messagePreview: message.substring(0, 100)
+  })
+
+  // CRITICAL: Supabase Edge Functions require 'apikey' header for ALL requests
+  const SUPABASE_ANON_KEY = import.meta.env.VITE_SUPABASE_ANON_KEY
+  
   const response = await fetch(`${SUPABASE_URL}/functions/v1/auth-with-wallet`, {
     method: 'POST',
     headers: {
       'Content-Type': 'application/json',
+      ...(SUPABASE_ANON_KEY && { 'apikey': SUPABASE_ANON_KEY }),
     },
     body: JSON.stringify({
       walletAddress,
@@ -98,8 +109,31 @@ export async function authenticateWithWallet(
   })
 
   if (!response.ok) {
-    const error = await response.json().catch(() => ({ error: response.statusText }))
-    throw new Error(error.error || 'Authentication failed')
+    let errorDetails: any = { error: response.statusText }
+    try {
+      const errorText = await response.text()
+      console.error('❌ Auth Edge Function error response (raw):', {
+        status: response.status,
+        statusText: response.statusText,
+        headers: Object.fromEntries(response.headers.entries()),
+        body: errorText
+      })
+      
+      // Try to parse as JSON
+      try {
+        errorDetails = JSON.parse(errorText)
+        console.error('❌ Auth Edge Function error response (parsed):', JSON.stringify(errorDetails, null, 2))
+      } catch (parseError) {
+        console.error('❌ Failed to parse error as JSON, using raw text:', errorText)
+        errorDetails = { error: errorText }
+      }
+    } catch (e) {
+      console.error('❌ Failed to read error response:', e)
+    }
+    
+    const errorMessage = errorDetails.error || errorDetails.details || `Authentication failed with status ${response.status}`
+    console.error('❌ Throwing error:', errorMessage)
+    throw new Error(errorMessage)
   }
 
   const { access_token, refresh_token, user } = await response.json()
@@ -108,21 +142,41 @@ export async function authenticateWithWallet(
     throw new Error('No access token received')
   }
 
+  console.log('✅ Received token from auth-with-wallet:', {
+    hasAccessToken: !!access_token,
+    hasRefreshToken: !!refresh_token,
+    tokenLength: access_token.length,
+    tokenPrefix: access_token.substring(0, 50) + '...',
+    tokenSuffix: '...' + access_token.substring(access_token.length - 20),
+    isJWT: access_token.split('.').length === 3, // JWT has 3 parts separated by dots
+  })
+
   // Set the session in Supabase client using setSession
   // This properly initializes the Supabase Auth session
-  const { error: sessionError } = await supabase.auth.setSession({
+  const { data: sessionData, error: sessionError } = await supabase.auth.setSession({
     access_token,
     refresh_token: refresh_token || access_token, // Use refresh_token if provided
   })
 
   if (sessionError) {
-    console.warn('Error setting Supabase session, storing token manually:', sessionError)
+    console.error('❌ Error setting Supabase session:', {
+      error: sessionError.message,
+      errorCode: sessionError.status,
+      fullError: JSON.stringify(sessionError, null, 2)
+    })
+    console.warn('⚠️ Falling back to manual token storage')
     // Fallback: Store token manually if setSession fails
     localStorage.setItem('supabase_auth_token', access_token)
     if (refresh_token) {
       localStorage.setItem('supabase_auth_refresh_token', refresh_token)
     }
     localStorage.setItem('supabase_auth_user', JSON.stringify(user))
+  } else {
+    console.log('✅ Supabase session set successfully:', {
+      hasSession: !!sessionData.session,
+      hasAccessToken: !!sessionData.session?.access_token,
+      userId: sessionData.user?.id
+    })
   }
 
   return { access_token, user }
@@ -137,7 +191,16 @@ export async function getAuthToken(): Promise<string | null> {
   const { data: { session }, error } = await supabase.auth.getSession()
   
   if (!error && session?.access_token) {
+    console.log('✅ Got token from Supabase session:', {
+      tokenLength: session.access_token.length,
+      tokenPrefix: session.access_token.substring(0, 30) + '...',
+      expiresAt: session.expires_at ? new Date(session.expires_at * 1000).toISOString() : 'unknown'
+    })
     return session.access_token
+  }
+  
+  if (error) {
+    console.warn('⚠️ Error getting Supabase session:', error.message)
   }
 
   // Fallback: Try to get from localStorage (for manually stored tokens)

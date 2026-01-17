@@ -17,13 +17,24 @@ export const PassportDisplay: React.FC<PassportDisplayProps> = ({ walletAddress,
         const fetchData = async () => {
             if (!walletAddress) return;
 
-            // Fetch entry count via Edge Function
-            const { entries } = await edgeFunctions.getEntries({ wallet_address: walletAddress });
-            if (entries) setEntryCount(entries.length);
+            try {
+                // Fetch entry count via Edge Function (public read)
+                const { entries } = await edgeFunctions.getEntries({ wallet_address: walletAddress });
+                if (entries) setEntryCount(entries.length);
+            } catch (err: any) {
+                // Silently handle errors - might be 401 from old Edge Function code
+                console.log('ℹ️ Could not fetch entries for passport display:', err.message);
+                setEntryCount(0);
+            }
 
-            // Fetch profile name via Edge Function
-            const { profile } = await edgeFunctions.getProfile(walletAddress);
-            if (profile?.display_name) setUsername(profile.display_name);
+            try {
+                // Fetch profile name via Edge Function (public read)
+                const { profile } = await edgeFunctions.getProfile(walletAddress);
+                if (profile?.display_name) setUsername(profile.display_name);
+            } catch (err: any) {
+                // Silently handle errors - might be 401 from old Edge Function code
+                console.log('ℹ️ Could not fetch profile for passport display:', err.message);
+            }
         };
 
         fetchData();

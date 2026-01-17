@@ -80,13 +80,17 @@ export const Notifications: React.FC = () => {
     }, [user?.walletAddress]);
 
     useEffect(() => {
+        // Only fetch notifications if user is authenticated
+        // Notifications require authentication (user-specific data)
         if (!user?.walletAddress) {
             setIsLoading(false);
+            setNotifications([]);
             return;
         }
 
         const checkSubscriptionExpiry = async () => {
             // Check if subscription has expired and create notification if needed
+            // This requires authentication, so only run if user is authenticated
             try {
                 const { user: userData } = await edgeFunctions.getUser();
 
@@ -102,8 +106,13 @@ export const Notifications: React.FC = () => {
                         // TODO: Add create-subscription-expired-notification Edge Function if needed
                     }
                 }
-            } catch (err) {
-                console.error('Error checking subscription expiry:', err);
+            } catch (err: any) {
+                // Silently ignore auth errors - user might not be authenticated yet
+                if (err.message?.includes('Authentication required')) {
+                    console.log('ℹ️ User not authenticated, skipping subscription check');
+                } else {
+                    console.error('Error checking subscription expiry:', err);
+                }
             }
         };
 
@@ -115,8 +124,14 @@ export const Notifications: React.FC = () => {
                 const { notifications: notificationsData } = await edgeFunctions.getNotifications(false);
                 setNotifications(notificationsData || []);
             } catch (error: any) {
-                console.error('Error fetching notifications:', error);
-                setNotifications([]);
+                // Silently ignore auth errors - user might not be authenticated yet
+                if (error.message?.includes('Authentication required')) {
+                    console.log('ℹ️ User not authenticated, skipping notifications fetch');
+                    setNotifications([]);
+                } else {
+                    console.error('Error fetching notifications:', error);
+                    setNotifications([]);
+                }
             }
             setIsLoading(false);
         };
@@ -142,6 +157,11 @@ export const Notifications: React.FC = () => {
                         })
                     },
                     (error) => {
+                        // Silently ignore auth errors - user might not be authenticated yet
+                        if (error.message?.includes('No authentication token') || error.message?.includes('Authentication required')) {
+                            console.log('ℹ️ User not authenticated, skipping notification subscription');
+                            return;
+                        }
                         console.error('Notification subscription error:', error)
                         // Fallback to polling if SSE fails
                         if (!pollInterval) {
@@ -151,7 +171,12 @@ export const Notifications: React.FC = () => {
                         }
                     }
                 )
-            } catch (error) {
+            } catch (error: any) {
+                // Silently ignore auth errors - user might not be authenticated yet
+                if (error.message?.includes('No authentication token') || error.message?.includes('Authentication required')) {
+                    console.log('ℹ️ User not authenticated, skipping notification subscription');
+                    return;
+                }
                 console.error('Failed to set up real-time notifications:', error)
                 // Fallback to polling
                 pollInterval = setInterval(() => {

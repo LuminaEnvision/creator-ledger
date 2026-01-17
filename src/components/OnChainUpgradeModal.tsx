@@ -3,7 +3,7 @@ import { Modal } from './Modal';
 import { useWriteContract, useAccount, useSwitchChain } from 'wagmi';
 import { base } from 'wagmi/chains';
 import { parseEther } from 'viem';
-import { waitForTransactionReceipt } from 'wagmi/actions';
+import { waitForTransactionReceipt, simulateContract } from 'wagmi/actions';
 import { PASSPORT_CONTRACT_ADDRESS, PASSPORT_ABI } from '../lib/contracts';
 import { useToast } from '../hooks/useToast';
 import { edgeFunctions } from '../lib/edgeFunctions';
@@ -72,15 +72,92 @@ export const OnChainUpgradeModal: React.FC<OnChainUpgradeModalProps> = ({
                 contentHashBytes = `0x${contentHash.padStart(64, '0')}` as `0x${string}`;
             }
             
-            // Call smart contract to register content hash
-            const hash = await writeContractAsync({
+            console.log('🔍 Preparing contract call:', {
                 address: PASSPORT_CONTRACT_ADDRESS,
-                abi: PASSPORT_ABI,
-                functionName: 'registerContentHash',
-                args: [contentHashBytes, url],
-                value: CONTENT_REGISTRATION_FEE,
-                chainId: base.id,
+                contentHash: contentHashBytes,
+                url,
+                fee: CONTENT_REGISTRATION_FEE.toString(),
+                chainId: base.id
             });
+            
+            // First, simulate the contract call to check if it would succeed and get better error messages
+            try {
+                console.log('🧪 Simulating contract call...');
+                await simulateContract(config, {
+                    address: PASSPORT_CONTRACT_ADDRESS,
+                    abi: PASSPORT_ABI,
+                    functionName: 'registerContentHash',
+                    args: [contentHashBytes, url],
+                    value: CONTENT_REGISTRATION_FEE,
+                    chainId: base.id,
+                });
+                console.log('✅ Contract simulation successful');
+            } catch (simulateError: any) {
+                console.error('❌ Contract simulation failed:', {
+                    error: simulateError,
+                    message: simulateError?.message,
+                    shortMessage: simulateError?.shortMessage,
+                    cause: simulateError?.cause,
+                    data: simulateError?.data
+                });
+                
+                // Extract revert reason from simulation error
+                let errorMessage = 'Contract call would fail';
+                if (simulateError?.shortMessage) {
+                    errorMessage = simulateError.shortMessage;
+                } else if (simulateError?.message) {
+                    errorMessage = simulateError.message;
+                }
+                
+                // Check for common revert reasons
+                if (errorMessage.includes('already registered') || errorMessage.includes('AlreadyRegistered')) {
+                    throw new Error('already registered');
+                } else if (errorMessage.includes('insufficient funds') || errorMessage.includes('balance')) {
+                    throw new Error('Insufficient funds for transaction. Please ensure you have enough ETH for gas and the registration fee.');
+                } else if (errorMessage.includes('Invalid') || errorMessage.includes('invalid')) {
+                    throw new Error(`Invalid parameters: ${errorMessage}`);
+                } else {
+                    throw new Error(`Contract call would fail: ${errorMessage}`);
+                }
+            }
+            
+            // If simulation succeeds, proceed with actual contract call
+            let hash: `0x${string}`;
+            try {
+                hash = await writeContractAsync({
+                    address: PASSPORT_CONTRACT_ADDRESS,
+                    abi: PASSPORT_ABI,
+                    functionName: 'registerContentHash',
+                    args: [contentHashBytes, url],
+                    value: CONTENT_REGISTRATION_FEE,
+                    chainId: base.id,
+                });
+            } catch (contractError: any) {
+                console.error('Contract call error details:', {
+                    error: contractError,
+                    message: contractError?.message,
+                    code: contractError?.code,
+                    data: contractError?.data,
+                    shortMessage: contractError?.shortMessage,
+                    cause: contractError?.cause
+                });
+                
+                // Check for specific error types
+                if (contractError?.message?.includes('insufficient funds') || contractError?.message?.includes('balance')) {
+                    throw new Error('Insufficient funds for transaction. Please ensure you have enough ETH for gas and the registration fee.');
+                } else if (contractError?.message?.includes('user rejected') || contractError?.code === 4001) {
+                    throw new Error('User rejected');
+                } else if (contractError?.message?.includes('already registered')) {
+                    throw new Error('already registered');
+                } else if (contractError?.shortMessage?.includes('revert')) {
+                    // Try to extract revert reason
+                    const revertReason = contractError?.data?.message || contractError?.shortMessage || 'Transaction would revert';
+                    throw new Error(`Contract call failed: ${revertReason}`);
+                } else {
+                    // Generic error - provide helpful message
+                    throw new Error(`Contract call failed: ${contractError?.message || contractError?.shortMessage || 'Unknown error. Please check your network connection and try again.'}`);
+                }
+            }
 
             showToast('Transaction submitted! Waiting for confirmation...', 'info');
 

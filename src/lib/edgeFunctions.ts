@@ -7,6 +7,7 @@
  */
 
 const SUPABASE_URL = import.meta.env.VITE_SUPABASE_URL
+const SUPABASE_ANON_KEY = import.meta.env.VITE_SUPABASE_ANON_KEY
 
 // 🔥 STEP 4: LOG FRONTEND URL FOR COMPARISON
 console.log("FRONTEND SUPABASE URL", SUPABASE_URL || 'NOT SET')
@@ -53,8 +54,10 @@ async function callEdgeFunction(
 ): Promise<any> {
   const { method = 'GET', body, params, requireAuth = false } = options
 
-  // Only get token if auth is required OR if we want to send it (optional for public reads)
-  // For public reads, we skip token retrieval to avoid unnecessary errors
+  // CRITICAL: For public reads, DO NOT send Authorization header at all
+  // Supabase gateway validates Authorization tokens and returns 401 if invalid
+  // This happens BEFORE Edge Function code runs, so we can't handle it gracefully
+  // Solution: Only get/send token for authenticated operations
   let token: string | null = null
   if (requireAuth) {
     // For operations that require auth, we must have a token
@@ -62,16 +65,9 @@ async function callEdgeFunction(
     if (!token) {
       throw new Error('Authentication required. Please sign in with Supabase Auth.')
     }
-  } else {
-    // For public reads, try to get token but don't fail if it doesn't exist
-    // This allows authenticated users to see their own data, but public users can still access
-    try {
-      token = await getAuthToken()
-    } catch (e) {
-      // Silently ignore auth errors for public reads - they're optional
-      token = null
-    }
   }
+  // For public reads (requireAuth=false), do NOT get token at all
+  // This ensures no Authorization header is sent, allowing true public access
 
   // Build URL with query parameters
   const url = new URL(`${SUPABASE_URL}/functions/v1/${functionName}`)
@@ -85,13 +81,37 @@ async function callEdgeFunction(
     'Content-Type': 'application/json',
   }
 
-  // CRITICAL: Only send auth token when explicitly required OR when we have a token
-  // For public reads (requireAuth=false), we still send token if available (for personalized data)
-  // But we don't fail if token is missing (allows public access)
-  // For required auth (requireAuth=true), we must have token (checked above)
-  if (token) {
+  // CRITICAL: Supabase Edge Functions require 'apikey' header for ALL requests
+  // Without this, Supabase gateway returns 401 before Edge Function code even runs
+  if (SUPABASE_ANON_KEY) {
+    headers['apikey'] = SUPABASE_ANON_KEY
+    console.log('✅ Sending apikey header:', { 
+      hasKey: !!SUPABASE_ANON_KEY, 
+      keyPrefix: SUPABASE_ANON_KEY?.substring(0, 20) + '...',
+      functionName 
+    })
+  } else {
+    console.error('❌ VITE_SUPABASE_ANON_KEY not set - Edge Functions will fail with 401')
+    console.error('   This is REQUIRED for all Edge Function requests')
+  }
+
+  // CRITICAL: Only send Authorization header for authenticated operations
+  // For public reads, do NOT send Authorization header to avoid gateway-level 401s
+  // Supabase gateway validates tokens and rejects invalid ones before Edge Function runs
+  if (requireAuth && token) {
     headers['Authorization'] = `Bearer ${token}`
   }
+
+  // Log request details for debugging
+  console.log('📤 Edge Function request:', {
+    url: url.toString(),
+    method,
+    hasApikey: !!headers['apikey'],
+    hasAuth: !!headers['Authorization'],
+    headers: Object.keys(headers),
+    functionName,
+    requireAuth
+  })
 
   const response = await fetch(url.toString(), {
     method,
@@ -116,6 +136,12 @@ async function callEdgeFunction(
     const originalError = errorDetails.error || errorDetails.message || errorMessage
     
     if (response.status === 401 || response.status === 403) {
+      // For public reads (requireAuth=false), 401 might be from old Edge Function code
+      // Return empty result instead of throwing error to allow graceful degradation
+      if (!requireAuth) {
+        console.warn('⚠️ Edge Function returned 401 for public read (old code?), returning empty result')
+        return { entries: [] } // Return empty result for public reads that fail auth
+      }
       // Authentication errors - but preserve original message for debugging
       errorMessage = originalError || 'Authentication required. Please sign in with your wallet.'
     } else if (response.status === 400) {

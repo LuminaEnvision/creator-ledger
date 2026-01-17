@@ -21,6 +21,7 @@ serve(async (req) => {
       headers: {
         'Access-Control-Allow-Origin': '*',
         'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
+        'Access-Control-Allow-Methods': 'GET, POST, PATCH, PUT, DELETE, OPTIONS',
       }
     })
   }
@@ -28,17 +29,50 @@ serve(async (req) => {
   if (req.method !== 'POST') {
     return new Response(
       JSON.stringify({ error: 'Method not allowed' }),
-      { status: 405, headers: { 'Content-Type': 'application/json' } }
+      { 
+        status: 405, 
+        headers: { 
+          'Content-Type': 'application/json',
+          'Access-Control-Allow-Origin': '*',
+        } 
+      }
     )
   }
 
   try {
+    console.log('🔥 auth-with-wallet called', {
+      method: req.method,
+      url: req.url,
+      timestamp: new Date().toISOString()
+    })
+
     const { walletAddress, signature, message } = await req.json()
 
+    console.log('📥 Received auth request:', {
+      hasWalletAddress: !!walletAddress,
+      hasSignature: !!signature,
+      hasMessage: !!message,
+      walletAddress: walletAddress,
+      signatureLength: signature?.length,
+      messageLength: message?.length,
+      messagePreview: message?.substring(0, 150)
+    })
+
     if (!walletAddress || !signature || !message) {
+      console.error('❌ Missing required fields:', {
+        walletAddress: !!walletAddress,
+        signature: !!signature,
+        message: !!message
+      })
       return new Response(
         JSON.stringify({ error: 'Missing walletAddress, signature, or message' }),
-        { status: 400, headers: { 'Content-Type': 'application/json' } }
+        { 
+          status: 400, 
+          headers: { 
+            'Content-Type': 'application/json',
+            'Access-Control-Allow-Origin': '*',
+          } 
+        }
       )
     }
 
@@ -46,49 +80,115 @@ serve(async (req) => {
     // verifyMessage recovers signer from signature and compares against address
     // Checksum mismatch = invalid signature (silently fails)
     // Never use .toLowerCase() before verifyMessage!
-    const checksumAddress = getAddress(walletAddress)
+    let checksumAddress: string
+    try {
+      checksumAddress = getAddress(walletAddress)
+      console.log('✅ Address normalized to checksum:', {
+        original: walletAddress,
+        checksum: checksumAddress,
+        match: walletAddress.toLowerCase() === checksumAddress.toLowerCase()
+      })
+    } catch (addressError: any) {
+      console.error('❌ Invalid wallet address format:', addressError)
+      return new Response(
+        JSON.stringify({ 
+          error: 'Invalid wallet address format',
+          details: addressError.message 
+        }),
+        { 
+          status: 400, 
+          headers: { 
+            'Content-Type': 'application/json',
+            'Access-Control-Allow-Origin': '*',
+          } 
+        }
+      )
+    }
     
     console.log('🔐 Verifying signature:', {
       originalAddress: walletAddress,
       checksumAddress: checksumAddress,
       messageLength: message.length,
-      messagePreview: message.substring(0, 100) + '...',
-      signaturePrefix: signature.substring(0, 20) + '...'
+      messageFull: message, // Log full message for debugging
+      signaturePrefix: signature.substring(0, 30) + '...',
+      signatureFull: signature, // Log full signature for debugging
+      signatureLength: signature.length,
+      signatureStartsWith0x: signature.startsWith('0x'),
+      messageStartsWith0x: message.startsWith('0x')
     })
     
     // Verify signature
     let isValid = false
     try {
+      // Ensure signature starts with 0x
+      const normalizedSignature = signature.startsWith('0x') 
+        ? signature as `0x${string}`
+        : `0x${signature}` as `0x${string}`
+      
+      console.log('🔍 Calling verifyMessage with:', {
+        address: checksumAddress,
+        messageLength: message.length,
+        signatureLength: normalizedSignature.length,
+        signaturePrefix: normalizedSignature.substring(0, 30)
+      })
+      
       isValid = await verifyMessage({
         address: checksumAddress,
         message,
-        signature: signature as `0x${string}`,
+        signature: normalizedSignature,
       })
       
-      console.log('✅ Signature verification result:', { isValid, checksumAddress })
+      console.log('✅ Signature verification result:', { 
+        isValid, 
+        checksumAddress,
+        messageLength: message.length,
+        signatureLength: normalizedSignature.length,
+        note: isValid ? 'Signature is valid!' : 'Signature verification returned false'
+      })
     } catch (verifyError: any) {
-      console.error('❌ Signature verification error:', verifyError)
+      console.error('❌ Signature verification error:', {
+        error: verifyError.message,
+        stack: verifyError.stack,
+        checksumAddress,
+        messageLength: message.length,
+        signatureLength: signature.length,
+        messagePreview: message.substring(0, 150)
+      })
       return new Response(
         JSON.stringify({ 
           error: 'Signature verification failed',
           details: verifyError.message 
         }),
-        { status: 401, headers: { 'Content-Type': 'application/json' } }
+        { 
+          status: 401, 
+          headers: { 
+            'Content-Type': 'application/json',
+            'Access-Control-Allow-Origin': '*',
+          } 
+        }
       )
     }
 
     if (!isValid) {
-      console.error('❌ Signature is invalid:', {
+      console.error('❌ Signature is invalid (verifyMessage returned false):', {
         checksumAddress,
         messageLength: message.length,
-        signatureLength: signature.length
+        signatureLength: signature.length,
+        messagePreview: message.substring(0, 150),
+        note: 'This usually means the signature does not match the message and address'
       })
       return new Response(
         JSON.stringify({ 
           error: 'Invalid signature',
           details: 'The signature does not match the message and wallet address'
         }),
-        { status: 401, headers: { 'Content-Type': 'application/json' } }
+        { 
+          status: 401, 
+          headers: { 
+            'Content-Type': 'application/json',
+            'Access-Control-Allow-Origin': '*',
+          } 
+        }
       )
     }
 
@@ -135,7 +235,13 @@ serve(async (req) => {
         console.error('Error creating auth user:', createError)
         return new Response(
           JSON.stringify({ error: 'Failed to create user' }),
-          { status: 500, headers: { 'Content-Type': 'application/json' } }
+          { 
+            status: 500, 
+            headers: { 
+              'Content-Type': 'application/json',
+              'Access-Control-Allow-Origin': '*',
+            } 
+          }
         )
       }
 
@@ -143,24 +249,173 @@ serve(async (req) => {
     }
 
     // Generate a JWT access token for the user
-    // We need to create a session to get a proper JWT token
-    const { data: sessionData, error: sessionError } = await supabaseAdmin.auth.admin.createSession({
-      user_id: authUser.id,
+    // Use GoTrue admin API to create a session - this generates a proper user JWT
+    const projectUrl = Deno.env.get('PROJECT_URL') ?? ''
+    const serviceRoleKey = Deno.env.get('SERVICE_ROLE_KEY') ?? ''
+    
+    console.log('🔐 Creating session for user via GoTrue admin API:', { userId: authUser.id, email })
+    
+    // Try GoTrue admin API session creation endpoint
+    // This should return a valid user JWT token
+    const sessionUrl = `${projectUrl}/auth/v1/admin/users/${authUser.id}/sessions`
+    const sessionResponse = await fetch(sessionUrl, {
+      method: 'POST',
+      headers: {
+        'Authorization': `Bearer ${serviceRoleKey}`,
+        'apikey': serviceRoleKey,
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({}),
     })
 
-    if (sessionError || !sessionData?.access_token) {
-      console.error('Error creating session:', sessionError)
+    if (sessionResponse.ok) {
+      try {
+        const sessionData = await sessionResponse.json()
+        console.log('✅ Session created via GoTrue admin API:', {
+          hasAccessToken: !!sessionData.access_token,
+          hasRefreshToken: !!sessionData.refresh_token,
+          responseKeys: Object.keys(sessionData)
+        })
+        
+        if (sessionData.access_token) {
+          return new Response(
+            JSON.stringify({
+              user: authUser,
+              access_token: sessionData.access_token,
+              refresh_token: sessionData.refresh_token || sessionData.access_token,
+            }),
+            {
+              status: 200,
+              headers: {
+                'Content-Type': 'application/json',
+                'Access-Control-Allow-Origin': '*',
+              }
+            }
+          )
+        }
+      } catch (jsonError: any) {
+        console.error('Error parsing session response:', jsonError)
+      }
+    }
+    
+    // If GoTrue admin API didn't work, fall back to password grant
+    const errorText = sessionResponse.ok ? '' : await sessionResponse.text()
+    console.warn('⚠️ GoTrue admin API session creation failed, trying password grant:', {
+      status: sessionResponse.status,
+      error: errorText.substring(0, 200)
+    })
+    
+    // Fallback: Use password grant with anon key from request headers
+    // Get anon key from request headers (frontend sends it)
+    const requestAnonKey = req.headers.get('apikey')
+    const anonKey = requestAnonKey || Deno.env.get('SUPABASE_ANON_KEY') || Deno.env.get('ANON_KEY')
+    
+    if (!anonKey) {
+      console.error('❌ ANON_KEY not found in headers or environment variables')
       return new Response(
-        JSON.stringify({ error: 'Failed to create session' }),
-        { status: 500, headers: { 'Content-Type': 'application/json' } }
+        JSON.stringify({ 
+          error: 'Server configuration error: ANON_KEY not available',
+          user: authUser,
+          note: 'User was created but token generation failed. Please try signing in again.'
+        }),
+        { 
+          status: 500, 
+          headers: { 
+            'Content-Type': 'application/json',
+            'Access-Control-Allow-Origin': '*',
+          } 
+        }
       )
     }
+    
+    // Generate a secure temporary password
+    const tempPassword = `temp_${Date.now()}_${Math.random().toString(36).substring(7)}`
+    
+    // Update user with temporary password
+    const { error: updateError } = await supabaseAdmin.auth.admin.updateUserById(authUser.id, {
+      password: tempPassword,
+    })
+
+    if (updateError) {
+      console.error('Error setting temporary password:', updateError)
+      return new Response(
+        JSON.stringify({ error: 'Failed to set temporary password', details: updateError.message }),
+        { 
+          status: 500, 
+          headers: { 
+            'Content-Type': 'application/json',
+            'Access-Control-Allow-Origin': '*',
+          } 
+        }
+      )
+    }
+
+    // Use password grant to get access token
+    const tokenUrl = `${projectUrl}/auth/v1/token?grant_type=password`
+    console.log('🔑 Using password grant as fallback')
+    const tokenResponse = await fetch(tokenUrl, {
+      method: 'POST',
+      headers: {
+        'apikey': anonKey,
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({
+        email: email,
+        password: tempPassword,
+      }),
+    })
+
+    if (!tokenResponse.ok) {
+      const errorText = await tokenResponse.text()
+      console.error('❌ Password grant also failed:', {
+        status: tokenResponse.status,
+        error: errorText
+      })
+      return new Response(
+        JSON.stringify({ 
+          error: 'Failed to generate authentication token',
+          details: errorText,
+          user: authUser
+        }),
+        { 
+          status: 500, 
+          headers: { 
+            'Content-Type': 'application/json',
+            'Access-Control-Allow-Origin': '*',
+          } 
+        }
+      )
+    }
+
+    const tokenData = await tokenResponse.json()
+    console.log('✅ Token generated via password grant:', {
+      hasAccessToken: !!tokenData.access_token,
+      hasRefreshToken: !!tokenData.refresh_token
+    })
+
+    if (!tokenData.access_token) {
+      return new Response(
+        JSON.stringify({ error: 'Token response missing access_token' }),
+        { 
+          status: 500, 
+          headers: { 
+            'Content-Type': 'application/json',
+            'Access-Control-Allow-Origin': '*',
+          } 
+        }
+      )
+    }
+
+    // Remove the temporary password for security
+    await supabaseAdmin.auth.admin.updateUserById(authUser.id, {
+      password: null,
+    })
 
     return new Response(
       JSON.stringify({
         user: authUser,
-        access_token: sessionData.access_token,
-        refresh_token: sessionData.refresh_token,
+        access_token: tokenData.access_token,
+        refresh_token: tokenData.refresh_token,
       }),
       {
         status: 200,
@@ -174,7 +429,13 @@ serve(async (req) => {
     console.error('Error in auth-with-wallet:', error)
     return new Response(
       JSON.stringify({ error: error.message || 'Internal server error' }),
-      { status: 500, headers: { 'Content-Type': 'application/json' } }
+      { 
+        status: 500, 
+        headers: { 
+          'Content-Type': 'application/json',
+          'Access-Control-Allow-Origin': '*',
+        } 
+      }
     )
   }
 })
