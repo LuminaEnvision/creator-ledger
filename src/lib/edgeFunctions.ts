@@ -8,6 +8,9 @@
 
 const SUPABASE_URL = import.meta.env.VITE_SUPABASE_URL
 
+// 🔥 STEP 4: LOG FRONTEND URL FOR COMPARISON
+console.log("FRONTEND SUPABASE URL", SUPABASE_URL || 'NOT SET')
+
 if (!SUPABASE_URL) {
   console.warn('VITE_SUPABASE_URL is not set. Edge Functions will not work.')
 } else {
@@ -183,7 +186,11 @@ export const edgeFunctions = {
     only_verified?: boolean
   }) {
     const queryParams: Record<string, string> = {}
-    if (params?.wallet_address) queryParams.wallet_address = params.wallet_address
+    // CRITICAL: Always normalize wallet_address to lowercase for database queries
+    // Database stores addresses in lowercase, PostgreSQL comparison is case-sensitive
+    if (params?.wallet_address) {
+      queryParams.wallet_address = params.wallet_address.toLowerCase()
+    }
     if (params?.only_verified) queryParams.only_verified = 'true'
 
     return callEdgeFunction('get-entries', {

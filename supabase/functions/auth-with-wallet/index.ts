@@ -1,6 +1,6 @@
 import { serve } from 'https://deno.land/std@0.168.0/http/server.ts'
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.89.0'
-import { verifyMessage } from 'https://esm.sh/viem@2.43.3'
+import { verifyMessage, getAddress } from 'https://esm.sh/viem@2.43.3'
 
 /**
  * Authenticate user with wallet signature
@@ -42,12 +42,26 @@ serve(async (req) => {
       )
     }
 
+    // CRITICAL FIX: Use checksum address format for signature verification
+    // verifyMessage recovers signer from signature and compares against address
+    // Checksum mismatch = invalid signature (silently fails)
+    // Never use .toLowerCase() before verifyMessage!
+    const checksumAddress = getAddress(walletAddress)
+    
+    console.log('🔐 Verifying signature:', {
+      originalAddress: walletAddress,
+      checksumAddress: checksumAddress,
+      messageLength: message.length
+    })
+    
     // Verify signature
     const isValid = await verifyMessage({
-      address: walletAddress as `0x${string}`,
+      address: checksumAddress,
       message,
       signature: signature as `0x${string}`,
     })
+    
+    console.log('✅ Signature verification result:', { isValid, checksumAddress })
 
     if (!isValid) {
       return new Response(

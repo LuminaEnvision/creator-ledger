@@ -31,20 +31,29 @@ serve(async (req) => {
       console.log('📖 Public request (no auth token)')
     }
 
+    // CRITICAL FIX: Always use lowercase for wallet_address queries
+    // Database stores addresses in lowercase, but queries might use checksum format
+    // PostgreSQL string comparison is case-sensitive, so we must normalize
     const requestedWallet = targetWallet?.toLowerCase() || walletAddress?.toLowerCase()
     
     if (!requestedWallet) {
       return errorResponse('wallet_address parameter is required', 400)
     }
 
+    console.log('🔍 Fetching profile:', { 
+      targetWallet, 
+      walletAddress, 
+      requestedWallet: requestedWallet 
+    })
+
     // Create admin client
     const supabase = createAdminClient()
     
-    // Get profile
+    // Get profile - ensure lowercase for case-sensitive comparison
     const { data: profile, error } = await supabase
       .from('profiles')
       .select('*')
-      .eq('wallet_address', requestedWallet)
+      .eq('wallet_address', requestedWallet.toLowerCase())
       .maybeSingle()
 
     if (error) {

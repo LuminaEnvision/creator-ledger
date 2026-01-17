@@ -2,10 +2,31 @@ import { serve } from 'https://deno.land/std@0.168.0/http/server.ts'
 import { authenticateUser, createAdminClient, errorResponse, successResponse, corsPreflightResponse } from '../_shared/auth.ts'
 
 serve(async (req) => {
+  // 🔥 STEP 1: PROVE FUNCTION IS RUNNING
+  console.log("🔥 get-entries called", {
+    method: req.method,
+    url: req.url,
+    timestamp: new Date().toISOString()
+  })
+
   // Handle CORS preflight
   if (req.method === 'OPTIONS') {
     return corsPreflightResponse()
   }
+
+  // 🔥 STEP 3: VERIFY ENVIRONMENT VARIABLES
+  const projectUrl = Deno.env.get('PROJECT_URL')
+  const serviceRoleKey = Deno.env.get('SERVICE_ROLE_KEY')
+  
+  console.log("ENV CHECK", {
+    hasUrl: !!projectUrl,
+    hasServiceKey: !!serviceRoleKey,
+    urlPrefix: projectUrl?.substring(0, 30) + '...' || 'MISSING',
+    keyPrefix: serviceRoleKey ? serviceRoleKey.substring(0, 20) + '...' : 'MISSING'
+  })
+
+  // 🔥 STEP 4: LOG PROJECT URL
+  console.log("EDGE SUPABASE URL", projectUrl || 'NOT SET')
 
   try {
     // CRITICAL: Explicitly handle public vs authenticated requests
@@ -36,17 +57,64 @@ serve(async (req) => {
     // Create admin client
     const supabase = createAdminClient()
     
+    // 🔥 STEP 2: TEST DIRECT DB QUERY (NO RLS EXCUSES)
+    // Temporarily hardcode a simple query to verify DB access
+    console.log("🔥 Testing direct DB query with service role...")
+    const testQuery = await supabase
+      .from('ledger_entries')
+      .select('*')
+      .limit(5)
+    
+    console.log("DB RESULT (test query):", {
+      dataCount: testQuery.data?.length || 0,
+      hasData: !!testQuery.data && testQuery.data.length > 0,
+      error: testQuery.error ? {
+        message: testQuery.error.message,
+        code: testQuery.error.code,
+        details: testQuery.error.details,
+        hint: testQuery.error.hint
+      } : null,
+      sampleData: testQuery.data?.[0] || null
+    })
+    
+    // 🔥 STEP 6: VERIFY TABLE & SCHEMA
+    // Try explicit schema
+    const testQueryExplicit = await supabase
+      .from('public.ledger_entries')
+      .select('*')
+      .limit(1)
+    
+    console.log("DB RESULT (explicit schema):", {
+      dataCount: testQueryExplicit.data?.length || 0,
+      error: testQueryExplicit.error?.message || null
+    })
+    
     // Build query
     let query = supabase
       .from('ledger_entries')
       .select('*')
 
+    // CRITICAL FIX: Always use lowercase for wallet_address queries
+    // Database stores addresses in lowercase, but queries might use checksum format
+    // PostgreSQL string comparison is case-sensitive, so we must normalize
     // Filter by wallet address if provided
     if (targetWallet) {
-      query = query.eq('wallet_address', targetWallet.toLowerCase())
+      // Normalize to lowercase to match database format
+      const normalizedTarget = targetWallet.toLowerCase()
+      console.log('🔍 Filtering by wallet (from query param):', { 
+        original: targetWallet, 
+        normalized: normalizedTarget 
+      })
+      query = query.eq('wallet_address', normalizedTarget)
     } else if (walletAddress) {
       // If authenticated and no target wallet, return user's own entries
-      query = query.eq('wallet_address', walletAddress)
+      // walletAddress from authenticateUser is already lowercase, but ensure it
+      const normalizedWallet = walletAddress.toLowerCase()
+      console.log('🔍 Filtering by wallet (from auth):', { 
+        original: walletAddress, 
+        normalized: normalizedWallet 
+      })
+      query = query.eq('wallet_address', normalizedWallet)
     }
 
     // Filter by verification status
@@ -67,6 +135,20 @@ serve(async (req) => {
     })
 
     const { data: entries, error } = await query
+
+    // 🔥 STEP 2: LOG ACTUAL QUERY RESULT
+    console.log("DB RESULT (actual query):", {
+      dataCount: entries?.length || 0,
+      hasData: !!entries && entries.length > 0,
+      error: error ? {
+        message: error.message,
+        code: error.code,
+        details: error.details,
+        hint: error.hint
+      } : null,
+      sampleEntry: entries?.[0] || null,
+      allEntries: entries || []
+    })
 
     if (error) {
       console.error('❌ Error fetching entries:', {

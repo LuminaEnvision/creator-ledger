@@ -1,7 +1,12 @@
-import { verifyMessage } from 'viem';
+import { verifyMessage, getAddress } from 'viem';
 
 /**
  * Verify an Ethereum message signature
+ * 
+ * CRITICAL: Must use checksum address format (getAddress), NOT lowercase!
+ * Ethereum signature verification depends on exact address recovery.
+ * Checksum mismatch = invalid signature (no warning, just false).
+ * 
  * @param message The original message that was signed
  * @param signature The signature to verify
  * @param address The wallet address that should have signed the message
@@ -13,20 +18,23 @@ export async function verifySignature(
     address: string
 ): Promise<boolean> {
     try {
-        // Normalize address to checksum format for verification
-        const normalizedAddress = address.toLowerCase();
+        // CRITICAL FIX: Use checksum address format, NOT lowercase
+        // verifyMessage recovers signer from signature and compares against address
+        // Checksum mismatch = invalid signature (silently fails)
+        const checksumAddress = getAddress(address);
         
         // viem's verifyMessage handles EIP-191 message signing
         // It automatically prefixes the message with "\x19Ethereum Signed Message:\n" + length
         const isValid = await verifyMessage({
-            address: normalizedAddress as `0x${string}`,
+            address: checksumAddress,
             message,
-            signature: signature as `0x${string}`
+            signature: signature as `0x${string}`,
         });
         
         console.log('Signature verification result:', {
             isValid,
-            address: normalizedAddress,
+            address: checksumAddress,
+            originalAddress: address,
             messageLength: message.length,
             signatureLength: signature.length
         });

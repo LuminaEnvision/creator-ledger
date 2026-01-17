@@ -33,7 +33,7 @@ These are PUBLIC and safe to expose:
 ```bash
 # Supabase Configuration
 VITE_SUPABASE_URL=https://your-project-ref.supabase.co
-VITE_SUPABASE_ANON_KEY=your-supabase-anon-key
+VITE_SUPABASE_ANON_KEY=your-supabase-anon-key  # Still needed for storage uploads (profile images)
 
 # WalletConnect Configuration
 VITE_WALLETCONNECT_PROJECT_ID=your-walletconnect-project-id
@@ -187,6 +187,19 @@ These are server-side secrets and should never be in Vercel environment variable
 ⚠️ **Important**: Do NOT add `PRIVATE_KEY` or any contract deployment keys to Vercel! These are only for local development and contract deployment.
 
 #### Setting Environment Variables in Vercel
+
+⚠️ **Important**: Only set **frontend** variables in Vercel. Edge Function secrets go in Supabase Dashboard.
+
+**Set in Vercel**:
+- `VITE_SUPABASE_URL` - Your Supabase project URL
+- `VITE_SUPABASE_ANON_KEY` - Anon key (still needed for storage uploads)
+- `VITE_WALLETCONNECT_PROJECT_ID` - WalletConnect project ID
+- `VITE_NEYNAR_API_KEY` - Optional, for Farcaster integration
+
+**Do NOT set in Vercel**:
+- ❌ `SERVICE_ROLE_KEY` - Goes in Supabase Dashboard only
+- ❌ `PROJECT_URL` - Goes in Supabase Dashboard only (for Edge Functions)
+- ❌ `PRIVATE_KEY` - Only for local contract deployment
 
 1. **Go to your Vercel project**
    - Visit [Vercel Dashboard](https://vercel.com/dashboard)
