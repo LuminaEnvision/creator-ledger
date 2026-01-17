@@ -10,6 +10,17 @@ const SUPABASE_URL = import.meta.env.VITE_SUPABASE_URL
 
 if (!SUPABASE_URL) {
   console.warn('VITE_SUPABASE_URL is not set. Edge Functions will not work.')
+} else {
+  // Verify URL format matches Edge Functions endpoint
+  // Edge Functions are at: https://<project-ref>.supabase.co/functions/v1/...
+  // This should match your Supabase project URL
+  // Common issue: URL mismatch causes "data not showing" (queries return empty arrays)
+  const expectedPattern = /^https:\/\/[a-z0-9]+\.supabase\.co$/
+  if (!expectedPattern.test(SUPABASE_URL)) {
+    console.warn('⚠️ VITE_SUPABASE_URL format may be incorrect. Expected: https://<project-ref>.supabase.co')
+    console.warn('   Current value:', SUPABASE_URL)
+    console.warn('   This can cause "data not showing" if URL doesn\'t match your database project.')
+  }
 }
 
 /**
