@@ -63,7 +63,7 @@ serve(async (req) => {
         content_published_at: content_published_at || null,
         payload_hash,
         content_hash: content_hash || null,
-        verification_status: verification_status || 'Unverified',
+        verification_status: verification_status || 'unverified',
         title: title || null,
         image_url: image_url || null,
         custom_image_url: custom_image_url || null,

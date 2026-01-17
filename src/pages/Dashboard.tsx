@@ -15,6 +15,7 @@ import { isPremiumWhitelisted } from '../lib/premium';
 import { OnboardingFlow } from '../components/OnboardingFlow';
 import { Notifications } from '../components/Notifications';
 import { CollapsibleSection } from '../components/CollapsibleSection';
+import { isVerified } from '../lib/verificationStatus';
 
 export const Dashboard: React.FC = () => {
     const { user } = useAuth();
@@ -372,7 +373,7 @@ export const Dashboard: React.FC = () => {
 
                             <PassportMintButton
                                 walletAddress={user.walletAddress}
-                                verifiedEntriesCount={entries.filter(e => e.verification_status === 'Verified').length}
+                                verifiedEntriesCount={entries.filter(e => isVerified(e.verification_status)).length}
                                 onSuccess={() => setRefreshTrigger(prev => prev + 1)}
                             />
                         </div>
@@ -393,7 +394,7 @@ export const Dashboard: React.FC = () => {
                                         </div>
                                         <div>
                                             <h3 className="text-lg font-black uppercase tracking-wider text-primary mb-1">Shareable Media Kit</h3>
-                                            <p className="text-sm text-muted-foreground">Your complete portfolio with all {entries.filter(e => e.verification_status === 'Verified').length} verified entries</p>
+                                            <p className="text-sm text-muted-foreground">Your complete portfolio with all {entries.filter(e => isVerified(e.verification_status)).length} verified entries</p>
                                         </div>
                                     </div>
                                     <div className="flex gap-2 w-full sm:w-auto">

@@ -51,7 +51,7 @@ serve(async (req) => {
     // Update verification status
     const { data: updatedEntry, error } = await supabase
       .from('ledger_entries')
-      .update({ verification_status: 'Verified' })
+      .update({ verification_status: 'verified' })
       .eq('id', entry_id)
       .select()
       .single()

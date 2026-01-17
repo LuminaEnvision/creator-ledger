@@ -366,7 +366,7 @@ export const CreateEntryForm: React.FC<{ onSuccess: () => void }> = ({ onSuccess
                     : (metadata.publishedAt ? new Date(metadata.publishedAt).toISOString() : undefined),
                 payload_hash: payloadHash,
                 content_hash: contentHash,
-                verification_status: 'Unverified',
+                verification_status: 'unverified',
                 title: metadata.title || undefined,
                 image_url: metadata.image || undefined,
                 custom_image_url: finalCustomImageUrl || undefined,

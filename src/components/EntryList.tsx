@@ -5,6 +5,7 @@ import { SignatureVerificationModal } from './SignatureVerificationModal';
 import { OnChainUpgradeModal } from './OnChainUpgradeModal';
 import { generateContentHash } from '../lib/signatureVerification';
 import { useToast } from '../hooks/useToast';
+import { isVerified, isUnverified, isRejected } from '../lib/verificationStatus';
 import type { LedgerEntry } from '../types';
 
 interface EntryListProps {
@@ -94,17 +95,17 @@ export const EntryList: React.FC<EntryListProps> = ({
 
                         {/* Verification Status Badge */}
                         <div className="absolute top-3 left-3 z-10 flex gap-2">
-                            {entry.verification_status === 'Unverified' && (
+                            {isUnverified(entry.verification_status) && (
                                 <div className="px-2.5 py-1 rounded-full bg-yellow-500/80 backdrop-blur-lg border border-yellow-400/50 text-white shadow-lg">
                                     <span className="text-[9px] font-black uppercase tracking-widest">Unverified</span>
                                 </div>
                             )}
-                            {entry.verification_status === 'Verified' && (
+                            {isVerified(entry.verification_status) && (
                                 <div className="px-2.5 py-1 rounded-full bg-green-500/80 backdrop-blur-lg border border-green-400/50 text-white shadow-lg">
                                     <span className="text-[9px] font-black uppercase tracking-widest">Verified</span>
                                 </div>
                             )}
-                            {entry.verification_status === 'Rejected' && (
+                            {isRejected(entry.verification_status) && (
                                 <div className="px-2.5 py-1 rounded-full bg-red-500/80 backdrop-blur-lg border border-red-400/50 text-white shadow-lg">
                                     <span className="text-[9px] font-black uppercase tracking-widest">Rejected</span>
                                 </div>
@@ -281,7 +282,7 @@ export const EntryList: React.FC<EntryListProps> = ({
                                 {currentWalletAddress && 
                                  entry.wallet_address.toLowerCase() === currentWalletAddress.toLowerCase() && 
                                  !entry.tx_hash && 
-                                 entry.verification_status === 'Verified' && (
+                                 isVerified(entry.verification_status) && (
                                     <button
                                         onClick={async () => {
                                             try {

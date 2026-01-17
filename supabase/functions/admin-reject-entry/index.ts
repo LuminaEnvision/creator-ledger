@@ -58,7 +58,7 @@ serve(async (req) => {
     const { data: updatedEntry, error: updateError } = await supabase
       .from('ledger_entries')
       .update({ 
-        verification_status: 'Rejected',
+        verification_status: 'rejected',
         // Optionally store rejection reason in a notes field if you have one
       })
       .eq('id', entry_id)

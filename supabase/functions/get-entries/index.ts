@@ -120,7 +120,7 @@ serve(async (req) => {
     // Filter by verification status
     if (onlyVerified || (!isOwnProfile && targetWallet)) {
       // Public profiles only show verified entries
-      query = query.eq('verification_status', 'Verified')
+      query = query.eq('verification_status', 'verified')
     }
 
     // Order by timestamp

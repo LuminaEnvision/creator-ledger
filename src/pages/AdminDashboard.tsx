@@ -107,7 +107,7 @@ export const AdminDashboard: React.FC = () => {
                 if (uniqueWallets.size > 1) {
                     // Only show duplicates if at least one entry is NOT rejected
                     // If all entries are rejected, don't show the alert
-                    const hasNonRejected = entriesList.some(e => e.verification_status !== 'Rejected');
+                    const hasNonRejected = entriesList.some(e => !isRejected(e.verification_status));
                     if (hasNonRejected) {
                         duplicates.push({
                             contentHash,
@@ -146,7 +146,7 @@ export const AdminDashboard: React.FC = () => {
             await edgeFunctions.adminVerifyEntry(id);
 
             // Update local state
-            setEntries(prev => prev.map(e => e.id === id ? { ...e, verification_status: 'Verified' } : e));
+            setEntries(prev => prev.map(e => e.id === id ? { ...e, verification_status: 'verified' } : e));
             showToast('✅ Entry verified! User will be notified to claim their passport.', 'success');
         } catch (err: any) {
             console.error('Error in verification process:', err);
@@ -265,7 +265,7 @@ export const AdminDashboard: React.FC = () => {
                     
                     <div className="space-y-4">
                         {duplicateGroups.map((group) => {
-                            const verifiedEntries = group.entries.filter(e => e.verification_status === 'Verified');
+                            const verifiedEntries = group.entries.filter(e => isVerified(e.verification_status));
                             
                             return (
                                 <div key={group.contentHash} className="rounded-lg border border-orange-500/30 bg-orange-500/5 p-4">
@@ -285,7 +285,7 @@ export const AdminDashboard: React.FC = () => {
                                     
                                     <div className="space-y-2">
                                         {group.entries.map((entry) => {
-                                            const isVerified = entry.verification_status === 'Verified';
+                                            const isVerifiedEntry = isVerified(entry.verification_status);
                                             return (
                                                 <div
                                                     key={entry.id}
@@ -433,7 +433,7 @@ export const AdminDashboard: React.FC = () => {
                                     </td>
                                     <td className="px-6 py-4 whitespace-nowrap text-sm">
                                         <div className="flex items-center gap-3">
-                                            {entry.verification_status === 'Unverified' && (
+                                            {isUnverified(entry.verification_status) && (
                                                 <>
                                                     <button
                                                         onClick={() => handleVerify(entry.id)}
@@ -450,7 +450,7 @@ export const AdminDashboard: React.FC = () => {
                                                     </button>
                                                 </>
                                             )}
-                                            {entry.verification_status === 'Verified' && (
+                                            {isVerified(entry.verification_status) && (
                                                 <button
                                                     onClick={() => handleReject(entry.id)}
                                                     className="text-red-600 hover:text-red-700 dark:text-red-400 dark:hover:text-red-300 font-medium transition-colors text-xs"
@@ -458,7 +458,7 @@ export const AdminDashboard: React.FC = () => {
                                                     Reject
                                                 </button>
                                             )}
-                                            {entry.verification_status === 'Rejected' && (
+                                            {isRejected(entry.verification_status) && (
                                                 <button
                                                     onClick={() => handleVerify(entry.id)}
                                                     className="text-green-600 hover:text-green-700 dark:text-green-400 dark:hover:text-green-300 font-medium transition-colors"

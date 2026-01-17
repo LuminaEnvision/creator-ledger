@@ -311,7 +311,7 @@ export const PortfolioCollections: React.FC<PortfolioCollectionsProps> = ({
                                     Select Entries ({selectedEntryIds.size} selected)
                                 </label>
                                 <div className="max-h-64 overflow-y-auto space-y-2 p-3 rounded-xl border border-border bg-muted/20">
-                                    {entries.filter(e => e.verification_status === 'Verified').map((entry) => (
+                                    {entries.filter(e => isVerified(e.verification_status)).map((entry) => (
                                         <label
                                             key={entry.id}
                                             className="flex items-start gap-3 p-3 rounded-lg hover:bg-accent/10 cursor-pointer border border-transparent hover:border-primary/20 transition-all"
@@ -337,7 +337,7 @@ export const PortfolioCollections: React.FC<PortfolioCollectionsProps> = ({
                                         </label>
                                     ))}
                                 </div>
-                                {entries.filter(e => e.verification_status === 'Verified').length === 0 && (
+                                {entries.filter(e => isVerified(e.verification_status)).length === 0 && (
                                     <p className="text-xs text-muted-foreground text-center py-4">
                                         No verified entries available. Verify entries first to add them to collections.
                                     </p>
