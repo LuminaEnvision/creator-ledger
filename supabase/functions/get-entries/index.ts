@@ -28,25 +28,27 @@ serve(async (req) => {
   // 🔥 STEP 4: LOG PROJECT URL
   console.log("EDGE SUPABASE URL", projectUrl || 'NOT SET')
 
-  try {
-    // CRITICAL: Explicitly handle public vs authenticated requests
-    // Public reads should work WITHOUT auth token to avoid RLS filtering issues
-    const authHeader = req.headers.get('Authorization')
-    let walletAddress: string | null = null
-    
-    // Only attempt authentication if token is present
-    // This ensures public requests (no token) work correctly
-    if (authHeader && authHeader.startsWith('Bearer ')) {
-      try {
-        walletAddress = await authenticateUser(req)
-        console.log('✅ Authenticated request:', { walletAddress })
-      } catch (authError) {
-        // Token present but invalid - log but don't fail (public access allowed)
-        console.warn('⚠️ Auth token invalid, proceeding as public request:', authError.message)
-      }
-    } else {
-      console.log('📖 Public request (no auth token)')
+  // CRITICAL: Explicitly handle public vs authenticated requests
+  // Public reads should work WITHOUT auth token to avoid RLS filtering issues
+  const authHeader = req.headers.get('Authorization')
+  let walletAddress: string | null = null
+  
+  // Only attempt authentication if token is present
+  // This ensures public requests (no token) work correctly
+  if (authHeader && authHeader.startsWith('Bearer ')) {
+    try {
+      walletAddress = await authenticateUser(req)
+      console.log('✅ Authenticated request:', { walletAddress })
+    } catch (authError) {
+      // Token present but invalid - log but don't fail (public access allowed)
+      console.warn('⚠️ Auth token invalid, proceeding as public request:', authError.message)
+      // Continue as public request - don't throw
     }
+  } else {
+    console.log('📖 Public request (no auth token)')
+  }
+
+  try {
 
     // Get query parameters
     const url = new URL(req.url)
