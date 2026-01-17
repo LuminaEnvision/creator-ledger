@@ -52,7 +52,7 @@ export async function authenticateWithWallet(
 
   // Set the session in Supabase client using setSession
   // This properly initializes the Supabase Auth session
-  const { data: sessionData, error: sessionError } = await supabase.auth.setSession({
+  const { error: sessionError } = await supabase.auth.setSession({
     access_token,
     refresh_token: refresh_token || access_token, // Use refresh_token if provided
   })
