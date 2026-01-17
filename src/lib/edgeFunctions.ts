@@ -85,10 +85,11 @@ async function callEdgeFunction(
     'Content-Type': 'application/json',
   }
 
-  // CRITICAL: Only send auth token when explicitly required
-  // Public read operations should NOT send token to avoid RLS filtering issues
-  // This prevents "logged-in users see nothing" while "anonymous users see data"
-  if (token && requireAuth) {
+  // CRITICAL: Only send auth token when explicitly required OR when we have a token
+  // For public reads (requireAuth=false), we still send token if available (for personalized data)
+  // But we don't fail if token is missing (allows public access)
+  // For required auth (requireAuth=true), we must have token (checked above)
+  if (token) {
     headers['Authorization'] = `Bearer ${token}`
   }
 
