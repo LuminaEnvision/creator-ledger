@@ -60,8 +60,10 @@ supabase functions deploy admin-verify-entry
 ## Environment Variables
 
 Set in Supabase Dashboard → Edge Functions → Settings:
-- `SUPABASE_URL` - Your Supabase project URL
-- `SUPABASE_SERVICE_ROLE_KEY` - Service role key (keep secret!)
+- `PROJECT_URL` - Your Supabase project URL (e.g., `https://xxxxx.supabase.co`)
+- `SERVICE_ROLE_KEY` - Service role key (keep secret!)
+
+⚠️ **Note**: Supabase doesn't allow "supabase" in environment variable names, so we use `PROJECT_URL` instead of `SUPABASE_URL`.
 
 ## Authentication
 

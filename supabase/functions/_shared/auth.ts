@@ -20,8 +20,8 @@ export async function authenticateUser(req: Request): Promise<string> {
   
   // Create Supabase client with service role key for admin operations
   const supabaseAdmin = createClient(
-    Deno.env.get('SUPABASE_URL') ?? '',
-    Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? ''
+    Deno.env.get('PROJECT_URL') ?? '',
+    Deno.env.get('SERVICE_ROLE_KEY') ?? ''
   )
 
   // Verify token - Supabase Auth handles expiration and refresh automatically
@@ -57,8 +57,8 @@ export async function authenticateUser(req: Request): Promise<string> {
  */
 export function createAdminClient() {
   return createClient(
-    Deno.env.get('SUPABASE_URL') ?? '',
-    Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? ''
+    Deno.env.get('PROJECT_URL') ?? '',
+    Deno.env.get('SERVICE_ROLE_KEY') ?? ''
   )
 }
 
