@@ -176,12 +176,13 @@ export const Dashboard: React.FC = () => {
                         console.log('✅ Premium whitelist active for wallet:', walletAddress);
                     }
 
-                    setIsPremium(premiumStatus);
-
-                    // Force update if premium status changed
-                    if (premiumStatus !== isPremium) {
-                        console.log('✅ Premium status changed!', { from: isPremium, to: premiumStatus });
-                    }
+                    // Only update if status actually changed to avoid unnecessary re-renders
+                    setIsPremium(prev => {
+                        if (prev !== premiumStatus) {
+                            console.log('✅ Premium status changed!', { from: prev, to: premiumStatus });
+                        }
+                        return premiumStatus;
+                    });
 
                     // Auto-update if subscription expired
                     if (hasActiveSubscription && subscriptionEnd && subscriptionEnd <= now) {
@@ -208,7 +209,7 @@ export const Dashboard: React.FC = () => {
         };
 
         fetchUserData();
-    }, [user, refreshTrigger, isPremium]);
+    }, [user, refreshTrigger]); // Removed isPremium to avoid circular dependency - effect sets isPremium, shouldn't depend on it
 
     // Also refetch when page becomes visible (user might have upgraded in another tab)
     useEffect(() => {

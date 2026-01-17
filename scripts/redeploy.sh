@@ -1,7 +1,7 @@
 #!/bin/bash
 
 # Contract Redeployment Script
-# This script redeploys the CreatorPassport contract with updated fee (0.00025 ETH)
+# This script redeploys the CreatorPassport contract with updated fee (0.00001 ETH)
 
 set -e  # Exit on error
 
@@ -9,7 +9,7 @@ echo "🚀 Creator Passport Contract Redeployment"
 echo "=========================================="
 echo ""
 echo "📋 Changes:"
-echo "   - Operations Fee: 0.00025 ETH"
+echo "   - Operations Fee: 0.00001 ETH (~$0.03)"
 echo "   - Operations Address: 0x7eB8F203167dF3bC14D59536E671528dd97FB72a"
 echo "   - Added mintFor() function for admin to mint passports for creators"
 echo ""

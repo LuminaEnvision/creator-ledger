@@ -20,11 +20,32 @@ export async function authenticateWithWallet(
   walletAddress: string,
   signMessageAsync: (options: { message: string }) => Promise<string>
 ): Promise<{ access_token: string; user: any }> {
+  // Validate signMessageAsync is callable
+  if (!signMessageAsync || typeof signMessageAsync !== 'function') {
+    throw new Error('Wallet signing function not available. Please ensure your wallet is connected.')
+  }
+
   // Create message to sign
   const message = `Creator Ledger Authentication\n\nSign this message to authenticate with Creator Ledger.\n\nWallet: ${walletAddress}\nTimestamp: ${new Date().toISOString()}`
 
+  console.log('📝 Requesting message signature...', { walletAddress, messageLength: message.length })
+
   // Sign message with wallet
-  const signature = await signMessageAsync({ message })
+  let signature: string
+  try {
+    signature = await signMessageAsync({ message })
+    console.log('✅ Message signed successfully')
+  } catch (signError: any) {
+    console.error('❌ Message signing failed:', signError)
+    // Re-throw with more context
+    if (signError.code === 4001) {
+      throw new Error('Message signing was cancelled by user')
+    } else if (signError.message?.includes('connector') || signError.message?.includes('getChainId')) {
+      throw new Error('Wallet connector not ready. Please reconnect your wallet.')
+    } else {
+      throw new Error(`Failed to sign message: ${signError.message || 'Unknown error'}`)
+    }
+  }
 
   // Send to Edge Function for verification and token generation
   const response = await fetch(`${SUPABASE_URL}/functions/v1/auth-with-wallet`, {

@@ -127,8 +127,6 @@ export const Pricing: React.FC = () => {
                 wallet: walletAddress
             });
 
-            setIsPremium(true);
-
             // Wait longer for database to commit and propagate
             await new Promise(resolve => setTimeout(resolve, 2500));
 
@@ -137,9 +135,14 @@ export const Pricing: React.FC = () => {
 
             console.log('🔍 Verification fetch:', verifyUser);
 
-            if (!verifyUser || verifyUser.subscription_active !== true) {
+            // Only set premium state after successful verification to avoid desynchronization
+            if (verifyUser && verifyUser.subscription_active === true) {
+                setIsPremium(true);
+            } else {
                 console.error('❌ Verification failed! User data:', verifyUser);
                 alert('⚠️ Warning: Premium activation may not have saved correctly. Please refresh the page manually.');
+                // Don't set isPremium to true if verification failed
+                return; // Exit early to prevent navigation
             }
 
             alert(`✅ Test mode: Premium subscription activated until ${subscriptionEnd.toLocaleDateString()}! (No payment required)\n\nRedirecting to Dashboard...`);
@@ -164,6 +167,9 @@ export const Pricing: React.FC = () => {
         // This address receives both submission fees (from free users) and subscription payments
         const OPERATIONS_ADDRESS = '0x7eB8F203167dF3bC14D59536E671528dd97FB72a' as `0x${string}`;
 
+        // Set processing state before validation to ensure consistent state
+        setIsProcessing(true);
+
         // Validate and format the operations address
         let formattedTreasuryAddress: `0x${string}`;
         try {
@@ -178,8 +184,6 @@ export const Pricing: React.FC = () => {
             setIsProcessing(false);
             return;
         }
-
-        setIsProcessing(true);
         try {
             // Use Base Pay SDK to process payment
             // Note: Base Pay SDK expects the address to be a valid Ethereum address

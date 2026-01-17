@@ -20,7 +20,7 @@ export const CreateEntryForm: React.FC<{ onSuccess: () => void }> = ({ onSuccess
     const { user } = useAuth();
     const { signMessageAsync } = useSignMessage();
     const { switchChainAsync } = useSwitchChain();
-    const { chain } = useAccount();
+    const { chain, isConnected, address } = useAccount();
     const { showToast } = useToast();
     const [upgradeModal, setUpgradeModal] = useState<{
         isOpen: boolean;
@@ -284,20 +284,49 @@ export const CreateEntryForm: React.FC<{ onSuccess: () => void }> = ({ onSuccess
             try {
                 let token = await getAuthToken();
                 
-                if (!token && signMessageAsync) {
+                // If no token, we need to authenticate
+                if (!token) {
+                    // Verify wallet is actually connected
+                    if (!isConnected || !address) {
+                        setError('Wallet not connected. Please connect your wallet first.');
+                        showToast('Please connect your wallet to submit entries.', 'warning');
+                        setIsSubmitting(false);
+                        setStatus('idle');
+                        return;
+                    }
+
+                    // Check if signMessageAsync is available and callable
+                    if (!signMessageAsync || typeof signMessageAsync !== 'function') {
+                        setError('Wallet signing not available. Please reconnect your wallet and try again.');
+                        showToast('Wallet signing not ready. Please reconnect your wallet.', 'error');
+                        setIsSubmitting(false);
+                        setStatus('idle');
+                        return;
+                    }
+
                     // Prompt user to sign authentication message
                     setStatus('signing');
                     try {
+                        console.log('🔐 Starting wallet authentication...');
                         const authResult = await authenticateWithWallet(user.walletAddress, signMessageAsync);
                         token = authResult.access_token;
                         console.log('✅ User authenticated successfully');
                     } catch (authError: any) {
+                        console.error('❌ Authentication error:', authError);
+                        
+                        // Handle specific error cases
                         if (authError.code === 4001) {
                             setError('Authentication cancelled. Please sign the message to submit entries.');
-                            showToast('Authentication required. Please sign the message to continue.', 'warning');
+                            showToast('Authentication cancelled. Please try again and sign the message.', 'warning');
+                        } else if (authError.message?.includes('connector') || authError.message?.includes('getChainId')) {
+                            setError('Wallet connection issue. Please reconnect your wallet and try again.');
+                            showToast('Wallet connection issue. Please reconnect your wallet.', 'error');
+                        } else if (authError.message?.includes('User rejected') || authError.message?.includes('rejected')) {
+                            setError('Message signing was cancelled. Please sign the message to continue.');
+                            showToast('Please sign the authentication message to continue.', 'warning');
                         } else {
                             setError(`Authentication failed: ${authError.message || 'Please try again.'}`);
-                            showToast('Authentication failed. Please try again.', 'error');
+                            showToast(`Authentication failed: ${authError.message || 'Please try again.'}`, 'error');
                         }
                         setIsSubmitting(false);
                         setStatus('idle');
@@ -305,6 +334,7 @@ export const CreateEntryForm: React.FC<{ onSuccess: () => void }> = ({ onSuccess
                     }
                 }
                 
+                // Final check - if we still don't have a token, something went wrong
                 if (!token) {
                     setError('Authentication required. Please sign the message to submit entries.');
                     showToast('Authentication required. Please connect your wallet and sign the message.', 'warning');
@@ -313,8 +343,9 @@ export const CreateEntryForm: React.FC<{ onSuccess: () => void }> = ({ onSuccess
                     return;
                 }
             } catch (authErr: any) {
+                console.error('❌ Unexpected authentication error:', authErr);
                 setError(`Authentication error: ${authErr.message || 'Please try again.'}`);
-                showToast('Authentication error. Please try again.', 'error');
+                showToast(`Authentication error: ${authErr.message || 'Please try again.'}`, 'error');
                 setIsSubmitting(false);
                 setStatus('idle');
                 return;

@@ -18,7 +18,6 @@ export const PublicProfile: React.FC = () => {
     const [profile, setProfile] = useState<any>(null);
     const [isPremium, setIsPremium] = useState(false);
     const [isLoading, setIsLoading] = useState(true);
-    const [refreshKey, setRefreshKey] = useState(0);
     const [showPassport, setShowPassport] = useState(false);
     const { showToast } = useToast();
 
@@ -121,7 +120,7 @@ export const PublicProfile: React.FC = () => {
         };
 
         fetchPublicData();
-    }, [address, refreshKey]);
+    }, [address]); // Removed refreshKey to prevent duplicate fetches - address change already triggers fetch
 
     // Apply filter from URL query parameter
     useEffect(() => {
@@ -135,14 +134,10 @@ export const PublicProfile: React.FC = () => {
         }
     }, [entries, searchParams]);
 
-    // Refresh data when component mounts or when explicitly triggered
-    useEffect(() => {
-        // Small delay to ensure address is set
-        const timer = setTimeout(() => {
-            setRefreshKey(prev => prev + 1);
-        }, 100);
-        return () => clearTimeout(timer);
-    }, [address]);
+    // Note: Removed refreshKey effect that was causing duplicate fetches
+    // The fetch effect already depends on [address, refreshKey], and address changes
+    // trigger it immediately. The refreshKey increment 100ms later caused a second fetch.
+    // If explicit refresh is needed, it should be triggered by user action, not automatically.
 
     if (isLoading) {
         return (
