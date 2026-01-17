@@ -184,6 +184,32 @@ Creator Ledger is a **verifiable, on-chain content tracking system** that helps 
 
 ## 🛠️ Development
 
+### Quick Start
+
+1. **Clone and install**
+   ```bash
+   git clone https://github.com/LuminaEnvision/creator-ledger.git
+   cd creator-ledger
+   npm install
+   ```
+
+2. **Set up environment variables**
+   ```bash
+   cp .env.local.example .env.local
+   # Edit .env.local with your values
+   ```
+
+3. **Set up Supabase**
+   - Create project at [Supabase Dashboard](https://supabase.com/dashboard)
+   - Deploy Edge Functions (see [docs/DEVELOPER_SETUP.md](./docs/DEVELOPER_SETUP.md))
+
+4. **Start development server**
+   ```bash
+   npm run dev
+   ```
+
+📖 **Full setup guide**: See [Developer Setup Guide](./docs/DEVELOPER_SETUP.md)
+
 ### Available Scripts
 
 ```bash
