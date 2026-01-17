@@ -69,7 +69,18 @@ export function corsHeaders() {
   return {
     'Access-Control-Allow-Origin': '*',
     'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
+    'Access-Control-Allow-Methods': 'GET, POST, PATCH, PUT, DELETE, OPTIONS',
   }
+}
+
+/**
+ * Creates a CORS preflight response (for OPTIONS requests)
+ */
+export function corsPreflightResponse() {
+  return new Response(null, {
+    status: 204,
+    headers: corsHeaders()
+  })
 }
 
 /**

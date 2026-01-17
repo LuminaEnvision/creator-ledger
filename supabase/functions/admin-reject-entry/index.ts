@@ -1,5 +1,5 @@
 import { serve } from 'https://deno.land/std@0.168.0/http/server.ts'
-import { authenticateUser, createAdminClient, errorResponse, successResponse, corsHeaders } from '../_shared/auth.ts'
+import { authenticateUser, createAdminClient, errorResponse, successResponse, corsPreflightResponse } from '../_shared/auth.ts'
 
 // Admin wallet addresses - should match frontend ADMIN_WALLETS
 // In production, consider storing this in environment variables or database
@@ -11,7 +11,7 @@ const ADMIN_WALLETS = [
 serve(async (req) => {
   // Handle CORS preflight
   if (req.method === 'OPTIONS') {
-    return new Response('ok', { headers: corsHeaders() })
+    return corsPreflightResponse()
   }
 
   if (req.method !== 'POST') {

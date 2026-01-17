@@ -16,7 +16,8 @@ import { verifyMessage } from 'https://esm.sh/viem@2.43.3'
 serve(async (req) => {
   // Handle CORS preflight
   if (req.method === 'OPTIONS') {
-    return new Response('ok', {
+    return new Response(null, {
+      status: 204,
       headers: {
         'Access-Control-Allow-Origin': '*',
         'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',

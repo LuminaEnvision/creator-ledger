@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { useAuth } from '../context/AuthContext';
 import { edgeFunctions } from '../lib/edgeFunctions';
+import { authenticateWithWallet, getAuthToken } from '../lib/supabaseAuth';
 import { supabase } from '../lib/supabase'; // Only for storage operations (profile-images bucket)
 import { detectPlatform } from '../lib/platform';
 import { generateEntryHash } from '../lib/hashing';
@@ -278,7 +279,48 @@ export const CreateEntryForm: React.FC<{ onSuccess: () => void }> = ({ onSuccess
                 setIsUploading(false);
             }
 
-            // 3. Save to Supabase via Edge Function - Status will be 'Unverified' until admin approves
+            // 3. Ensure user is authenticated before creating entry
+            // Authenticate if needed (createEntry requires auth)
+            try {
+                let token = await getAuthToken();
+                
+                if (!token && signMessageAsync) {
+                    // Prompt user to sign authentication message
+                    setStatus('signing');
+                    try {
+                        const authResult = await authenticateWithWallet(user.walletAddress, signMessageAsync);
+                        token = authResult.access_token;
+                        console.log('✅ User authenticated successfully');
+                    } catch (authError: any) {
+                        if (authError.code === 4001) {
+                            setError('Authentication cancelled. Please sign the message to submit entries.');
+                            showToast('Authentication required. Please sign the message to continue.', 'warning');
+                        } else {
+                            setError(`Authentication failed: ${authError.message || 'Please try again.'}`);
+                            showToast('Authentication failed. Please try again.', 'error');
+                        }
+                        setIsSubmitting(false);
+                        setStatus('idle');
+                        return;
+                    }
+                }
+                
+                if (!token) {
+                    setError('Authentication required. Please sign the message to submit entries.');
+                    showToast('Authentication required. Please connect your wallet and sign the message.', 'warning');
+                    setIsSubmitting(false);
+                    setStatus('idle');
+                    return;
+                }
+            } catch (authErr: any) {
+                setError(`Authentication error: ${authErr.message || 'Please try again.'}`);
+                showToast('Authentication error. Please try again.', 'error');
+                setIsSubmitting(false);
+                setStatus('idle');
+                return;
+            }
+
+            // 4. Save to Supabase via Edge Function - Status will be 'Unverified' until admin approves
             // NFT will be minted/updated when admin verifies the entry
             setStatus('saving');
 
@@ -334,10 +376,15 @@ export const CreateEntryForm: React.FC<{ onSuccess: () => void }> = ({ onSuccess
             onSuccess();
         } catch (err: any) {
             console.error('Error submitting entry:', err);
-            if (err.message?.includes('User rejected')) {
-                setError('Wallet action required to proceed.');
+            if (err.message?.includes('User rejected') || err.code === 4001) {
+                setError('Wallet action cancelled. Please try again.');
+                showToast('Action cancelled. Please try again.', 'info');
+            } else if (err.message?.includes('Authentication required')) {
+                setError('Authentication required. Please sign the message to submit entries.');
+                showToast('Please sign the authentication message to continue.', 'warning');
             } else {
                 setError(err.message || 'Failed to submit entry');
+                showToast(err.message || 'Failed to submit entry. Please try again.', 'error');
             }
         } finally {
             setIsSubmitting(false);

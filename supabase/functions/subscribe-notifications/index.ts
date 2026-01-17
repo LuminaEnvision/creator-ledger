@@ -13,7 +13,7 @@ import { authenticateUser, createAdminClient, errorResponse, corsHeaders } from 
 serve(async (req) => {
   // Handle CORS preflight
   if (req.method === 'OPTIONS') {
-    return new Response('ok', { headers: corsHeaders() })
+    return corsPreflightResponse()
   }
 
   if (req.method !== 'GET') {
