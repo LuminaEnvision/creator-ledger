@@ -58,8 +58,10 @@ async function callEdgeFunction(
     'Content-Type': 'application/json',
   }
 
-  // Only add Authorization header if we have a token
-  if (token) {
+  // CRITICAL: Only send auth token when explicitly required
+  // Public read operations should NOT send token to avoid RLS filtering issues
+  // This prevents "logged-in users see nothing" while "anonymous users see data"
+  if (token && requireAuth) {
     headers['Authorization'] = `Bearer ${token}`
   }
 
@@ -81,17 +83,33 @@ async function callEdgeFunction(
       errorMessage = `Edge Function error (${response.status}): ${response.statusText}`
     }
     
-    // Add more context for common errors
+    // Add more context for common errors, but preserve original error details for debugging
+    // Don't mask real backend errors (RLS failures, permission issues, etc.)
+    const originalError = errorDetails.error || errorDetails.message || errorMessage
+    
     if (response.status === 401 || response.status === 403) {
-      errorMessage = 'Authentication required. Please sign in with your wallet.'
+      // Authentication errors - but preserve original message for debugging
+      errorMessage = originalError || 'Authentication required. Please sign in with your wallet.'
     } else if (response.status === 400) {
-      errorMessage = errorDetails.error || 'Invalid request. Please check your input.'
+      errorMessage = originalError || 'Invalid request. Please check your input.'
     } else if (response.status === 500) {
-      errorMessage = errorDetails.error || 'Server error. Please try again later.'
+      errorMessage = originalError || 'Server error. Please try again later.'
+    } else {
+      // Preserve original error for all other status codes
+      errorMessage = originalError
     }
     
+    // Log full error details for debugging (don't mask real errors)
+    console.error('Edge Function error:', {
+      status: response.status,
+      message: errorMessage,
+      details: errorDetails,
+      functionName,
+      requireAuth
+    })
+    
     const error = new Error(errorMessage)
-    // Attach status code for better error handling
+    // Attach status code and full details for better error handling
     ;(error as any).status = response.status
     ;(error as any).details = errorDetails
     throw error

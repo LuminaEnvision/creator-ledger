@@ -11,43 +11,74 @@ import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.89.0'
 export async function authenticateUser(req: Request): Promise<string> {
   const authHeader = req.headers.get('Authorization')
   
+  // Log incoming request for debugging
+  console.log('🔐 Auth check:', {
+    hasAuthHeader: !!authHeader,
+    authHeaderPrefix: authHeader?.substring(0, 20) + '...',
+    method: req.method,
+    url: req.url
+  })
+  
   // Immediately return 403 if no authorization header (best practice: return 403 immediately for invalid tokens)
   if (!authHeader || !authHeader.startsWith('Bearer ')) {
+    console.error('❌ Missing or invalid authorization header')
     throw new Error('UNAUTHORIZED: Missing or invalid authorization header')
   }
 
   const token = authHeader.replace('Bearer ', '')
+  console.log('📝 Token extracted:', { tokenLength: token.length, tokenPrefix: token.substring(0, 20) + '...' })
+  
+  // Verify environment variables are set
+  const projectUrl = Deno.env.get('PROJECT_URL')
+  const serviceRoleKey = Deno.env.get('SERVICE_ROLE_KEY')
+  
+  if (!projectUrl || !serviceRoleKey) {
+    console.error('❌ Missing environment variables:', { 
+      hasProjectUrl: !!projectUrl, 
+      hasServiceRoleKey: !!serviceRoleKey 
+    })
+    throw new Error('UNAUTHORIZED: Server configuration error')
+  }
   
   // Create Supabase client with service role key for admin operations
-  const supabaseAdmin = createClient(
-    Deno.env.get('PROJECT_URL') ?? '',
-    Deno.env.get('SERVICE_ROLE_KEY') ?? ''
-  )
+  const supabaseAdmin = createClient(projectUrl, serviceRoleKey)
 
   // Verify token - Supabase Auth handles expiration and refresh automatically
   // We just need to verify the token is valid and extract user info
   try {
+    console.log('🔍 Verifying token with Supabase Auth...')
     const { data: { user }, error } = await supabaseAdmin.auth.getUser(token)
     
     // Immediately return 403 if token is invalid or expired
     if (error || !user) {
+      console.error('❌ Token verification failed:', { 
+        error: error?.message, 
+        hasUser: !!user 
+      })
       throw new Error('UNAUTHORIZED: Invalid or expired token')
     }
+    
+    console.log('✅ Token verified:', { userId: user.id, email: user.email })
     
     // Extract wallet address from user metadata
     const walletAddress = user.user_metadata?.wallet_address || user.user_metadata?.address
     
     // Immediately return 403 if wallet address not found
     if (!walletAddress) {
+      console.error('❌ Wallet address not found in user metadata:', { 
+        metadata: user.user_metadata 
+      })
       throw new Error('UNAUTHORIZED: Wallet address not found in user metadata')
     }
     
+    console.log('✅ Wallet address extracted:', { walletAddress: walletAddress.toLowerCase() })
     return walletAddress.toLowerCase()
   } catch (e: any) {
     // Re-throw with UNAUTHORIZED prefix to ensure 403 response
     if (e.message?.includes('UNAUTHORIZED')) {
       throw e
     }
+    console.error('❌ Token verification exception:', e.message)
     throw new Error('UNAUTHORIZED: Token verification failed')
   }
 }

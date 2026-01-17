@@ -42,6 +42,14 @@ serve(async (req) => {
     // Create admin client
     const supabase = createAdminClient()
     
+    console.log('📝 Creating entry:', {
+      walletAddress,
+      url,
+      platform,
+      hasContentHash: !!content_hash,
+      hasPayloadHash: !!payload_hash
+    })
+    
     // Insert entry
     const { data: entry, error } = await supabase
       .from('ledger_entries')
@@ -66,10 +74,17 @@ serve(async (req) => {
       .single()
 
     if (error) {
-      console.error('Error creating entry:', error)
+      console.error('❌ Error creating entry:', {
+        error: error.message,
+        code: error.code,
+        details: error.details,
+        hint: error.hint,
+        walletAddress
+      })
       return errorResponse('Failed to create entry', 500)
     }
 
+    console.log('✅ Entry created successfully:', { entryId: entry?.id, walletAddress })
     return successResponse({ entry })
   } catch (error: any) {
     console.error('Error in create-entry:', error)

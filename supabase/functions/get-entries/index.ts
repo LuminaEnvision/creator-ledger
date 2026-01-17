@@ -8,12 +8,23 @@ serve(async (req) => {
   }
 
   try {
-    // Authenticate user (optional for public profiles)
+    // CRITICAL: Explicitly handle public vs authenticated requests
+    // Public reads should work WITHOUT auth token to avoid RLS filtering issues
+    const authHeader = req.headers.get('Authorization')
     let walletAddress: string | null = null
-    try {
-      walletAddress = await authenticateUser(req)
-    } catch {
-      // Allow unauthenticated requests for public profiles
+    
+    // Only attempt authentication if token is present
+    // This ensures public requests (no token) work correctly
+    if (authHeader && authHeader.startsWith('Bearer ')) {
+      try {
+        walletAddress = await authenticateUser(req)
+        console.log('✅ Authenticated request:', { walletAddress })
+      } catch (authError) {
+        // Token present but invalid - log but don't fail (public access allowed)
+        console.warn('⚠️ Auth token invalid, proceeding as public request:', authError.message)
+      }
+    } else {
+      console.log('📖 Public request (no auth token)')
     }
 
     // Get query parameters
@@ -47,13 +58,27 @@ serve(async (req) => {
     // Order by timestamp
     query = query.order('timestamp', { ascending: false })
 
+    console.log('📊 Querying entries:', {
+      targetWallet,
+      walletAddress,
+      isOwnProfile,
+      onlyVerified,
+      hasAuth: !!walletAddress
+    })
+
     const { data: entries, error } = await query
 
     if (error) {
-      console.error('Error fetching entries:', error)
+      console.error('❌ Error fetching entries:', {
+        error: error.message,
+        code: error.code,
+        details: error.details,
+        hint: error.hint
+      })
       return errorResponse('Failed to fetch entries', 500)
     }
 
+    console.log('✅ Entries fetched successfully:', { count: entries?.length || 0 })
     return successResponse({ entries: entries || [] })
   } catch (error: any) {
     console.error('Error in get-entries:', error)
