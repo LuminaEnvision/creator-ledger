@@ -38,13 +38,20 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
                 
                 // If no token, authenticate with wallet
                 // Only try if signMessageAsync is available and connector is ready
+                // Add additional check: wait a bit for connector to be fully ready
                 if (!token && signMessageAsync && isConnected) {
                     try {
+                        // Small delay to ensure connector is fully initialized
+                        await new Promise(resolve => setTimeout(resolve, 100))
+                        
                         const authResult = await authenticateWithWallet(walletAddress, signMessageAsync);
                         token = authResult.access_token;
                     } catch (authError: any) {
                         // Don't log connector errors as warnings - they're expected if connector isn't ready
-                        if (!authError.message?.includes('connector') && !authError.message?.includes('getChainId')) {
+                        // Also don't log user cancellation
+                        if (!authError.message?.includes('connector') && 
+                            !authError.message?.includes('getChainId') && 
+                            !authError.message?.includes('cancelled')) {
                             console.warn('Wallet authentication failed, will try Edge Function:', authError);
                         }
                         // Continue to try Edge Function call - it will handle auth
