@@ -44,17 +44,28 @@ export async function authenticateWithWallet(
     throw new Error(error.error || 'Authentication failed')
   }
 
-  const { access_token, user } = await response.json()
+  const { access_token, refresh_token, user } = await response.json()
 
   if (!access_token) {
     throw new Error('No access token received')
   }
 
-  // Set session in Supabase client
-  // Note: We'll use a custom approach since we're using wallet auth
-  // Store token in localStorage for now
-  localStorage.setItem('supabase_auth_token', access_token)
-  localStorage.setItem('supabase_auth_user', JSON.stringify(user))
+  // Set the session in Supabase client using setSession
+  // This properly initializes the Supabase Auth session
+  const { data: sessionData, error: sessionError } = await supabase.auth.setSession({
+    access_token,
+    refresh_token: refresh_token || access_token, // Use refresh_token if provided
+  })
+
+  if (sessionError) {
+    console.warn('Error setting Supabase session, storing token manually:', sessionError)
+    // Fallback: Store token manually if setSession fails
+    localStorage.setItem('supabase_auth_token', access_token)
+    if (refresh_token) {
+      localStorage.setItem('supabase_auth_refresh_token', refresh_token)
+    }
+    localStorage.setItem('supabase_auth_user', JSON.stringify(user))
+  }
 
   return { access_token, user }
 }
@@ -64,24 +75,36 @@ export async function authenticateWithWallet(
  * Token expiration and refresh is handled automatically by Supabase Auth
  */
 export async function getAuthToken(): Promise<string | null> {
-  // Try to get from localStorage first
+  // First, try to get from Supabase session (this handles token refresh automatically)
+  const { data: { session }, error } = await supabase.auth.getSession()
+  
+  if (!error && session?.access_token) {
+    return session.access_token
+  }
+
+  // Fallback: Try to get from localStorage (for manually stored tokens)
   const storedToken = localStorage.getItem('supabase_auth_token')
   if (storedToken) {
-    // Verify token is still valid by checking with Supabase
-    const { data: { session }, error } = await supabase.auth.getSession()
-    
-    if (!error && session?.access_token) {
-      return session.access_token
+    // Try to refresh the session if we have a refresh token
+    const storedRefreshToken = localStorage.getItem('supabase_auth_refresh_token')
+    if (storedRefreshToken) {
+      try {
+        const { data: refreshedSession, error: refreshError } = await supabase.auth.refreshSession({
+          refresh_token: storedRefreshToken
+        })
+        if (!refreshError && refreshedSession?.session?.access_token) {
+          return refreshedSession.session.access_token
+        }
+      } catch (e) {
+        console.warn('Error refreshing session:', e)
+      }
     }
     
-    // If stored token exists but session is invalid, return stored token
-    // Edge Function will verify it
+    // Return stored token as fallback (Edge Function will verify it)
     return storedToken
   }
 
-  // Try to get from Supabase session
-  const { data: { session } } = await supabase.auth.getSession()
-  return session?.access_token || null
+  return null
 }
 
 /**

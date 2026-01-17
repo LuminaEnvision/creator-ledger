@@ -106,47 +106,25 @@ serve(async (req) => {
       authUser = newUser.user
     }
 
-    // Generate a session token for the user
-    const { data: sessionData, error: sessionError } = await supabaseAdmin.auth.admin.generateLink({
-      type: 'magiclink',
-      email: email,
+    // Generate a JWT access token for the user
+    // We need to create a session to get a proper JWT token
+    const { data: sessionData, error: sessionError } = await supabaseAdmin.auth.admin.createSession({
+      user_id: authUser.id,
     })
 
-    if (sessionError || !sessionData) {
-      // Fallback: Create a custom token
-      const { data: tokenData, error: tokenError } = await supabaseAdmin.auth.admin.generateLink({
-        type: 'magiclink',
-        email: email,
-      })
-
-      if (tokenError) {
-        console.error('Error generating token:', tokenError)
-        return new Response(
-          JSON.stringify({ error: 'Failed to generate session' }),
-          { status: 500, headers: { 'Content-Type': 'application/json' } }
-        )
-      }
-
+    if (sessionError || !sessionData?.access_token) {
+      console.error('Error creating session:', sessionError)
       return new Response(
-        JSON.stringify({
-          user: authUser,
-          access_token: tokenData.properties?.hashed_token || null,
-          // Note: In production, you'd want to use proper session management
-        }),
-        {
-          status: 200,
-          headers: {
-            'Content-Type': 'application/json',
-            'Access-Control-Allow-Origin': '*',
-          }
-        }
+        JSON.stringify({ error: 'Failed to create session' }),
+        { status: 500, headers: { 'Content-Type': 'application/json' } }
       )
     }
 
     return new Response(
       JSON.stringify({
         user: authUser,
-        access_token: sessionData.properties?.hashed_token || null,
+        access_token: sessionData.access_token,
+        refresh_token: sessionData.refresh_token,
       }),
       {
         status: 200,
