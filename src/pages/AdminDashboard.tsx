@@ -422,13 +422,13 @@ export const AdminDashboard: React.FC = () => {
                                     </td>
                                     <td className="px-6 py-4 whitespace-nowrap">
                                         <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${
-                                            entry.verification_status === 'Verified'
+                                            isVerified(entry.verification_status)
                                                 ? 'bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-400'
-                                                : entry.verification_status === 'Rejected'
+                                                : isRejected(entry.verification_status)
                                                 ? 'bg-red-100 text-red-800 dark:bg-red-900/30 dark:text-red-400'
                                                 : 'bg-yellow-100 text-yellow-800 dark:bg-yellow-900/30 dark:text-yellow-400'
                                             }`}>
-                                            {entry.verification_status}
+                                            {entry.verification_status ? entry.verification_status.charAt(0).toUpperCase() + entry.verification_status.slice(1) : 'Unknown'}
                                         </span>
                                     </td>
                                     <td className="px-6 py-4 whitespace-nowrap text-sm">
