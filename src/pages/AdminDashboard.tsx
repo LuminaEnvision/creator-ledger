@@ -8,6 +8,7 @@ import { base } from 'wagmi/chains';
 import { PASSPORT_CONTRACT_ADDRESS, PASSPORT_ABI } from '../lib/contracts';
 import { useToast } from '../hooks/useToast';
 import { ProfileDisplay } from '../components/ProfileDisplay';
+import { isVerified, isUnverified, isRejected } from '../lib/verificationStatus';
 
 interface DuplicateGroup {
     contentHash: string;
@@ -304,13 +305,13 @@ export const AdminDashboard: React.FC = () => {
                                                                 size="sm"
                                                             />
                                                             <span className={`text-xs px-2 py-0.5 rounded ${
-                                                                isVerified
+                                                                isVerifiedEntry
                                                                     ? 'bg-green-500/20 text-green-400'
                                                                     : 'bg-yellow-500/20 text-yellow-400'
                                                             }`}>
                                                                 {entry.verification_status}
                                                             </span>
-                                                            {isVerified && (
+                                                            {isVerifiedEntry && (
                                                                 <span className="text-xs text-green-400 font-semibold">
                                                                     ✓ Verified
                                                                 </span>
