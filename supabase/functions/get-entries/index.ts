@@ -166,18 +166,30 @@ serve(async (req) => {
     console.error('Error in get-entries:', error)
     
     // CRITICAL: get-entries allows public access, so auth errors should not block the request
-    // Only return 403 if this was an authenticated request that failed
-    // For public requests, auth errors are expected and should be ignored
+    // The error might be from authenticateUser, but we should never return 401/403 for public reads
+    // Check if this is an auth error and if we were trying to authenticate
     const authHeader = req.headers.get('Authorization')
     const wasAuthenticatedRequest = authHeader && authHeader.startsWith('Bearer ')
+    const isAuthError = error.message?.includes('UNAUTHORIZED') || 
+                        error.message?.includes('Missing') || 
+                        error.message?.includes('Invalid') || 
+                        error.message?.includes('expired')
     
-    if (wasAuthenticatedRequest && (error.message?.includes('UNAUTHORIZED') || error.message?.includes('Missing') || error.message?.includes('Invalid') || error.message?.includes('expired'))) {
+    if (isAuthError && wasAuthenticatedRequest) {
       // Authenticated request failed - return 403
+      console.warn('⚠️ Authenticated request failed, returning 403')
       return errorResponse('Unauthorized', 403)
     }
     
-    // For public requests or other errors, return 500 (not 403)
-    // This ensures public reads still work even if there's an auth error
+    // For public requests with auth errors, log but don't fail
+    // This can happen if someone sends an invalid token - we should ignore it for public reads
+    if (isAuthError && !wasAuthenticatedRequest) {
+      console.warn('⚠️ Auth error on public request (ignoring):', error.message)
+      // Return empty entries instead of error for public reads
+      return successResponse({ entries: [] })
+    }
+    
+    // For other errors, return 500
     return errorResponse(error.message || 'Internal server error', 500)
   }
 })

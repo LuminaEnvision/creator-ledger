@@ -51,21 +51,43 @@ serve(async (req) => {
     console.log('🔐 Verifying signature:', {
       originalAddress: walletAddress,
       checksumAddress: checksumAddress,
-      messageLength: message.length
+      messageLength: message.length,
+      messagePreview: message.substring(0, 100) + '...',
+      signaturePrefix: signature.substring(0, 20) + '...'
     })
     
     // Verify signature
-    const isValid = await verifyMessage({
-      address: checksumAddress,
-      message,
-      signature: signature as `0x${string}`,
-    })
-    
-    console.log('✅ Signature verification result:', { isValid, checksumAddress })
+    let isValid = false
+    try {
+      isValid = await verifyMessage({
+        address: checksumAddress,
+        message,
+        signature: signature as `0x${string}`,
+      })
+      
+      console.log('✅ Signature verification result:', { isValid, checksumAddress })
+    } catch (verifyError: any) {
+      console.error('❌ Signature verification error:', verifyError)
+      return new Response(
+        JSON.stringify({ 
+          error: 'Signature verification failed',
+          details: verifyError.message 
+        }),
+        { status: 401, headers: { 'Content-Type': 'application/json' } }
+      )
+    }
 
     if (!isValid) {
+      console.error('❌ Signature is invalid:', {
+        checksumAddress,
+        messageLength: message.length,
+        signatureLength: signature.length
+      })
       return new Response(
-        JSON.stringify({ error: 'Invalid signature' }),
+        JSON.stringify({ 
+          error: 'Invalid signature',
+          details: 'The signature does not match the message and wallet address'
+        }),
         { status: 401, headers: { 'Content-Type': 'application/json' } }
       )
     }
