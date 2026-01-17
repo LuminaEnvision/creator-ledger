@@ -22,8 +22,9 @@ out/
 
 # Environment variables
 .env
-.env.*
 .env.local
+.env.*
+!.env.example
 
 # Logs
 logs
