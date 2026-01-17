@@ -70,8 +70,31 @@ async function callEdgeFunction(
   })
 
   if (!response.ok) {
-    const error = await response.json().catch(() => ({ error: response.statusText }))
-    throw new Error(error.error || `Edge Function error: ${response.statusText}`)
+    let errorMessage = `Edge Function error: ${response.statusText}`
+    let errorDetails: any = {}
+    
+    try {
+      errorDetails = await response.json()
+      errorMessage = errorDetails.error || errorDetails.message || errorMessage
+    } catch {
+      // If response is not JSON, use status text
+      errorMessage = `Edge Function error (${response.status}): ${response.statusText}`
+    }
+    
+    // Add more context for common errors
+    if (response.status === 401 || response.status === 403) {
+      errorMessage = 'Authentication required. Please sign in with your wallet.'
+    } else if (response.status === 400) {
+      errorMessage = errorDetails.error || 'Invalid request. Please check your input.'
+    } else if (response.status === 500) {
+      errorMessage = errorDetails.error || 'Server error. Please try again later.'
+    }
+    
+    const error = new Error(errorMessage)
+    // Attach status code for better error handling
+    ;(error as any).status = response.status
+    ;(error as any).details = errorDetails
+    throw error
   }
 
   return response.json()

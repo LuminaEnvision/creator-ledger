@@ -110,8 +110,22 @@ export const Dashboard: React.FC = () => {
             // Note: getEntries works without auth, getUser requires auth
             try {
                 // Always fetch entries (works without auth)
-                const entriesResult = await edgeFunctions.getEntries({ wallet_address: walletAddress, only_verified: false });
-                const { entries: entriesData } = entriesResult;
+                try {
+                    const entriesResult = await edgeFunctions.getEntries({ wallet_address: walletAddress, only_verified: false });
+                    const { entries: entriesData } = entriesResult;
+                    if (entriesData) {
+                        setEntries(entriesData || []);
+                        console.log('✅ Loaded entries:', entriesData.length);
+                    } else {
+                        setEntries([]);
+                        console.log('ℹ️ No entries found for wallet:', walletAddress);
+                    }
+                } catch (entriesError: any) {
+                    console.error('❌ Error fetching entries:', entriesError);
+                    // Still try to show empty list rather than breaking
+                    setEntries([]);
+                    // Don't throw - allow user to see the dashboard even if entries fail
+                }
                 
                 // Try to get user data (only if authenticated)
                 let userData = null;
@@ -120,11 +134,7 @@ export const Dashboard: React.FC = () => {
                     userData = userResult.user;
                 } catch (userError: any) {
                     // User not authenticated yet - that's okay, they can still see entries
-                    console.log('User not authenticated, showing entries only:', userError.message);
-                }
-
-                if (entriesData) {
-                    setEntries(entriesData || []);
+                    console.log('ℹ️ User not authenticated, showing entries only:', userError.message);
                 }
 
                 if (userData) {

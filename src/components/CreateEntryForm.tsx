@@ -376,15 +376,26 @@ export const CreateEntryForm: React.FC<{ onSuccess: () => void }> = ({ onSuccess
             onSuccess();
         } catch (err: any) {
             console.error('Error submitting entry:', err);
+            console.error('Error details:', {
+                message: err.message,
+                status: (err as any).status,
+                details: (err as any).details
+            });
+            
             if (err.message?.includes('User rejected') || err.code === 4001) {
                 setError('Wallet action cancelled. Please try again.');
                 showToast('Action cancelled. Please try again.', 'info');
-            } else if (err.message?.includes('Authentication required')) {
+            } else if (err.message?.includes('Authentication required') || (err as any).status === 401 || (err as any).status === 403) {
                 setError('Authentication required. Please sign the message to submit entries.');
                 showToast('Please sign the authentication message to continue.', 'warning');
+            } else if ((err as any).status === 400) {
+                const errorMsg = (err as any).details?.error || err.message || 'Invalid request';
+                setError(errorMsg);
+                showToast(errorMsg, 'error');
             } else {
-                setError(err.message || 'Failed to submit entry');
-                showToast(err.message || 'Failed to submit entry. Please try again.', 'error');
+                const errorMsg = err.message || 'Failed to submit entry';
+                setError(errorMsg);
+                showToast(errorMsg + ' Please check the console for details.', 'error');
             }
         } finally {
             setIsSubmitting(false);
