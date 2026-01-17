@@ -158,7 +158,7 @@ export const Dashboard: React.FC = () => {
                     // OR whitelisted for testing
                     const hasSubscription = userData.subscription_active !== null && userData.subscription_active !== undefined;
                     const dbPremiumStatus = isActive || (!hasSubscription && userData.is_premium === true);
-                    const isWhitelisted = isPremiumWhitelisted(user.walletAddress);
+                    const isWhitelisted = user ? isPremiumWhitelisted(user.walletAddress) : false;
                     const premiumStatus = dbPremiumStatus || isWhitelisted;
 
                     console.log('Premium check:', {
