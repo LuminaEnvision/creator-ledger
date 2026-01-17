@@ -31,20 +31,57 @@ export async function authenticateWithWallet(
   console.log('📝 Requesting message signature...', { walletAddress, messageLength: message.length })
 
   // Sign message with wallet
-  let signature: string
-  try {
-    signature = await signMessageAsync({ message })
-    console.log('✅ Message signed successfully')
-  } catch (signError: any) {
-    console.error('❌ Message signing failed:', signError)
-    // Re-throw with more context
-    if (signError.code === 4001) {
-      throw new Error('Message signing was cancelled by user')
-    } else if (signError.message?.includes('connector') || signError.message?.includes('getChainId')) {
-      throw new Error('Wallet connector not ready. Please reconnect your wallet.')
-    } else {
-      throw new Error(`Failed to sign message: ${signError.message || 'Unknown error'}`)
+  // Add retry logic for connector readiness issues
+  let signature: string | undefined
+  let lastError: any = null
+  const maxRetries = 3
+  const retryDelay = 500 // ms
+  
+  for (let attempt = 0; attempt < maxRetries; attempt++) {
+    try {
+      // Wait a bit before retrying (except first attempt)
+      if (attempt > 0) {
+        await new Promise(resolve => setTimeout(resolve, retryDelay * attempt))
+        console.log(`🔄 Retrying message signature (attempt ${attempt + 1}/${maxRetries})...`)
+      }
+      
+      signature = await signMessageAsync({ message })
+      console.log('✅ Message signed successfully')
+      break // Success, exit retry loop
+    } catch (signError: any) {
+      lastError = signError
+      console.error(`❌ Message signing failed (attempt ${attempt + 1}/${maxRetries}):`, signError)
+      
+      // Don't retry if user cancelled
+      if (signError.code === 4001) {
+        throw new Error('Message signing was cancelled by user')
+      }
+      
+      // Don't retry if it's not a connector error (on last attempt)
+      if (attempt === maxRetries - 1) {
+        if (signError.message?.includes('connector') || signError.message?.includes('getChainId')) {
+          throw new Error('Wallet connector not ready. Please reconnect your wallet and try again.')
+        } else {
+          throw new Error(`Failed to sign message: ${signError.message || 'Unknown error'}`)
+        }
+      }
+      
+      // If it's a connector error and we have retries left, continue to retry
+      if (signError.message?.includes('connector') || signError.message?.includes('getChainId')) {
+        continue // Retry
+      } else {
+        // Non-connector error, don't retry
+        throw new Error(`Failed to sign message: ${signError.message || 'Unknown error'}`)
+      }
     }
+  }
+  
+  // If we get here without a signature, throw the last error
+  if (!signature) {
+    if (lastError?.message?.includes('connector') || lastError?.message?.includes('getChainId')) {
+      throw new Error('Wallet connector not ready. Please reconnect your wallet and try again.')
+    }
+    throw new Error(`Failed to sign message: ${lastError?.message || 'Unknown error'}`)
   }
 
   // Send to Edge Function for verification and token generation
