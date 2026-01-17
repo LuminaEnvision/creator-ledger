@@ -53,11 +53,24 @@ async function callEdgeFunction(
 ): Promise<any> {
   const { method = 'GET', body, params, requireAuth = false } = options
 
-  const token = await getAuthToken()
-  
-  // Only require auth if explicitly required (for write operations)
-  if (requireAuth && !token) {
-    throw new Error('Authentication required. Please sign in with Supabase Auth.')
+  // Only get token if auth is required OR if we want to send it (optional for public reads)
+  // For public reads, we skip token retrieval to avoid unnecessary errors
+  let token: string | null = null
+  if (requireAuth) {
+    // For operations that require auth, we must have a token
+    token = await getAuthToken()
+    if (!token) {
+      throw new Error('Authentication required. Please sign in with Supabase Auth.')
+    }
+  } else {
+    // For public reads, try to get token but don't fail if it doesn't exist
+    // This allows authenticated users to see their own data, but public users can still access
+    try {
+      token = await getAuthToken()
+    } catch (e) {
+      // Silently ignore auth errors for public reads - they're optional
+      token = null
+    }
   }
 
   // Build URL with query parameters

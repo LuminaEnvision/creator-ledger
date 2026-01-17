@@ -165,11 +165,19 @@ serve(async (req) => {
   } catch (error: any) {
     console.error('Error in get-entries:', error)
     
-    // Return 403 for authentication errors (only if auth was required)
-    if (error.message?.includes('UNAUTHORIZED') || error.message?.includes('Missing') || error.message?.includes('Invalid') || error.message?.includes('expired')) {
+    // CRITICAL: get-entries allows public access, so auth errors should not block the request
+    // Only return 403 if this was an authenticated request that failed
+    // For public requests, auth errors are expected and should be ignored
+    const authHeader = req.headers.get('Authorization')
+    const wasAuthenticatedRequest = authHeader && authHeader.startsWith('Bearer ')
+    
+    if (wasAuthenticatedRequest && (error.message?.includes('UNAUTHORIZED') || error.message?.includes('Missing') || error.message?.includes('Invalid') || error.message?.includes('expired'))) {
+      // Authenticated request failed - return 403
       return errorResponse('Unauthorized', 403)
     }
     
+    // For public requests or other errors, return 500 (not 403)
+    // This ensures public reads still work even if there's an auth error
     return errorResponse(error.message || 'Internal server error', 500)
   }
 })
