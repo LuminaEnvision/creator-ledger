@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import type { LedgerEntry } from '../types';
+import { isVerified } from '../lib/verificationStatus';
 
 interface PortfolioCollection {
     id: string;
