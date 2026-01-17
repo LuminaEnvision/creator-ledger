@@ -107,14 +107,21 @@ export const Dashboard: React.FC = () => {
 
             // Use Edge Functions instead of direct database access
             // (async-parallel: Use Promise.all() for independent operations)
+            // Note: getEntries works without auth, getUser requires auth
             try {
-                const [userResult, entriesResult] = await Promise.all([
-                    edgeFunctions.getUser(),
-                    edgeFunctions.getEntries({ wallet_address: walletAddress, only_verified: false })
-                ]);
-
-                const { user: userData } = userResult;
+                // Always fetch entries (works without auth)
+                const entriesResult = await edgeFunctions.getEntries({ wallet_address: walletAddress, only_verified: false });
                 const { entries: entriesData } = entriesResult;
+                
+                // Try to get user data (only if authenticated)
+                let userData = null;
+                try {
+                    const userResult = await edgeFunctions.getUser();
+                    userData = userResult.user;
+                } catch (userError: any) {
+                    // User not authenticated yet - that's okay, they can still see entries
+                    console.log('User not authenticated, showing entries only:', userError.message);
+                }
 
                 if (entriesData) {
                     setEntries(entriesData || []);

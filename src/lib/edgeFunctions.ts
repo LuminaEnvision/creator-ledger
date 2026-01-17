@@ -23,7 +23,10 @@ async function getAuthToken(): Promise<string | null> {
 }
 
 /**
- * Call an Edge Function with authentication
+ * Call an Edge Function with optional authentication
+ * 
+ * For public read operations (get-entries, get-profile), auth is optional.
+ * For write operations, auth is required.
  */
 async function callEdgeFunction(
   functionName: string,
@@ -31,13 +34,15 @@ async function callEdgeFunction(
     method?: 'GET' | 'POST' | 'PATCH' | 'DELETE'
     body?: any
     params?: Record<string, string>
+    requireAuth?: boolean // If true, auth is required. If false/undefined, auth is optional.
   } = {}
 ): Promise<any> {
-  const { method = 'GET', body, params } = options
+  const { method = 'GET', body, params, requireAuth = false } = options
 
   const token = await getAuthToken()
   
-  if (!token) {
+  // Only require auth if explicitly required (for write operations)
+  if (requireAuth && !token) {
     throw new Error('Authentication required. Please sign in with Supabase Auth.')
   }
 
@@ -50,8 +55,12 @@ async function callEdgeFunction(
   }
 
   const headers: HeadersInit = {
-    'Authorization': `Bearer ${token}`,
     'Content-Type': 'application/json',
+  }
+
+  // Only add Authorization header if we have a token
+  if (token) {
+    headers['Authorization'] = `Bearer ${token}`
   }
 
   const response = await fetch(url.toString(), {
@@ -70,13 +79,13 @@ async function callEdgeFunction(
 
 // User operations
 export const edgeFunctions = {
-  // User operations
+  // User operations (require auth - user-specific data)
   async getUser() {
-    return callEdgeFunction('get-user')
+    return callEdgeFunction('get-user', { requireAuth: true })
   },
 
   async createUser() {
-    return callEdgeFunction('create-user', { method: 'POST' })
+    return callEdgeFunction('create-user', { method: 'POST', requireAuth: true })
   },
 
   async updateUser(data: {
@@ -87,7 +96,8 @@ export const edgeFunctions = {
   }) {
     return callEdgeFunction('update-user', {
       method: 'PATCH',
-      body: data
+      body: data,
+      requireAuth: true
     })
   },
 
@@ -110,10 +120,12 @@ export const edgeFunctions = {
   }) {
     return callEdgeFunction('create-entry', {
       method: 'POST',
-      body: data
+      body: data,
+      requireAuth: true
     })
   },
 
+  // Public read operation - auth optional (allows viewing entries without auth)
   async getEntries(params?: {
     wallet_address?: string
     only_verified?: boolean
@@ -123,14 +135,17 @@ export const edgeFunctions = {
     if (params?.only_verified) queryParams.only_verified = 'true'
 
     return callEdgeFunction('get-entries', {
-      params: queryParams
+      params: queryParams,
+      requireAuth: false // Public read - allows viewing entries without authentication
     })
   },
 
   // Profile operations
+  // Public read operation - auth optional (allows viewing profiles without auth)
   async getProfile(walletAddress?: string) {
     return callEdgeFunction('get-profile', {
-      params: walletAddress ? { wallet_address: walletAddress } : {}
+      params: walletAddress ? { wallet_address: walletAddress } : {},
+      requireAuth: false // Public read - allows viewing profiles without authentication
     })
   },
 
@@ -142,7 +157,8 @@ export const edgeFunctions = {
   }) {
     return callEdgeFunction('update-profile', {
       method: 'PATCH',
-      body: data
+      body: data,
+      requireAuth: true
     })
   },
 
@@ -154,13 +170,15 @@ export const edgeFunctions = {
   }) {
     return callEdgeFunction('vote-entry', {
       method: 'POST',
-      body: data
+      body: data,
+      requireAuth: true
     })
   },
 
   async getEndorsements(entryId: string) {
     return callEdgeFunction('get-endorsements', {
-      params: { entry_id: entryId }
+      params: { entry_id: entryId },
+      requireAuth: false // Public read - allows viewing endorsements without auth
     })
   },
 
@@ -174,41 +192,46 @@ export const edgeFunctions = {
   }) {
     return callEdgeFunction('update-entry', {
       method: 'PATCH',
-      body: data
+      body: data,
+      requireAuth: true
     })
   },
 
-  // Admin operations
+  // Admin operations (require auth)
   async adminRejectEntry(entryId: string, reason?: string) {
     return callEdgeFunction('admin-reject-entry', {
       method: 'POST',
-      body: { entry_id: entryId, reason }
+      body: { entry_id: entryId, reason },
+      requireAuth: true
     })
   },
 
-  // Notification operations
+  // Notification operations (require auth - user-specific data)
   async getNotifications(unreadOnly?: boolean) {
     return callEdgeFunction('get-notifications', {
-      params: unreadOnly ? { unread_only: 'true' } : {}
+      params: unreadOnly ? { unread_only: 'true' } : {},
+      requireAuth: true
     })
   },
 
   async markNotificationRead(notificationId: string) {
     return callEdgeFunction('mark-notification-read', {
       method: 'POST',
-      body: { notification_id: notificationId }
+      body: { notification_id: notificationId },
+      requireAuth: true
     })
   },
 
-  // Admin operations
+  // Admin operations (require auth)
   async adminGetEntries() {
-    return callEdgeFunction('admin-get-entries')
+    return callEdgeFunction('admin-get-entries', { requireAuth: true })
   },
 
   async adminVerifyEntry(entryId: string) {
     return callEdgeFunction('admin-verify-entry', {
       method: 'POST',
-      body: { entry_id: entryId }
+      body: { entry_id: entryId },
+      requireAuth: true
     })
   },
 

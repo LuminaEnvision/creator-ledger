@@ -48,28 +48,35 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
                 }
 
                 // Use Edge Functions to get/create user (no direct DB access)
-                try {
-                    const { user: userData } = await edgeFunctions.getUser();
-                    
-                    if (userData) {
+                // Only try if we have a token (user is authenticated)
+                if (token) {
+                    try {
+                        const { user: userData } = await edgeFunctions.getUser();
+                        
+                        if (userData) {
+                            setUser({
+                                walletAddress: userData.wallet_address,
+                                createdAt: userData.created_at,
+                            });
+                        } else {
+                            // Create new user via Edge Function
+                            const { user: newUser } = await edgeFunctions.createUser();
+                            setUser({
+                                walletAddress: newUser.wallet_address,
+                                createdAt: newUser.created_at,
+                            });
+                        }
+                    } catch (edgeError: any) {
+                        console.warn('Edge Function failed:', edgeError);
+                        // If getUser/createUser fails, still set user from wallet (they can view entries)
                         setUser({
-                            walletAddress: userData.wallet_address,
-                            createdAt: userData.created_at,
-                        });
-                    } else {
-                        // Create new user via Edge Function
-                        const { user: newUser } = await edgeFunctions.createUser();
-                        setUser({
-                            walletAddress: newUser.wallet_address,
-                            createdAt: newUser.created_at,
+                            walletAddress: walletAddress,
+                            createdAt: new Date().toISOString(),
                         });
                     }
-                } catch (edgeError: any) {
-                    // If Edge Function fails (e.g., RLS not migrated yet), fallback to direct call temporarily
-                    // TODO: Remove this fallback once RLS migration is complete
-                    console.warn('Edge Function failed, using fallback:', edgeError);
-                    
-                    // Fallback: Set user from wallet address only
+                } else {
+                    // No token - user not authenticated yet, but they can still view public data
+                    // Set user from wallet address so they can see entries
                     setUser({
                         walletAddress: walletAddress,
                         createdAt: new Date().toISOString(),
