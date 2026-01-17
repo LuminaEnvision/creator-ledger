@@ -49,12 +49,18 @@ serve(async (req) => {
     // Create admin client
     const supabase = createAdminClient()
     
-    // Get profile - ensure lowercase for case-sensitive comparison
+    // Get profile - requestedWallet is already lowercase, but ensure it
     const { data: profile, error } = await supabase
       .from('profiles')
       .select('*')
-      .eq('wallet_address', requestedWallet.toLowerCase())
+      .eq('wallet_address', requestedWallet) // Already normalized to lowercase above
       .maybeSingle()
+    
+    console.log('📊 Profile query result:', {
+      requestedWallet,
+      hasProfile: !!profile,
+      error: error?.message || null
+    })
 
     if (error) {
       console.error('Error fetching profile:', error)

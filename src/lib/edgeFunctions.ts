@@ -202,8 +202,10 @@ export const edgeFunctions = {
   // Profile operations
   // Public read operation - auth optional (allows viewing profiles without auth)
   async getProfile(walletAddress?: string) {
+    // CRITICAL: Always normalize wallet_address to lowercase for database queries
+    // Database stores addresses in lowercase, PostgreSQL comparison is case-sensitive
     return callEdgeFunction('get-profile', {
-      params: walletAddress ? { wallet_address: walletAddress } : {},
+      params: walletAddress ? { wallet_address: walletAddress.toLowerCase() } : {},
       requireAuth: false // Public read - allows viewing profiles without authentication
     })
   },
