@@ -290,7 +290,7 @@ export const AdminDashboard: React.FC = () => {
                                                 <div
                                                     key={entry.id}
                                                     className={`flex items-center justify-between p-3 rounded-lg border ${
-                                                        isVerified
+                                                        isVerifiedEntry
                                                             ? 'border-green-500/30 bg-green-500/10'
                                                             : 'border-orange-500/20 bg-orange-500/5'
                                                     }`}
