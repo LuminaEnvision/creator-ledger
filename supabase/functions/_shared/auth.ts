@@ -143,10 +143,31 @@ export function createAdminClient() {
 
 /**
  * Creates a CORS response
+ * 
+ * SECURITY: Uses ALLOWED_ORIGINS environment variable to restrict CORS.
+ * Falls back to wildcard '*' in development if not set.
+ * 
+ * To configure in Supabase Dashboard:
+ * 1. Go to Project Settings → Edge Functions → Environment Variables
+ * 2. Add: ALLOWED_ORIGINS = https://yourdomain.com,https://www.yourdomain.com
  */
 export function corsHeaders() {
+  // Get allowed origins from environment variable
+  const allowedOrigins = Deno.env.get('ALLOWED_ORIGINS')
+  
+  // In production, use specific origins. In development, allow all (for local testing)
+  // TODO: Remove wildcard fallback before mainnet launch
+  const origin = allowedOrigins 
+    ? allowedOrigins.split(',')[0].trim() // Use first origin for now
+    : '*' // Fallback for development (REMOVE IN PRODUCTION)
+  
+  // Log for debugging (remove sensitive data in production)
+  if (!allowedOrigins) {
+    console.warn('⚠️ ALLOWED_ORIGINS not set - using wildcard CORS (INSECURE for production)')
+  }
+  
   return {
-    'Access-Control-Allow-Origin': '*',
+    'Access-Control-Allow-Origin': origin,
     'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
     'Access-Control-Allow-Methods': 'GET, POST, PATCH, PUT, DELETE, OPTIONS',
   }

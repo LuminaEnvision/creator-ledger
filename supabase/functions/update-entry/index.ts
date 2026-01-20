@@ -1,5 +1,7 @@
 import { serve } from 'https://deno.land/std@0.168.0/http/server.ts'
 import { authenticateUser, createAdminClient, errorResponse, successResponse, corsPreflightResponse } from '../_shared/auth.ts'
+import { validateUpdateEntryPayload } from '../_shared/validation.ts'
+import { checkRateLimit, getRateLimitIdentifier, rateLimitResponse, RATE_LIMITS } from '../_shared/rateLimit.ts'
 
 serve(async (req) => {
   // Handle CORS preflight
@@ -15,8 +17,27 @@ serve(async (req) => {
     // Authenticate user
     const walletAddress = await authenticateUser(req)
     
+    // Rate limiting (after authentication)
+    const rateLimitId = getRateLimitIdentifier(req, walletAddress)
+    const rateLimit = checkRateLimit({
+      ...RATE_LIMITS.UPDATE_ENTRY,
+      identifier: rateLimitId
+    })
+    
+    if (!rateLimit.allowed) {
+      console.warn('⚠️ Rate limit exceeded:', { identifier: rateLimitId })
+      return rateLimitResponse(rateLimit.resetAt)
+    }
+    
     // Parse request body
     const body = await req.json()
+    
+    // Comprehensive input validation
+    const validation = validateUpdateEntryPayload(body)
+    if (!validation.valid) {
+      return errorResponse(validation.error || 'Invalid input', 400)
+    }
+    
     const {
       entry_id,
       description,
@@ -24,11 +45,6 @@ serve(async (req) => {
       campaign_tag,
       tx_hash
     } = body
-
-    // Validate required fields
-    if (!entry_id) {
-      return errorResponse('Missing required field: entry_id', 400)
-    }
 
     // Create admin client
     const supabase = createAdminClient()

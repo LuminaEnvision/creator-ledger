@@ -1,5 +1,7 @@
 import { serve } from 'https://deno.land/std@0.168.0/http/server.ts'
-import { authenticateUser, createAdminClient, errorResponse, successResponse, corsPreflightResponse } from '../_shared/auth.ts'
+import { authenticateUser, createAdminClient, errorResponse, successResponse, corsPreflightResponse, corsHeaders } from '../_shared/auth.ts'
+import { validateCreateEntryPayload } from '../_shared/validation.ts'
+import { checkRateLimit, getRateLimitIdentifier, rateLimitResponse, RATE_LIMITS } from '../_shared/rateLimit.ts'
 
 serve(async (req) => {
   // Handle CORS preflight
@@ -15,8 +17,38 @@ serve(async (req) => {
     // Authenticate user
     const walletAddress = await authenticateUser(req)
     
+    // Rate limiting (after authentication)
+    const rateLimitId = getRateLimitIdentifier(req, walletAddress)
+    const rateLimit = checkRateLimit({
+      ...RATE_LIMITS.CREATE_ENTRY,
+      identifier: rateLimitId
+    })
+    
+    if (!rateLimit.allowed) {
+      console.warn('⚠️ Rate limit exceeded:', { identifier: rateLimitId })
+      return rateLimitResponse(rateLimit.resetAt)
+    }
+    
     // Parse request body
     const body = await req.json()
+    
+    // Comprehensive input validation
+    const validation = validateCreateEntryPayload(body)
+    if (!validation.valid) {
+      console.error('❌ Validation failed:', { error: validation.error, body: JSON.stringify(body).substring(0, 500) })
+      return new Response(
+        JSON.stringify({ 
+          error: validation.error || 'Invalid input',
+          message: validation.error || 'Please check your input and try again',
+          details: { validation: validation.error }
+        }),
+        {
+          status: 400,
+          headers: { ...corsHeaders(), 'Content-Type': 'application/json' }
+        }
+      )
+    }
+    
     const {
       url,
       platform,
@@ -33,11 +65,6 @@ serve(async (req) => {
       site_name,
       signature
     } = body
-
-    // Validate required fields
-    if (!url || !platform || !payload_hash) {
-      return errorResponse('Missing required fields: url, platform, payload_hash', 400)
-    }
 
     // Create admin client
     const supabase = createAdminClient()
@@ -81,7 +108,21 @@ serve(async (req) => {
         hint: error.hint,
         walletAddress
       })
-      return errorResponse('Failed to create entry', 500)
+      return new Response(
+        JSON.stringify({ 
+          error: 'Failed to create entry',
+          message: error.message || 'Database error occurred',
+          details: { 
+            code: error.code,
+            hint: error.hint,
+            details: error.details
+          }
+        }),
+        {
+          status: 500,
+          headers: { ...corsHeaders(), 'Content-Type': 'application/json' }
+        }
+      )
     }
 
     console.log('✅ Entry created successfully:', { entryId: entry?.id, walletAddress })

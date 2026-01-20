@@ -1,10 +1,23 @@
 import { serve } from 'https://deno.land/std@0.168.0/http/server.ts'
 import { authenticateUser, createAdminClient, errorResponse, successResponse, corsPreflightResponse } from '../_shared/auth.ts'
+import { checkRateLimit, getRateLimitIdentifier, rateLimitResponse, RATE_LIMITS } from '../_shared/rateLimit.ts'
 
 serve(async (req) => {
   // Handle CORS preflight
   if (req.method === 'OPTIONS') {
     return corsPreflightResponse()
+  }
+
+  // Rate limiting by IP (public endpoint)
+  const rateLimitId = getRateLimitIdentifier(req, null)
+  const rateLimit = checkRateLimit({
+    ...RATE_LIMITS.GET_PROFILE,
+    identifier: rateLimitId
+  })
+  
+  if (!rateLimit.allowed) {
+    console.warn('⚠️ Rate limit exceeded for get-profile:', { identifier: rateLimitId })
+    return rateLimitResponse(rateLimit.resetAt)
   }
 
   try {

@@ -1,6 +1,8 @@
 import { serve } from 'https://deno.land/std@0.168.0/http/server.ts'
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.89.0'
 import { verifyMessage, getAddress } from 'https://esm.sh/viem@2.43.3'
+import { checkRateLimit, getRateLimitIdentifier, rateLimitResponse, RATE_LIMITS } from '../_shared/rateLimit.ts'
+import { validateWalletAddress } from '../_shared/validation.ts'
 
 /**
  * Authenticate user with wallet signature
@@ -40,13 +42,69 @@ serve(async (req) => {
   }
 
   try {
+    // Rate limiting by IP (before authentication)
+    const rateLimitId = getRateLimitIdentifier(req, null) // No wallet address yet
+    const rateLimit = checkRateLimit({
+      ...RATE_LIMITS.AUTH_WITH_WALLET,
+      identifier: rateLimitId
+    })
+    
+    if (!rateLimit.allowed) {
+      console.warn('⚠️ Rate limit exceeded for auth:', { identifier: rateLimitId })
+      return rateLimitResponse(rateLimit.resetAt)
+    }
+    
     console.log('🔥 auth-with-wallet called', {
       method: req.method,
       url: req.url,
       timestamp: new Date().toISOString()
     })
 
-    const { walletAddress, signature, message } = await req.json()
+    const body = await req.json()
+    const { walletAddress, signature, message } = body
+    
+    // Validate wallet address format
+    const walletValidation = validateWalletAddress(walletAddress)
+    if (!walletValidation.valid) {
+      return new Response(
+        JSON.stringify({ error: walletValidation.error }),
+        {
+          status: 400,
+          headers: {
+            'Content-Type': 'application/json',
+            'Access-Control-Allow-Origin': '*',
+          }
+        }
+      )
+    }
+    
+    // Validate signature format (should be hex string)
+    if (!signature || typeof signature !== 'string' || !/^0x[a-fA-F0-9]+$/.test(signature)) {
+      return new Response(
+        JSON.stringify({ error: 'Invalid signature format' }),
+        {
+          status: 400,
+          headers: {
+            'Content-Type': 'application/json',
+            'Access-Control-Allow-Origin': '*',
+          }
+        }
+      )
+    }
+    
+    // Validate message (should be non-empty string)
+    if (!message || typeof message !== 'string' || message.length === 0) {
+      return new Response(
+        JSON.stringify({ error: 'Message is required' }),
+        {
+          status: 400,
+          headers: {
+            'Content-Type': 'application/json',
+            'Access-Control-Allow-Origin': '*',
+          }
+        }
+      )
+    }
 
     console.log('📥 Received auth request:', {
       hasWalletAddress: !!walletAddress,

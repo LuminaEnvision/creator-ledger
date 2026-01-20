@@ -1,0 +1,10 @@
+[[headers]]
+  for = "/*"
+  [headers.values]
+    Strict-Transport-Security = "max-age=31536000; includeSubDomains"
+    X-Content-Type-Options = "nosniff"
+    X-Frame-Options = "DENY"
+    Referrer-Policy = "strict-origin-when-cross-origin"
+    Permissions-Policy = "camera=(), microphone=(), geolocation=()"
+    Content-Security-Policy = "default-src 'self'; script-src 'self' 'unsafe-eval' 'unsafe-inline'; img-src 'self' https: data: blob: ipfs.io gateway.pinata.cloud; connect-src 'self' https://*.supabase.co https://base-sepolia.infura.io https://mainnet.base.org wss://*.walletconnect.com; style-src 'self' 'unsafe-inline'; frame-ancestors 'none'"
+

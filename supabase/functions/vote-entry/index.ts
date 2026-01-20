@@ -1,5 +1,7 @@
 import { serve } from 'https://deno.land/std@0.168.0/http/server.ts'
 import { authenticateUser, createAdminClient, errorResponse, successResponse, corsPreflightResponse } from '../_shared/auth.ts'
+import { validateVoteEntryPayload } from '../_shared/validation.ts'
+import { checkRateLimit, getRateLimitIdentifier, rateLimitResponse, RATE_LIMITS } from '../_shared/rateLimit.ts'
 
 serve(async (req) => {
   // Handle CORS preflight
@@ -15,13 +17,28 @@ serve(async (req) => {
     // Authenticate user
     const walletAddress = await authenticateUser(req)
     
+    // Rate limiting (after authentication)
+    const rateLimitId = getRateLimitIdentifier(req, walletAddress)
+    const rateLimit = checkRateLimit({
+      ...RATE_LIMITS.VOTE_ENTRY,
+      identifier: rateLimitId
+    })
+    
+    if (!rateLimit.allowed) {
+      console.warn('⚠️ Rate limit exceeded:', { identifier: rateLimitId })
+      return rateLimitResponse(rateLimit.resetAt)
+    }
+    
     // Parse request body
     const body = await req.json()
-    const { entry_id, vote_type, signature } = body
-
-    if (!entry_id || !vote_type || !['endorse', 'dispute'].includes(vote_type)) {
-      return errorResponse('Missing or invalid entry_id or vote_type', 400)
+    
+    // Comprehensive input validation
+    const validation = validateVoteEntryPayload(body)
+    if (!validation.valid) {
+      return errorResponse(validation.error || 'Invalid input', 400)
     }
+    
+    const { entry_id, vote_type, signature } = body
 
     // Create admin client
     const supabase = createAdminClient()

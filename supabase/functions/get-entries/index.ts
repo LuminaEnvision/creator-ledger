@@ -8,6 +8,7 @@ declare const Deno: {
 // @ts-ignore - Remote Deno imports work at runtime in Supabase Edge Functions
 import { serve } from 'https://deno.land/std@0.168.0/http/server.ts'
 import { authenticateUser, createAdminClient, errorResponse, successResponse, corsPreflightResponse } from '../_shared/auth.ts'
+import { checkRateLimit, getRateLimitIdentifier, rateLimitResponse, RATE_LIMITS } from '../_shared/rateLimit.ts'
 
 serve(async (req) => {
   // 🔥 STEP 1: PROVE FUNCTION IS RUNNING
@@ -20,6 +21,18 @@ serve(async (req) => {
   // Handle CORS preflight
   if (req.method === 'OPTIONS') {
     return corsPreflightResponse()
+  }
+
+  // Rate limiting by IP (public endpoint)
+  const rateLimitId = getRateLimitIdentifier(req, null)
+  const rateLimit = checkRateLimit({
+    ...RATE_LIMITS.GET_ENTRIES,
+    identifier: rateLimitId
+  })
+  
+  if (!rateLimit.allowed) {
+    console.warn('⚠️ Rate limit exceeded for get-entries:', { identifier: rateLimitId })
+    return rateLimitResponse(rateLimit.resetAt)
   }
 
   // 🔥 STEP 3: VERIFY ENVIRONMENT VARIABLES

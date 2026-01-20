@@ -1,5 +1,7 @@
 import { serve } from 'https://deno.land/std@0.168.0/http/server.ts'
 import { authenticateUser, createAdminClient, errorResponse, successResponse, corsPreflightResponse } from '../_shared/auth.ts'
+import { validateUpdateProfilePayload } from '../_shared/validation.ts'
+import { checkRateLimit, getRateLimitIdentifier, rateLimitResponse, RATE_LIMITS } from '../_shared/rateLimit.ts'
 
 serve(async (req) => {
   // Handle CORS preflight
@@ -15,8 +17,27 @@ serve(async (req) => {
     // Authenticate user
     const walletAddress = await authenticateUser(req)
     
+    // Rate limiting (after authentication)
+    const rateLimitId = getRateLimitIdentifier(req, walletAddress)
+    const rateLimit = checkRateLimit({
+      ...RATE_LIMITS.UPDATE_PROFILE,
+      identifier: rateLimitId
+    })
+    
+    if (!rateLimit.allowed) {
+      console.warn('⚠️ Rate limit exceeded:', { identifier: rateLimitId })
+      return rateLimitResponse(rateLimit.resetAt)
+    }
+    
     // Parse request body
     const body = await req.json()
+    
+    // Comprehensive input validation
+    const validation = validateUpdateProfilePayload(body)
+    if (!validation.valid) {
+      return errorResponse(validation.error || 'Invalid input', 400)
+    }
+    
     const { display_name, bio, avatar_url, banner_url } = body
     
     // Create admin client

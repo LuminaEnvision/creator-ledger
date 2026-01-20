@@ -3,7 +3,7 @@ import { useAuth } from '../context/AuthContext';
 import { edgeFunctions } from '../lib/edgeFunctions';
 import { authenticateWithWallet, getAuthToken } from '../lib/supabaseAuth';
 import { supabase } from '../lib/supabase'; // Only for storage operations (profile-images bucket)
-import { detectPlatform } from '../lib/platform';
+import { detectPlatform, fetchFarcasterCastDate } from '../lib/platform';
 import { generateEntryHash } from '../lib/hashing';
 import { generateContentHash } from '../lib/signatureVerification';
 import { useSignMessage, useSwitchChain, useAccount } from 'wagmi';
@@ -86,14 +86,31 @@ export const CreateEntryForm: React.FC<{ onSuccess: () => void }> = ({ onSuccess
 
             setIsFetching(true);
             try {
+                // Check if this is a Farcaster URL and fetch date from Neynar API
+                const platform = detectPlatform(url);
+                let publishedAt: string | undefined;
+                
+                if (platform === 'Farcaster') {
+                    console.log('🔍 Detected Farcaster URL, fetching cast date...');
+                    const farcasterDate = await fetchFarcasterCastDate(url);
+                    if (farcasterDate) {
+                        publishedAt = farcasterDate;
+                        // Auto-fill the date field
+                        const dateStr = new Date(farcasterDate).toISOString().split('T')[0];
+                        setManualPublishedDate(dateStr);
+                        console.log('✅ Farcaster date auto-detected:', dateStr);
+                    } else {
+                        console.log('⚠️ Could not fetch Farcaster cast date, falling back to Microlink');
+                    }
+                }
+
                 // Using Microlink's free API for metadata fetching
                 const response = await fetch(`https://api.microlink.io/?url=${encodeURIComponent(url)}`);
                 const data = await response.json();
 
                 if (data.status === 'success') {
-                    // Microlink returns date in various formats, try to parse it
-                    let publishedAt: string | undefined;
-                    if (data.data.date) {
+                    // If we didn't get date from Farcaster API, try Microlink
+                    if (!publishedAt && data.data.date) {
                         // Try to parse the date string
                         const parsedDate = new Date(data.data.date);
                         if (!isNaN(parsedDate.getTime())) {
@@ -108,6 +125,14 @@ export const CreateEntryForm: React.FC<{ onSuccess: () => void }> = ({ onSuccess
                         title: data.data.title,
                         image: data.data.image?.url,
                         siteName: data.data.publisher,
+                        publishedAt: publishedAt
+                    });
+                } else if (platform === 'Farcaster' && publishedAt) {
+                    // Even if Microlink fails, we still have the Farcaster date
+                    setMetadata({
+                        title: undefined,
+                        image: undefined,
+                        siteName: 'Farcaster',
                         publishedAt: publishedAt
                     });
                 }
