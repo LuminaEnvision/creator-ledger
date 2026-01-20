@@ -110,21 +110,43 @@ Access-Control-Allow-Methods: GET, POST, PATCH, PUT, DELETE, OPTIONS
 The CORS headers are configured in `supabase/functions/_shared/auth.ts`:
 
 ```typescript
-export function corsHeaders() {
-  const allowedOrigins = Deno.env.get('ALLOWED_ORIGINS')
+export function corsHeaders(req?: Request) {
+  const allowedOriginsEnv = Deno.env.get('ALLOWED_ORIGINS')
+  const requestOrigin = req?.headers.get('Origin')
   
-  // Use first origin from comma-separated list
-  const origin = allowedOrigins 
-    ? allowedOrigins.split(',')[0].trim()
-    : '*' // Fallback for development (REMOVE IN PRODUCTION)
+  // Parse allowed origins into array
+  const allowedOrigins = allowedOriginsEnv 
+    ? allowedOriginsEnv.split(',').map(o => o.trim())
+    : []
+  
+  // If we have allowed origins, check if request origin matches
+  let allowedOrigin: string
+  if (allowedOrigins.length > 0) {
+    if (requestOrigin && allowedOrigins.includes(requestOrigin)) {
+      // Request origin is in allowed list - use it
+      allowedOrigin = requestOrigin
+    } else {
+      // Request origin not in allowed list - use first allowed origin as fallback
+      allowedOrigin = allowedOrigins[0]
+    }
+  } else {
+    // No allowed origins configured - use wildcard (development only)
+    allowedOrigin = '*'
+  }
   
   return {
-    'Access-Control-Allow-Origin': origin,
+    'Access-Control-Allow-Origin': allowedOrigin,
     'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
     'Access-Control-Allow-Methods': 'GET, POST, PATCH, PUT, DELETE, OPTIONS',
   }
 }
 ```
+
+**Key Features**:
+- ✅ Checks request `Origin` header against allowed list
+- ✅ Returns matching origin if found
+- ✅ Falls back to first allowed origin if no match (for compatibility)
+- ✅ Uses wildcard `*` only if `ALLOWED_ORIGINS` is not set
 
 ## Development vs Production
 
@@ -176,13 +198,19 @@ export function corsHeaders() {
 
 ## Multiple Origins Support
 
-Currently, the implementation uses the first origin from the comma-separated list. For full multi-origin support, you would need to:
+✅ **Implemented**: The CORS function now checks the request `Origin` header and matches it against the `ALLOWED_ORIGINS` list.
 
-1. Check the `Origin` header in the request
-2. Match it against the `ALLOWED_ORIGINS` list
-3. Return the matching origin in the response
+**How it works**:
+1. Extracts `Origin` header from the request
+2. Checks if it's in the `ALLOWED_ORIGINS` comma-separated list
+3. Returns the matching origin in the response
+4. Falls back to first allowed origin if no match (for compatibility)
 
-This can be added as a future enhancement if needed.
+**Example**:
+- `ALLOWED_ORIGINS`: `https://creator-ledger-five.vercel.app,http://localhost:5173`
+- Request from `https://creator-ledger-five.vercel.app` → Returns `Access-Control-Allow-Origin: https://creator-ledger-five.vercel.app`
+- Request from `http://localhost:5173` → Returns `Access-Control-Allow-Origin: http://localhost:5173`
+- Request from `https://evil.com` → Returns `Access-Control-Allow-Origin: https://creator-ledger-five.vercel.app` (first allowed origin)
 
 ## References
 

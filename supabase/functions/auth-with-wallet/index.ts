@@ -3,6 +3,7 @@ import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.89.0'
 import { verifyMessage, getAddress } from 'https://esm.sh/viem@2.43.3'
 import { checkRateLimit, getRateLimitIdentifier, rateLimitResponse, RATE_LIMITS } from '../_shared/rateLimit.ts'
 import { validateWalletAddress } from '../_shared/validation.ts'
+import { corsHeaders, corsPreflightResponse } from '../_shared/auth.ts'
 
 /**
  * Authenticate user with wallet signature
@@ -18,14 +19,7 @@ import { validateWalletAddress } from '../_shared/validation.ts'
 serve(async (req) => {
   // Handle CORS preflight
   if (req.method === 'OPTIONS') {
-    return new Response(null, {
-      status: 204,
-      headers: {
-        'Access-Control-Allow-Origin': '*',
-        'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
-        'Access-Control-Allow-Methods': 'GET, POST, PATCH, PUT, DELETE, OPTIONS',
-      }
-    })
+    return corsPreflightResponse(req)
   }
 
   if (req.method !== 'POST') {
@@ -35,7 +29,7 @@ serve(async (req) => {
         status: 405, 
         headers: { 
           'Content-Type': 'application/json',
-          'Access-Control-Allow-Origin': '*',
+          ...corsHeaders(req),
         } 
       }
     )
@@ -72,7 +66,7 @@ serve(async (req) => {
           status: 400,
           headers: {
             'Content-Type': 'application/json',
-            'Access-Control-Allow-Origin': '*',
+            ...corsHeaders(req),
           }
         }
       )
@@ -86,7 +80,7 @@ serve(async (req) => {
           status: 400,
           headers: {
             'Content-Type': 'application/json',
-            'Access-Control-Allow-Origin': '*',
+            ...corsHeaders(req),
           }
         }
       )
@@ -100,7 +94,7 @@ serve(async (req) => {
           status: 400,
           headers: {
             'Content-Type': 'application/json',
-            'Access-Control-Allow-Origin': '*',
+            ...corsHeaders(req),
           }
         }
       )
@@ -128,7 +122,7 @@ serve(async (req) => {
           status: 400, 
           headers: { 
             'Content-Type': 'application/json',
-            'Access-Control-Allow-Origin': '*',
+            ...corsHeaders(req),
           } 
         }
       )
@@ -157,7 +151,7 @@ serve(async (req) => {
           status: 400, 
           headers: { 
             'Content-Type': 'application/json',
-            'Access-Control-Allow-Origin': '*',
+            ...corsHeaders(req),
           } 
         }
       )
@@ -221,7 +215,7 @@ serve(async (req) => {
           status: 401, 
           headers: { 
             'Content-Type': 'application/json',
-            'Access-Control-Allow-Origin': '*',
+            ...corsHeaders(req),
           } 
         }
       )
@@ -244,7 +238,7 @@ serve(async (req) => {
           status: 401, 
           headers: { 
             'Content-Type': 'application/json',
-            'Access-Control-Allow-Origin': '*',
+            ...corsHeaders(req),
           } 
         }
       )
@@ -297,7 +291,7 @@ serve(async (req) => {
             status: 500, 
             headers: { 
               'Content-Type': 'application/json',
-              'Access-Control-Allow-Origin': '*',
+              ...corsHeaders(req),
             } 
           }
         )
@@ -346,7 +340,7 @@ serve(async (req) => {
               status: 200,
               headers: {
                 'Content-Type': 'application/json',
-                'Access-Control-Allow-Origin': '*',
+                ...corsHeaders(req),
               }
             }
           )
@@ -380,7 +374,7 @@ serve(async (req) => {
           status: 500, 
           headers: { 
             'Content-Type': 'application/json',
-            'Access-Control-Allow-Origin': '*',
+            ...corsHeaders(req),
           } 
         }
       )
@@ -402,7 +396,7 @@ serve(async (req) => {
           status: 500, 
           headers: { 
             'Content-Type': 'application/json',
-            'Access-Control-Allow-Origin': '*',
+            ...corsHeaders(req),
           } 
         }
       )
@@ -439,7 +433,7 @@ serve(async (req) => {
           status: 500, 
           headers: { 
             'Content-Type': 'application/json',
-            'Access-Control-Allow-Origin': '*',
+            ...corsHeaders(req),
           } 
         }
       )
@@ -458,7 +452,7 @@ serve(async (req) => {
           status: 500, 
           headers: { 
             'Content-Type': 'application/json',
-            'Access-Control-Allow-Origin': '*',
+            ...corsHeaders(req),
           } 
         }
       )
@@ -479,7 +473,7 @@ serve(async (req) => {
         status: 200,
         headers: {
           'Content-Type': 'application/json',
-          'Access-Control-Allow-Origin': '*',
+          ...corsHeaders(req),
         }
       }
     )
@@ -491,7 +485,7 @@ serve(async (req) => {
         status: 500, 
         headers: { 
           'Content-Type': 'application/json',
-          'Access-Control-Allow-Origin': '*',
+          ...corsHeaders(req),
         } 
       }
     )

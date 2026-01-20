@@ -145,29 +145,48 @@ export function createAdminClient() {
  * Creates a CORS response
  * 
  * SECURITY: Uses ALLOWED_ORIGINS environment variable to restrict CORS.
+ * Matches the request origin against allowed origins list.
  * Falls back to wildcard '*' in development if not set.
  * 
  * To configure in Supabase Dashboard:
  * 1. Go to Project Settings → Edge Functions → Environment Variables
- * 2. Add: ALLOWED_ORIGINS = https://yourdomain.com,https://www.yourdomain.com
+ * 2. Add: ALLOWED_ORIGINS = https://yourdomain.com,https://www.yourdomain.com,http://localhost:5173
  */
-export function corsHeaders() {
+export function corsHeaders(req?: Request) {
   // Get allowed origins from environment variable
-  const allowedOrigins = Deno.env.get('ALLOWED_ORIGINS')
+  const allowedOriginsEnv = Deno.env.get('ALLOWED_ORIGINS')
+  const requestOrigin = req?.headers.get('Origin')
   
-  // In production, use specific origins. In development, allow all (for local testing)
-  // TODO: Remove wildcard fallback before mainnet launch
-  const origin = allowedOrigins 
-    ? allowedOrigins.split(',')[0].trim() // Use first origin for now
-    : '*' // Fallback for development (REMOVE IN PRODUCTION)
+  // Parse allowed origins into array
+  const allowedOrigins = allowedOriginsEnv 
+    ? allowedOriginsEnv.split(',').map(o => o.trim())
+    : []
   
-  // Log for debugging (remove sensitive data in production)
-  if (!allowedOrigins) {
+  // If we have allowed origins, check if request origin matches
+  let allowedOrigin: string
+  if (allowedOrigins.length > 0) {
+    if (requestOrigin && allowedOrigins.includes(requestOrigin)) {
+      // Request origin is in allowed list - use it
+      allowedOrigin = requestOrigin
+      console.log('✅ CORS: Allowed origin matched:', requestOrigin)
+    } else {
+      // Request origin not in allowed list - use first allowed origin as fallback
+      // This ensures CORS headers are always set, but may cause issues
+      allowedOrigin = allowedOrigins[0]
+      console.warn('⚠️ CORS: Request origin not in allowed list:', {
+        requestOrigin,
+        allowedOrigins,
+        usingFallback: allowedOrigin
+      })
+    }
+  } else {
+    // No allowed origins configured - use wildcard (development only)
+    allowedOrigin = '*'
     console.warn('⚠️ ALLOWED_ORIGINS not set - using wildcard CORS (INSECURE for production)')
   }
   
   return {
-    'Access-Control-Allow-Origin': origin,
+    'Access-Control-Allow-Origin': allowedOrigin,
     'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
     'Access-Control-Allow-Methods': 'GET, POST, PATCH, PUT, DELETE, OPTIONS',
   }
@@ -176,10 +195,10 @@ export function corsHeaders() {
 /**
  * Creates a CORS preflight response (for OPTIONS requests)
  */
-export function corsPreflightResponse() {
+export function corsPreflightResponse(req: Request) {
   return new Response(null, {
     status: 204,
-    headers: corsHeaders()
+    headers: corsHeaders(req)
   })
 }
 
@@ -188,7 +207,7 @@ export function corsPreflightResponse() {
  * 
  * IMPORTANT: UNAUTHORIZED errors should always return 403 status
  */
-export function errorResponse(message: string, status: number = 400) {
+export function errorResponse(message: string, status: number = 400, req?: Request) {
   // Ensure authentication errors return 403 (best practice: immediately return 403 for invalid tokens)
   if (message.includes('UNAUTHORIZED') || message.includes('Unauthorized')) {
     status = 403
@@ -198,7 +217,7 @@ export function errorResponse(message: string, status: number = 400) {
     JSON.stringify({ error: message.replace('UNAUTHORIZED: ', '') }),
     { 
       status,
-      headers: { ...corsHeaders(), 'Content-Type': 'application/json' }
+      headers: { ...corsHeaders(req), 'Content-Type': 'application/json' }
     }
   )
 }
@@ -206,12 +225,12 @@ export function errorResponse(message: string, status: number = 400) {
 /**
  * Creates a success response
  */
-export function successResponse(data: any, status: number = 200) {
+export function successResponse(data: any, status: number = 200, req?: Request) {
   return new Response(
     JSON.stringify(data),
     { 
       status,
-      headers: { ...corsHeaders(), 'Content-Type': 'application/json' }
+      headers: { ...corsHeaders(req), 'Content-Type': 'application/json' }
     }
   )
 }

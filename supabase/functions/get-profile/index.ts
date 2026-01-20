@@ -5,7 +5,7 @@ import { checkRateLimit, getRateLimitIdentifier, rateLimitResponse, RATE_LIMITS 
 serve(async (req) => {
   // Handle CORS preflight
   if (req.method === 'OPTIONS') {
-    return corsPreflightResponse()
+    return corsPreflightResponse(req)
   }
 
   // Rate limiting by IP (public endpoint)
@@ -56,7 +56,7 @@ serve(async (req) => {
     const requestedWallet = targetWallet?.toLowerCase() || walletAddress?.toLowerCase()
     
     if (!requestedWallet) {
-      return errorResponse('wallet_address parameter is required', 400)
+      return errorResponse('wallet_address parameter is required', 400, req)
     }
 
     console.log('🔍 Fetching profile:', { 
@@ -83,10 +83,10 @@ serve(async (req) => {
 
     if (error) {
       console.error('Error fetching profile:', error)
-      return errorResponse('Failed to fetch profile', 500)
+      return errorResponse('Failed to fetch profile', 500, req)
     }
 
-    return successResponse({ profile: profile || null })
+    return successResponse({ profile: profile || null }, 200, req)
   } catch (error: any) {
     console.error('Error in get-profile:', error)
     
@@ -102,7 +102,7 @@ serve(async (req) => {
     if (isAuthError && wasAuthenticatedRequest) {
       // Authenticated request failed - return 403
       console.warn('⚠️ Authenticated request failed, returning 403')
-      return errorResponse('Unauthorized', 403)
+      return errorResponse('Unauthorized', 403, req)
     }
     
     // For public requests with auth errors, log but don't fail
@@ -110,11 +110,11 @@ serve(async (req) => {
     if (isAuthError && !wasAuthenticatedRequest) {
       console.warn('⚠️ Auth error on public request (ignoring):', error.message)
       // Return empty profile instead of error for public reads
-      return successResponse({ profile: null })
+      return successResponse({ profile: null }, 200, req)
     }
     
     // For other errors, return 500
-    return errorResponse(error.message || 'Internal server error', 500)
+    return errorResponse(error.message || 'Internal server error', 500, req)
   }
 })
 
